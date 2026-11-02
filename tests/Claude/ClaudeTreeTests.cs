@@ -229,12 +229,11 @@ internal static class ClaudeTreeTests
                 string path = Path.Combine(folder, "claude-" + size.Width + "x" + size.Height + ".xml");
                 var settings = new AppSettings { TextScale = size.Width == 640 ? 1.4 : 1, ClaudePeriod = "Week" };
                 SettingsStore.Save(path, settings);
-                using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
                 {
-                    var window = (Window)System.Windows.Markup.XamlReader.Load(stream);
+                    var window = AppController.LoadWindow("ShellWindow");
                     try
                     {
-                        using (var controller = new DashboardController(window, path))
+                        using (var controller = new AppController(window, path))
                         {
                             var sized = (FrameworkElement)window.FindName("ClaudeCard"); sized.Width = size.Width; sized.Height = size.Height;
                             controller.UseClaudeSample(false);
