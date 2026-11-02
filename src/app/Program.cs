@@ -104,7 +104,7 @@ namespace WidgetScreen
             catch (Exception e)
             {
                 Log(e);
-                if (!args.Contains("--render")) MessageBox.Show("Widget Screen could not start.\n\n" + e.GetBaseException().Message, "Widget Screen", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (!args.Contains("--render")) MessageBox.Show("Claude Dashboard could not start.\n\n" + e.GetBaseException().Message, "Claude Dashboard", MessageBoxButton.OK, MessageBoxImage.Error);
                 return 1;
             }
         }
