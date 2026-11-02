@@ -1,0 +1,136 @@
+<!-- Claude Dashboard's Settings (phase 4): its own window over the dashboard, with Theme, Claude and Window. Theme
+     changes preview on the dashboard at once; Save keeps them and Cancel (or closing the window) puts the saved ones
+     back. Connect, Disconnect, Sign in and Sign out act at once, as before. AppController merges ShellStyles.xaml and
+     the palette into the resources, so styles here are DynamicResource. -->
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings · Claude Dashboard" Width="980" Height="720" MinWidth="640" MinHeight="480"
+        Background="{DynamicResource Surface}" Foreground="{DynamicResource Text}" FontFamily="Segoe UI" WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display">
+  <!--SHELL STYLES-->
+  <Grid x:Name="SettingsRoot" Background="{DynamicResource Surface}">
+    <Grid Margin="24,16,24,16">
+      <Grid.RowDefinitions><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <TabControl x:Name="SettingsTabs" Margin="0,0,0,8">
+        <TabItem Header="Theme">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel MaxWidth="620" HorizontalAlignment="Left" Margin="0,0,12,0">
+            <TextBlock Text="Appearance" Style="{DynamicResource Heading}"/>
+            <TextBlock Text="Changes preview on the dashboard. Save to keep them." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+            <TextBlock Text="Palette" Style="{DynamicResource Small}" Margin="0,8,0,4"/>
+            <ComboBox x:Name="ThemeChoice" AutomationProperties.Name="Palette"/>
+            <TextBlock Text="Claude is a light palette: warm paper, soft black and terracotta. Midnight, Slate and Warm are dark." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            <TextBlock Text="Accent colour" Style="{DynamicResource Small}" Margin="0,14,0,4"/>
+            <ComboBox x:Name="AccentChoice" AutomationProperties.Name="Accent colour"/>
+            <DockPanel Margin="0,16,0,0">
+              <TextBlock x:Name="ScaleLabel" DockPanel.Dock="Right" Text="100%" Style="{DynamicResource Small}"/>
+              <TextBlock Text="Text size" Style="{DynamicResource Small}"/>
+            </DockPanel>
+            <Slider x:Name="ScaleChoice" Minimum="90" Maximum="140" TickFrequency="5" IsSnapToTickEnabled="True" AutomationProperties.Name="Text size"/>
+            <TextBlock Text="Bigger text needs a bigger window for the full pit wall; a small window shows the compact designs." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,2,0,12"/>
+            <CheckBox x:Name="ClockChoice" Content="Use a 24-hour clock"/>
+            <CheckBox x:Name="QuietChoice" Content="Quiet mode"/>
+            <TextBlock Text="No chime and no Windows notifications. The header's Quiet button does the same." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,8"/>
+          </StackPanel></ScrollViewer>
+        </TabItem>
+        <TabItem Header="Claude">
+          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,12,0">
+              <TextBlock Text="Your Claude plan" Style="{DynamicResource Heading}"/>
+              <TextBlock x:Name="ClaudePlanStatus" Text="Not signed in" TextWrapping="Wrap" Margin="0,0,0,8"/>
+              <WrapPanel><Button x:Name="ClaudeSignInButton" Content="Sign in with Claude" Style="{DynamicResource AccentButton}" Margin="0,0,8,8" AutomationProperties.Name="Sign in with Claude"/><Button x:Name="ClaudeSignOutButton" Content="Sign out" Margin="0,0,8,8" Visibility="Collapsed"/></WrapPanel>
+              <TextBlock Text="Opens Claude's sign-in page in your browser. Claude Dashboard gets its own sign-in, which can only read your profile and your plan's usage: no chats, no credits. It's kept encrypted on this PC, renews itself, and checks your 5-hour and weekly limits on the interval under Refresh (every 5 minutes unless you change it), whether or not Claude Code is open." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,4,0,20"/>
+              <TextBlock Text="Claude Code" Style="{DynamicResource Heading}"/>
+              <TextBlock x:Name="ClaudeConnectionStatus" Text="Not connected" TextWrapping="Wrap" Margin="0,0,0,4"/>
+              <TextBlock x:Name="ClaudeFolderText" Text="" Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+              <WrapPanel><Button x:Name="ClaudeConnectButton" Content="Connect Claude Code" Style="{DynamicResource AccentButton}" Margin="0,0,8,8"/><Button x:Name="ClaudeDisconnectButton" Content="Disconnect" Margin="0,0,8,8"/></WrapPanel>
+              <TextBlock x:Name="ClaudeTelemetryText" Text="" Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+              <TextBlock x:Name="ClaudeManagedText" Text="" Style="{DynamicResource Small}" Foreground="{DynamicResource Warning}" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="Collapsed"/>
+              <TextBlock Text="Connect and Disconnect take effect right away; you don't need to save. Claude Code picks up the change in sessions you start afterwards." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,6,0,14"/>
+              <CheckBox x:Name="ClaudeChimeChoice" Content="Chime when a session needs me"/>
+              <TextBlock Text="The window's edge lights up either way. Quiet mode keeps the chime off." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <CheckBox x:Name="ClaudeToastChoice" Content="Notify me in Windows when a session needs me" AutomationProperties.Name="Show a Windows notification when a Claude Code session needs me"/>
+              <TextBlock Text="Also when a session gets stuck, or finishes a turn of 10 minutes or more. Click the notification to bring the session forward. Quiet mode keeps it silent." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <CheckBox x:Name="ClaudeStillChoice" Content="Keep the cars still in Quiet mode" AutomationProperties.Name="Keep the Claude cars still in Quiet mode"/>
+              <TextBlock Text="Off: the cars keep driving, revving and rolling into their garages even in Quiet mode. They stop whenever the window is minimised." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <CheckBox x:Name="ClaudeApiValueChoice" Content="Show what the tokens would cost at API list prices" AutomationProperties.Name="Show the API value of the tokens"/>
+              <TextBlock Text="Your Claude plan doesn't pay these prices; the plan meters show your plan's use. Off: each thread's replies show instead." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <CheckBox x:Name="ClaudeHideArchivedChoice" Content="Hide resolved and archived threads" AutomationProperties.Name="Hide resolved and archived Claude threads"/>
+              <TextBlock Text="Resolved: the Claude app says the latest reply completed the job. Archived: you archived it in the Claude app. On: they leave the pit wall, and each project says how many it hides. Off: they park last, dimmed. A resolved thread that starts working again or needs you shows right away." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <CheckBox x:Name="ClaudeHideIdleChoice" Content="Hide idle threads" AutomationProperties.Name="Hide idle Claude threads"/>
+              <TextBlock Text="Open threads that have waited 30 minutes or more. Their tokens still count in their project's totals." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,20"/>
+              <TextBlock Text="Side panel facts" Style="{DynamicResource Heading}"/>
+              <TextBlock Text="The four facts beside the 5-hour lanes on a wide window, for the period it shows. Tool times, failures, API errors, edits, commits and active time come from Claude Code's telemetry." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+              <Grid Margin="0,0,0,20"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                <ComboBox x:Name="ClaudeFact0Choice" Margin="0,0,0,8" AutomationProperties.Name="First side panel fact"/>
+                <ComboBox x:Name="ClaudeFact1Choice" Grid.Column="2" Margin="0,0,0,8" AutomationProperties.Name="Second side panel fact"/>
+                <ComboBox x:Name="ClaudeFact2Choice" Grid.Row="1" AutomationProperties.Name="Third side panel fact"/>
+                <ComboBox x:Name="ClaudeFact3Choice" Grid.Row="1" Grid.Column="2" AutomationProperties.Name="Fourth side panel fact"/>
+              </Grid>
+              <TextBlock Text="Refresh" Style="{DynamicResource Heading}"/>
+              <WrapPanel Margin="0,0,0,4">
+                <TextBlock Text="Update the pit wall every" VerticalAlignment="Center" Width="230"/>
+                <Button x:Name="ClaudeCardSecondsLess" Content="&#x2212;" Width="40" ToolTip="One second less" AutomationProperties.Name="One second less between updates"/>
+                <TextBox x:Name="ClaudeCardSecondsBox" Width="80" Margin="6,0" TextAlignment="Center" AutomationProperties.Name="Seconds between updates"/>
+                <Button x:Name="ClaudeCardSecondsMore" Content="+" Width="40" ToolTip="One second more" AutomationProperties.Name="One second more between updates"/>
+                <TextBlock Text="seconds" VerticalAlignment="Center" Margin="10,0,0,0"/>
+              </WrapPanel>
+              <TextBlock Text="Sessions, threads, telemetry totals and logs are read again this often while the window is open. At least 1 second; Quiet mode doesn't change it." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+              <WrapPanel Margin="0,0,0,4">
+                <TextBlock Text="Check plan limits every" VerticalAlignment="Center" Width="230"/>
+                <Button x:Name="ClaudePlanSecondsLess" Content="&#x2212;" Width="40" ToolTip="Ten seconds less" AutomationProperties.Name="Ten seconds less between plan checks"/>
+                <TextBox x:Name="ClaudePlanSecondsBox" Width="80" Margin="6,0" TextAlignment="Center" AutomationProperties.Name="Seconds between plan checks"/>
+                <Button x:Name="ClaudePlanSecondsMore" Content="+" Width="40" ToolTip="Ten seconds more" AutomationProperties.Name="Ten seconds more between plan checks"/>
+                <TextBlock Text="seconds" VerticalAlignment="Center" Margin="10,0,0,0"/>
+              </WrapPanel>
+              <TextBlock x:Name="ClaudePlanSecondsNote" Text="Anthropic may slow down very frequent checks." Foreground="{DynamicResource Warning}" Style="{DynamicResource Small}" TextWrapping="Wrap" Visibility="Collapsed"/>
+              <TextBlock Text="At least 10 seconds. If Anthropic asks Claude Dashboard to slow down, it waits twice as long each time (up to 15 minutes) and the pit wall says when the limits are from, then goes back to your interval." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,20"/>
+              <TextBlock Text="Projects" Style="{DynamicResource Heading}"/>
+              <CheckBox x:Name="ClaudeShowNewChoice" Content="Show new projects automatically"/>
+              <TextBlock Text="Each project is a garage with its threads as cars; click a garage to roll them in. Unticked projects leave the pit wall. The plan meters always show your whole plan." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <StackPanel x:Name="ClaudeProjectsList"/>
+              <TextBlock x:Name="ClaudeProjectsEmpty" Text="Projects show here once Claude Code has run on this PC." Style="{DynamicResource Small}" TextWrapping="Wrap"/>
+            </StackPanel></ScrollViewer>
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,12,0">
+              <TextBlock Text="What Connect changes" Style="{DynamicResource Heading}"/>
+              <TextBlock Text="It adds hooks to Claude Code's settings.json, so each session tells the dashboard when it starts, works, finishes or needs you, and sets its status line." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+              <TextBlock Text="It also turns on Claude Code's telemetry and sends it only to Claude Dashboard on this PC (127.0.0.1, port 43832): token counts, cost and event names for live usage per session. Prompts, replies and tool details are never included. If settings.json already sends telemetry somewhere, that's left as it is." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+              <TextBlock Text="Your own hooks stay as they are. If you had a status line, it keeps showing: Claude Dashboard runs it and passes on what it prints." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+              <TextBlock Text="A backup is saved next to it as settings.json.widgetscreen-backup. Disconnect takes out exactly what Connect added and puts your earlier status line back." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+              <TextBlock Text="Sessions in the Claude app's Code tab, a terminal or an editor all show, including ones started before you connected. Usage per project is counted from Claude Code's logs and telemetry on this PC, with what it would cost at API prices (your plan doesn't pay those). Click a car to bring its session's window to the front." Style="{DynamicResource Small}" TextWrapping="Wrap"/>
+            </StackPanel></ScrollViewer>
+          </Grid>
+        </TabItem>
+        <TabItem Header="Window">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel MaxWidth="620" HorizontalAlignment="Left" Margin="0,0,12,0">
+            <TextBlock Text="Window" Style="{DynamicResource Heading}"/>
+            <CheckBox x:Name="StartWithWindowsChoice" Content="Start Claude Dashboard when I sign in to Windows"/>
+            <TextBlock x:Name="StartWithWindowsNote" Text="Adds a shortcut to your Startup folder, the same one Setup offers." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+            <CheckBox x:Name="StartMinimisedChoice" Content="Start minimised"/>
+            <TextBlock Text="It still watches your sessions and notifies you; the pit wall shows when you open the window." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+            <CheckBox x:Name="RememberWindowChoice" Content="Open where I last closed it"/>
+            <TextBlock Text="The same monitor, place and size. If that monitor is gone, the window opens on your main screen. Off: it opens in the middle of your main screen." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+          </StackPanel></ScrollViewer>
+        </TabItem>
+      </TabControl>
+      <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <TextBlock x:Name="SettingsStatus" Text="" Style="{DynamicResource Small}" VerticalAlignment="Center" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,16,0"/>
+        <Button x:Name="CancelSettings" Grid.Column="1" Content="Cancel" MinWidth="110" Margin="0,0,10,0" VerticalAlignment="Center" IsCancel="True" AutomationProperties.Name="Cancel settings changes"/>
+        <Button x:Name="SaveSettings" Grid.Column="2" Content="Save changes" Style="{DynamicResource AccentButton}" MinWidth="140" VerticalAlignment="Center"/>
+      </Grid>
+    </Grid>
+
+    <Grid x:Name="ConfirmOverlay" Visibility="Collapsed" Background="{DynamicResource Scrim}" KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle">
+      <Border Style="{DynamicResource Card}" MaxWidth="560" Margin="24" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel>
+          <TextBlock x:Name="ConfirmTitle" Text="CLAUDE" Style="{DynamicResource Label}"/>
+          <TextBlock x:Name="ConfirmSubject" Text="" FontSize="{DynamicResource TitleSize}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"/>
+          <TextBlock x:Name="ConfirmDetail" Text="" Style="{DynamicResource Small}" TextWrapping="Wrap" TextTrimming="None" Margin="0,8,0,0"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button x:Name="ConfirmCancel" Content="Cancel" MinWidth="110" Margin="0,0,10,0" AutomationProperties.Name="Cancel"/>
+            <Button x:Name="ConfirmAction" Content="OK" Style="{DynamicResource AccentButton}" MinWidth="130"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

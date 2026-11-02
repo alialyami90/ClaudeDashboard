@@ -347,7 +347,7 @@ namespace WidgetScreen
             var lines = new List<string> { ApiValueTip };
             string source = view.CostSourceFor(period);
             lines.Add(source == "claude" ? "Costs from Claude Code's telemetry." : source == "statusline" ? "Costs from Claude Code's status line, shared out by reply size." : source == "mixed" ? "Costs from Claude Code where it sent them, else from list prices." : "Costs from list prices.");
-            if (!Double.IsNaN(view.ClaudeCodeCost)) lines.Add("Running sessions: Claude Code counts $" + Dollars(view.ClaudeCodeCost) + " in all; Widget Screen counts $" + Dollars(view.EstimateCost) + " for them this week.");
+            if (!Double.IsNaN(view.ClaudeCodeCost)) lines.Add("Running sessions: Claude Code counts $" + Dollars(view.ClaudeCodeCost) + " in all; Claude Dashboard counts $" + Dollars(view.EstimateCost) + " for them this week.");
             string unknown = UnpricedTip(view.UnpricedFor(period));
             if (unknown.Length > 0) lines.Add(unknown);
             return String.Join("\n", lines);
@@ -501,6 +501,17 @@ namespace WidgetScreen
         public LabelStrip Strip { get; private set; }
         public ClaudeView View { get { return view; } }
         public ClaudePeriod Period { get { return period; } }
+        // Claude Dashboard's window (phase 4): the window's own header shows the summary, the flag and the period
+        // switch, so the card leaves out its heading (and its label strip; the window title names it), and the
+        // Needs-you and Your-turn edge goes on the border passed in as the card: the window's frame. Rendered tells the
+        // window's header to follow, after every fill.
+        public bool InWindow { get; set; }
+        public event Action Rendered;
+        // The edge the card asks for in a window: Warning while a session needs you, Turn while one waits for your
+        // reply, otherwise none.
+        public string Edge { get; private set; }
+        // A new palette: the card's tints are worked out again.
+        public void Restyle() { built = ""; Rebuild(); }
         public bool Animating { get { return rolling != null; } }
         public PitClock Clock { get { return clock; } }
         // For the checks: each shown garage and its cars, in card coordinates.
@@ -727,8 +738,8 @@ namespace WidgetScreen
         private FrameworkElement BuildLarge(double width, double height)
         {
             bool asking = view.Sessions.Any(s => s.State == ClaudeState.NeedsYou);
-            var root = Rows(new GridLength(48), new GridLength(12), Auto, Auto, Auto, new GridLength(12), Star);
-            root.Children.Add(Header(width, true));
+            var root = Rows(new GridLength(InWindow ? 0 : 48), new GridLength(InWindow ? 0 : 12), Auto, Auto, Auto, new GridLength(12), Star);
+            if (!InWindow) root.Children.Add(Header(width, true));
             root.Children.Add(At(PlanRow(width), 2));
             // Package 2: more narrower weekly windows, extra usage and a gateway's spend limit, as chips. They step
             // aside while a session needs you, so the ask strip and the ledger keep their room.
@@ -1133,7 +1144,7 @@ namespace WidgetScreen
             side.Children.Add(facts);
             // Telemetry can't arrive (decision 023): "Telemetry off: port 43832 in use".
             var warning = names.Add(Trimmed(Text("", 12, "Warning")), "ClaudeTelemetryWarning"); warning.Margin = new Thickness(4, 2, 4, 0);
-            warning.ToolTip = "Widget Screen couldn't listen on the port Claude Code sends telemetry to. Settings → Claude → Update connection picks a free one.";
+            warning.ToolTip = "Claude Dashboard couldn't listen on the port Claude Code sends telemetry to. Settings → Claude → Update connection picks a free one.";
             side.Children.Add(warning);
             fills.Add(now => {
                 warning.Text = view.TelemetryWarning ?? "";
@@ -1163,9 +1174,9 @@ namespace WidgetScreen
         // The two plan meters with pace, then the top garages with their cars inline (a waiting thread's first).
         private FrameworkElement BuildMedium(double width, double height)
         {
-            double head = Math.Max(Stickers.StripHeight, Math.Ceiling(15 * textScale * 1.34));
-            var root = Rows(new GridLength(head), new GridLength(10), Auto, Star);
-            root.Children.Add(Header(width, false));
+            double head = InWindow ? 0 : Math.Max(Stickers.StripHeight, Math.Ceiling(15 * textScale * 1.34)), gap = InWindow ? 0 : 10;
+            var root = Rows(new GridLength(head), new GridLength(gap), Auto, Star);
+            if (!InWindow) root.Children.Add(Header(width, false));
             var tiles = Columns(Star, new GridLength(10), Star); tiles.Height = CardSizing.ClaudeMiniHeight;
             if (view.Limits != null && view.Limits.Known)
             {
@@ -1179,7 +1190,7 @@ namespace WidgetScreen
             }
             root.Children.Add(At(tiles, 2));
             var groups = view.Groups(period);
-            double rowHeight = CardSizing.ClaudeMediumRow(textScale), room = height - head - 10 - CardSizing.ClaudeMiniHeight - 6;
+            double rowHeight = CardSizing.ClaudeMediumRow(textScale), room = height - head - gap - CardSizing.ClaudeMiniHeight - 6;
             int fit = Math.Max(1, (int)Math.Floor(room / rowHeight));
             var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
             if (groups.Count == 0) list.Children.Add(Empty(width));
@@ -1344,8 +1355,11 @@ namespace WidgetScreen
         {
             if (view == null || rolling != null) return;
             DateTime now = DateTime.UtcNow;
-            // The one state allowed to shout: an Amber border around the whole card.
-            if (view.NeedsYou > 0) { card.SetResourceReference(Border.BorderBrushProperty, "Warning"); card.BorderThickness = new Thickness(2); }
+            // The one state allowed to shout: an Amber border around the whole card. In a window the frame keeps its
+            // thickness, so nothing moves, and also turns Glacier while a session waits for your reply.
+            Edge = view.NeedsYou > 0 ? "Warning" : InWindow && view.Sessions.Any(s => s.Pit == PitState.Done) ? "Turn" : null;
+            if (InWindow) { if (Edge != null) card.SetResourceReference(Border.BorderBrushProperty, Edge); else card.BorderBrush = Brushes.Transparent; }
+            else if (view.NeedsYou > 0) { card.SetResourceReference(Border.BorderBrushProperty, "Warning"); card.BorderThickness = new Thickness(2); }
             else { card.ClearValue(Border.BorderBrushProperty); card.ClearValue(Border.BorderThicknessProperty); }
             foreach (var fill in fills) fill(now);
             var threads = view.Threads.ToDictionary(t => t.Id);
@@ -1372,6 +1386,7 @@ namespace WidgetScreen
                 if (part.Crew.Workers != workers || part.Crew.TasksDone != done || part.Crew.TasksTotal != total) { part.Crew.Workers = workers; part.Crew.TasksDone = done; part.Crew.TasksTotal = total; part.Crew.InvalidateVisual(); }
             }
             clock.Update();
+            if (Rendered != null) Rendered();
         }
         private void RenderCar(CarPart part, ClaudeSession t, double fiveHour)
         {
