@@ -16,7 +16,8 @@ $sizes = 16, 20, 24, 32, 40, 48, 64, 128, 256
 
 function Brush([string]$hex) { $b = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($hex)); $b.Freeze(); $b }
 $surface = Brush '#161A22'; $border = Brush '#252B36'
-[uint32]$lime = 0xFFBAF28B; [uint32]$glacier = 0xFF8ED8F8
+# ARGB colours as the sprites take them (PowerShell reads 0xFF... literals as negative Int32).
+$lime = [Convert]::ToUInt32('FFBAF28B', 16); $glacier = [Convert]::ToUInt32('FF8ED8F8', 16)
 
 # A sprite drawn by PitRaster at w × h hard pixels, then repeated k times each way (nearest neighbour), so the pixels
 # stay square at every icon size.
