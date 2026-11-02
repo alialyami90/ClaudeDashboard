@@ -1,10 +1,19 @@
 # Changelog
 
-Released versions of Widget Screen, newest first. Each version is an annotated `vX.Y.Z` tag on `main`. Work that hasn't been merged yet is in the [open pull requests](https://github.com/RLcafe/OpenSidecar/pulls); the process and version rules are in [BRANCHES.md](BRANCHES.md).
+Released versions of Claude Dashboard (formerly Widget Screen), newest first. Each version is an annotated `vX.Y.Z` tag on `main`. Work that hasn't been merged yet is in the [open pull requests](https://github.com/alialyami90/ClaudeDashboard/pulls); the process and version rules are in [BRANCHES.md](BRANCHES.md).
 
 ## Unreleased
 
 Nothing yet.
+
+## v0.42.0 (2 Nov 2026)
+
+Claude Dashboard, phase 1 of decision 026: the documents.
+
+- **New rules.** CLAUDE.md, PRODUCT.md, DESIGN.md and README.md describe Claude Dashboard: a Windows desktop app whose whole window is the Claude Code watcher. Android is a roadmap item.
+- **Decision 026** records the transformation plan, Ali's answers and the six phases.
+- **Archive.** The Widget Screen spec, the non-Claude decision records and design notes move to `docs/archive/`, unchanged except for links the move broke. AGENTS.md is removed.
+- No app changes.
 
 ## v0.41.0 (2 Nov 2026)
 
