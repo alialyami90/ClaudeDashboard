@@ -11,7 +11,7 @@ foreach ($file in @('ClaudeDashboard.exe', 'ClaudeDashboard.exe.config', 'Claude
     if (-not (Test-Path -LiteralPath (Join-Path $source $file))) { throw "$file is missing from $source. Build the app first." }
 }
 # The version comes from the newest vX.Y.Z tag, like the app's own (builds after a tag carry the commit count and hash).
-if (-not $Version) { $Version = & { $ErrorActionPreference = 'Continue'; git -C $projectRoot describe --tags --match 'v[0-9]*' --dirty 2>$null } }
+if (-not $Version) { $Version = "$(& { $ErrorActionPreference = 'Continue'; git -C $projectRoot describe --tags --match 'v[0-9]*' --dirty 2>$null })" }
 if (-not $Version) { $Version = 'v0.0.0' }
 $label = 'v' + ([string]$Version).TrimStart('v')
 $match = [regex]::Match($label, '^v(\d+)\.(\d+)\.(\d+)')

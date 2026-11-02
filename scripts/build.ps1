@@ -17,7 +17,7 @@ foreach ($metadataName in @('Windows.Foundation.winmd', 'Windows.Media.winmd', '
 }
 # The exe's version comes from the newest vX.Y.Z tag; builds after a tag carry the commit count and hash.
 # With no tag yet, git prints "No names found" to stderr; Windows PowerShell would turn that into a stopping error.
-$described = & { $ErrorActionPreference = 'Continue'; git -C $projectRoot describe --tags --match 'v[0-9]*' --dirty 2>$null }
+$described = "$(& { $ErrorActionPreference = 'Continue'; git -C $projectRoot describe --tags --match 'v[0-9]*' --dirty 2>$null })"
 $versionMatch = [regex]::Match([string]$described, '^v(\d+)\.(\d+)\.(\d+)(?:-(\d+)-g[0-9a-f]+)?')
 $versionCore = if ($versionMatch.Success) { '{0}.{1}.{2}' -f $versionMatch.Groups[1].Value, $versionMatch.Groups[2].Value, $versionMatch.Groups[3].Value } else { '0.0.0' }
 $commitsSinceTag = if ($versionMatch.Groups[4].Success) { $versionMatch.Groups[4].Value } else { '0' }
