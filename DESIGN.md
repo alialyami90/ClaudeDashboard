@@ -1,47 +1,61 @@
-# Widget Screen design: the Sticker Sheet
+# Claude Dashboard design: the pit wall
 
-The dashboard is a dark sheet of cards, glanceable from arm's length on a 1920 × 720 touchscreen while a game or app runs on the main screen. Each card is a sticker on that sheet: it has its own ink, says what it is in a bold label strip, and says the one thing that matters now in a status sticker. Everything else stays calm. The full note is [docs/design/sticker-sheet.md](docs/design/sticker-sheet.md), and the technical record is [decision 021](docs/decisions/021-sticker-sheet-inks.md). The as-built spec in `design specfication/` (§3.3–3.5) still defines the palettes and accents.
+The window is a race team's pit wall. Each project is a garage, each Claude Code thread a car, and the plan's limits are the car's gauges: a fuel tank for the 5-hour window, laps for the week, a rev counter for tokens a minute. Everything is calm until a car needs the driver; then that car, and only that car, shouts. The approved mock is [docs/design/claude-watcher-v2.html](docs/design/claude-watcher-v2.html), the built card is described in [docs/design/claude-watcher.md](docs/design/claude-watcher.md), and the technical record is [decision 017](docs/decisions/017-claude-pit-wall.md). The old Sticker Sheet design of the widget app is archived in [docs/archive/widget-screen/DESIGN.md](docs/archive/widget-screen/DESIGN.md).
 
 ## Surfaces
 
-- **Palettes:** Midnight, Slate or Warm. Each has its own Page, Surface, Raised, Input, Track, ControlBorder, Selected, Muted and Text colours, and the cards are Surface on Page.
-- **System accent:** one of Lime, Glacier, Lavender and Amber. It colours controls: primary buttons, slider fills, selection and the focus ring.
-- **Inks:** eight widget colours that sit on dark surfaces and carry dark text `#11170E` at 9:1 or better.
+- **Palettes:** Midnight (default), Slate and Warm, each with its own Page, Surface, Raised, Input, Track, ControlBorder, Selected, Muted and Text colours (`DashboardAppearance.cs`). Phase 4 adds a **Claude** palette in the spirit of the Claude app: warm paper, soft black text and a terracotta accent, with Amber kept for warnings.
+- **Accent:** one of Lime `#BAF28B`, Glacier `#8ED8F8` or Lavender `#C5AEFF`. It fills gauges, meters, the hour's burn line and the selected period.
+- **Warning:** Amber `#F5C47D`, used for Needs you, meters from 80%, and the fuel lamp. Nothing decorative is Amber.
+- **Project colours:** each garage and its cars take Lime, Glacier or Lavender from a hash of the project's name, so a project keeps its colour everywhere.
 
-| Ink | Hex | Worn by default |
+## Saying how a thread is
+
+Each state has a still frame and, when motion is on, a stepped 8-frame cycle. A chip names the state in words, so colour is never the only cue.
+
+| State | The car | The chip |
 | --- | --- | --- |
-| Lime | `#BAF28B` | Sound mixer, Games |
-| Glacier | `#8ED8F8` | Quick Launch, Clipboard, Weather, World clocks, Smart home |
-| Lavender | `#C5AEFF` | Soundboard, Storage |
-| Amber | `#F5C47D` | Warnings only |
-| Coral | `#FF9E85` | Focus, Calendar |
-| Mint | `#7FE6C0` | Spotify, Prayer times |
-| Rose | `#FFA6CF` | Now Playing, Macros |
-| Lemon | `#F0E36E` | System stats, Notes |
+| Working | wheels turn at 4–24 fps by tokens a minute, a pixel of body jitter, exhaust and dust | Working |
+| Long tool run | revs on its brakes | Tool run |
+| Needs you | hazards blink, headlights flash, a beacon on the garage | Needs you, in Amber |
+| Your turn (a turn just finished) | brake lights glow | Your turn, in Glacier |
+| Compacting | up on the jack, front wheel off | Compacting |
+| Stuck or API errors | wheelspin in tyre smoke; the tip gives the reason in words | Retrying |
+| Idle (Your turn for 30 minutes, or ready) | engine off, dimmed | Idle |
+| Ended | lights off, a slate cover drops, once; the row at 62% | Ended |
+| Resolved, Archived | under the cover, dimmed the most, last in the project | Resolved, Archived |
 
-- **Changing inks.** Edit layout changes a widget's ink. Settings → Theme → Widget colours → Accent only makes every ink the system accent.
-- **Exception:** the Claude Code card keeps its own pit-wall design (decision 017).
+Two plan states sit on top of any car: a fuel lamp that blinks at 90% of the 5-hour limit, and glowing brake discs at the redline. A context ring appears at 60%, 80% and 95% of the context window.
 
-## A card
+**The one state allowed to shout is Needs you.** Today it turns the card's border Amber. From phase 4 the window's own edge turns Amber for Needs you and Glacier for Your turn, and the pit stop strip names the thread with Go to it.
 
-1. **Label strip** at the top left: a 28-unit pill in the ink with the name in Segoe UI Black 13, letter-spaced, in dark text. Narrow cards (under 200) show an ink dot and a short name instead.
-2. **Status sticker** at the top right: one short live fact in an outlined ink pill, filled when something is active right now.
-3. **Body:** the card's readings and controls. The Light numerals and the touch sizes (48, and 52 in Settings) are unchanged.
-4. **Hero sticker** (from phase 2): one die-cut shape per card with a light keyline and a solid lift in the Page colour. It tilts 3° at most.
-5. **Fact-rail chips and a footline** (from phase 2): short labelled facts, and where the data came from and when.
+## Window sizes
 
-## Saying how things are
+The card picks its design from the space it has, and switches live while the window is resized. The numbers are today's `CardSizing.Claude` thresholds; phase 4 moves them into `ClaudeCard` and checks them at 100% and 150% display scaling.
 
-- **Working:** the ink.
-- **Warning:** Amber with caution stripes and a glyph. Never colour alone.
-- **Unavailable or not set up:** a dashed outline and the reason in plain words.
-- **Offline or stale:** a stamp, with the last values at 60%.
-- **Loading:** a static outline with "…". Nothing spins.
+- **Large** (from 640 × 420, the window's minimum): heading with the live summary and the 5 h / Today / Week switch; the plan row (tank, week laps, and the rev counter from 860 wide); the pit stop strip while a thread needs you; the ledger of garages and cars, which scrolls; and from 1000 wide a side panel with the 5-hour lanes and four facts.
+- **Medium:** two mini plan tiles over the top garages, with up to three cars inline.
+- **Small** (under 360 × 280): the car that needs you, or the busiest running one, over the 5-hour meter.
+
+Tap targets keep the sizes they have now (48-unit garages and period buttons), but these are no longer touchscreen requirements. The window may scroll its ledger; nothing else scrolls.
+
+## Pixel art
+
+- Cars and garages are drawn in code (`PitArt`, `PitGraphics`) from lists of vector steps, never from images.
+- Each sprite is rendered at its native pixel size (2 units a pixel under 150 wide, 3 from there), its alpha thresholded at 80, colours snapped to 17-unit steps, and shown scaled up with nearest-neighbour. Hard pixels, never blurred vectors.
+- The car's class follows the thread's main model: a grand tourer for Opus, a sports car for Sonnet, a hot hatch for Haiku.
+- Frames are cached by what they show.
+
+## Motion
+
+- One frame clock per card (`PitClock`), at the rate the fastest moving car needs (at most 24 fps; 20 while rolling), and only while something visible moves.
+- It stops when the window is minimised or the card hidden. In Quiet mode the cars keep still unless Settings → Claude says they may move, and the state swaps stay.
+- Tapping a garage rolls its cars in (tail lights toward you) or out (headlights toward you), about 1.2 s, instant in Quiet mode.
+- No other animation: no spinners, no transitions, no hover effects.
 
 ## Rules
 
-- **Fonts and icons:** Segoe UI (Light for numerals, Black for strips, Semibold for values) and Segoe MDL2 glyphs. Android uses sans-serif-light, -black and -medium with glyphs drawn in code. No images or emoji for icons, and no custom fonts.
-- **No shadows, blurs or effects.** Depth is a solid offset copy.
-- **No decorative or continuous animation.** Only press feedback and one-shot state changes, all off in Quiet mode.
-- **No new timers or polling for looks.** Drawn parts are built once per size and frozen.
-- **The dashboard never scrolls.** Text goes up to 140%, captions never go below 13, and touch targets keep their minimums.
+- **Fonts and icons:** Segoe UI (Light for big numerals, Semibold for values) and Segoe MDL2 Assets glyphs. No images or emoji for icons, no custom fonts.
+- **No shadows, blurs or other effects.** Depth is a solid offset copy in the Page colour.
+- **Numbers say where they come from.** "≈ $ at API prices" for estimates, "~" for an unpriced model, PARTIAL when telemetry saw fewer calls than the logs, a "LIVE · AS OF" stamp on Large, and a Sample flag on fixtures.
+- **Missing beats wrong.** A reading that isn't there shows "—" and says why, never a zero.

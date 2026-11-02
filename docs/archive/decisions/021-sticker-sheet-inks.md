@@ -1,6 +1,6 @@
 # 021 — Sticker Sheet: widget inks, label strips and status stickers
 
-Ali approved the "Widget redesign: dense, characterful widgets" doc on 1 Nov 2026 ("I like it. Proceed.") and chose the **Sticker Sheet** direction with four new inks. The redesign ships in five phases, one MINOR release each. This record covers phase 1, the foundations every card shares (branch `feature/sticker-foundations`). The design note is [docs/design/sticker-sheet.md](../design/sticker-sheet.md), and the world it describes is in [DESIGN.md](../../DESIGN.md). The Claude Code card is out of scope everywhere; it keeps its own design (decision 017).
+Ali approved the "Widget redesign: dense, characterful widgets" doc on 1 Nov 2026 ("I like it. Proceed.") and chose the **Sticker Sheet** direction with four new inks. The redesign ships in five phases, one MINOR release each. This record covers phase 1, the foundations every card shares (branch `feature/sticker-foundations`). The design note is [docs/design/sticker-sheet.md](../design/sticker-sheet.md), and the world it describes is in [DESIGN.md](../widget-screen/DESIGN.md). The Claude Code card is out of scope everywhere; it keeps its own design (decision 017).
 
 ## Decision
 

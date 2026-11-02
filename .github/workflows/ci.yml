@@ -1,7 +1,6 @@
-# Builds and tests both apps on every push and pull request, the same way as on the PC:
-# scripts\build.ps1 -Test (Windows app and its checks), scripts\package.ps1 -Test (setup exe and its sandboxed checks)
-# and scripts\build-android.ps1 -Test (APK and the core checks on the JVM). One Windows job, because the Android
-# checks read the phone-link answer that the Windows checks save (artifacts\tests\remote-state-sample.json).
+# Builds and tests Claude Dashboard on every push and pull request, the same way as on the PC:
+# scripts\build.ps1 -Test (the app, ClaudeHook.exe and their checks) and scripts\package.ps1 -Test (the setup exe and its
+# sandboxed checks). Windows only: the Android app is parked until the Claude-only phone companion (decision 026).
 # Changes that only touch Markdown, docs\ or the read-only spec don't start a run.
 name: CI
 
@@ -28,7 +27,7 @@ permissions:
 
 jobs:
   test:
-    name: Windows and Android tests
+    name: Windows build and checks
     runs-on: windows-latest
     timeout-minutes: 30
     defaults:
@@ -40,39 +39,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      # The pinned, hash-checked LibreHardwareMonitor files (decision 016). Optional: without them the app builds
-      # and says the sensors aren't installed, so a failed download doesn't fail the run.
+      # The pinned, hash-checked LibreHardwareMonitor files (decision 016), while the System stats widget still exists.
+      # Optional: without them (or without the script) the app builds and says the sensors aren't installed.
       - name: Hardware sensor files
         continue-on-error: true
-        run: .\scripts\get-sensors.ps1
+        run: if (Test-Path .\scripts\get-sensors.ps1) { .\scripts\get-sensors.ps1 }
 
-      - name: Windows app and checks
+      - name: App and checks
         run: .\scripts\build.ps1 -Test
 
       - name: Setup exe and checks
         run: .\scripts\package.ps1 -Test
 
-      - name: Android app and checks
-        run: .\scripts\build-android.ps1 -Test
-
-      # Test builds for trying a branch. The APK is signed with the runner's own debug key, so it won't install
-      # over a phone build made on the PC; uninstall that first.
+      # Test builds for trying a branch.
       - name: Upload test builds
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: widget-screen-${{ github.sha }}
+          name: claude-dashboard-${{ github.sha }}
           retention-days: 14
           if-no-files-found: ignore
           path: |
-            artifacts/app/WidgetScreen.exe
-            artifacts/app/WidgetScreen.exe.config
+            artifacts/app/ClaudeDashboard.exe
+            artifacts/app/ClaudeDashboard.exe.config
             artifacts/app/ClaudeHook.exe
             artifacts/setup/*.exe
-            artifacts/android/WidgetScreen.apk
-            artifacts/tests/remote-state-sample.json
+            artifacts/renders/*.png

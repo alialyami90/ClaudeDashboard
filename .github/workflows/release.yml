@@ -1,6 +1,7 @@
 # Publishes a GitHub Release for every vX.Y.Z tag pushed to GitHub (one tag per merge into main, see BRANCHES.md).
-# Builds the tag on a Windows runner, runs every check (Windows app, setup exe, Android app), and attaches the setup
-# exe, a portable zip of the app and the APK, with the tag's section of CHANGELOG.md as the notes. Run it by hand
+# Builds the tag on a Windows runner, runs every check (the app and the setup exe), and attaches the setup exe and a
+# portable zip of the app, with the tag's section of CHANGELOG.md as the notes. Since v0.42 the app is Claude Dashboard
+# and releases ship no APK; v0.41.0 is the last tag with the Android app (decision 026). Run it by hand
 # (Actions -> Release -> Run workflow) to publish a tag that has no release yet.
 name: Release
 
@@ -42,46 +43,22 @@ jobs:
           git merge-base --is-ancestor HEAD origin/main
           if ($LASTEXITCODE -ne 0) { throw "$env:TAG isn't on main." }
 
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      # The APK is signed with the project's debug key when the ANDROID_DEBUG_KEYSTORE_BASE64 secret holds it, so a
-      # release installs over builds made on the PC. Without it the runner makes its own key (see the release notes).
-      - name: Android signing key
-        env:
-          KEYSTORE: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
-        run: |
-          $path = Join-Path $env:USERPROFILE '.android\debug.keystore'
-          if ($env:KEYSTORE) {
-              New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force | Out-Null
-              [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:KEYSTORE))
-              'SIGNED_WITH=project' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          } else {
-              'SIGNED_WITH=runner' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          }
-
       # Releases ship the pinned, hash-checked hardware-sensor files (decision 016), so a failed fetch fails the run.
       - name: Hardware sensor files
         run: if (Test-Path .\scripts\get-sensors.ps1) { .\scripts\get-sensors.ps1 }
 
-      - name: Windows app and checks
+      - name: App and checks
         run: .\scripts\build.ps1 -Test
 
       - name: Setup exe and checks
         run: if (Test-Path .\scripts\package.ps1) { .\scripts\package.ps1 -Test }
 
-      - name: Android app and checks
-        run: if (Test-Path .\scripts\build-android.ps1) { .\scripts\build-android.ps1 -Test }
-
       - name: Collect release files
         run: |
           $out = New-Item -ItemType Directory -Path 'artifacts\release' -Force
-          Compress-Archive -Path 'artifacts\app\*' -DestinationPath (Join-Path $out "WidgetScreen-$env:TAG-portable.zip")
-          $setup = "artifacts\setup\WidgetScreen-Setup-$env:TAG.exe"
+          Compress-Archive -Path 'artifacts\app\*' -DestinationPath (Join-Path $out "ClaudeDashboard-$env:TAG-portable.zip")
+          $setup = "artifacts\setup\ClaudeDashboard-Setup-$env:TAG.exe"
           if (Test-Path $setup) { Copy-Item $setup $out }
-          if (Test-Path 'artifacts\android\WidgetScreen.apk') { Copy-Item 'artifacts\android\WidgetScreen.apk' (Join-Path $out "WidgetScreen-$env:TAG.apk") }
           # Notes: the tag's section of CHANGELOG.md, from its heading to the next version's.
           $lines = Get-Content CHANGELOG.md -Encoding utf8
           $start = [Array]::FindIndex([string[]]$lines, [Predicate[string]]{ param($l) $l -match ('^## ' + [regex]::Escape($env:TAG) + '\b') })
@@ -93,10 +70,8 @@ jobs:
           }
           $notes += ''
           $notes += '### Files'
-          $notes += "- ``WidgetScreen-Setup-$env:TAG.exe``: installs for your Windows user (no admin rights), with Start menu and Startup shortcuts."
-          $notes += "- ``WidgetScreen-$env:TAG-portable.zip``: the app folder, to run without installing."
-          $notes += "- ``WidgetScreen-$env:TAG.apk``: the Android phone remote."
-          if ($env:SIGNED_WITH -ne 'project') { $notes += '  This APK is signed with a build key, not the PC''s, so uninstall a phone build made on the PC before installing it.' }
+          $notes += "- ``ClaudeDashboard-Setup-$env:TAG.exe``: installs for your Windows user (no admin rights), with Start menu and Startup shortcuts."
+          $notes += "- ``ClaudeDashboard-$env:TAG-portable.zip``: the app folder, to run without installing."
           [IO.File]::WriteAllText((Join-Path $PWD 'artifacts\release-notes.md'), ($notes -join "`n").Trim(), (New-Object Text.UTF8Encoding $false))
           Get-ChildItem $out | Select-Object Name, Length
 
@@ -113,6 +88,6 @@ jobs:
               gh release upload $env:TAG @files --clobber
               gh release edit $env:TAG --notes-file artifacts\release-notes.md
           } else {
-              gh release create $env:TAG @files --verify-tag --title "Widget Screen $env:TAG" --notes-file artifacts\release-notes.md
+              gh release create $env:TAG @files --verify-tag --title "Claude Dashboard $env:TAG" --notes-file artifacts\release-notes.md
           }
           if ($LASTEXITCODE -ne 0) { throw 'Publishing the release failed.' }

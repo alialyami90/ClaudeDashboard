@@ -4,66 +4,81 @@
 
 ## Platform
 
-android
+desktop
+
+Windows 10 and 11, x64. Android is a roadmap item (decision 026).
 
 ## Users
 
-PC users who want their everyday controls and readings within a glance or a tap while they work or play games on the main monitor, without alt-tabbing.
+People who run Claude Code on a Windows PC, often several sessions at once, and want to know without switching windows which session needs them, which is working, and how much of their plan is left.
 
-- **With a second screen:** a secondary touchscreen on the PC shows the dashboard full screen. The owner's is 1920 × 720, but other screens must work too (user, 21 Oct 2026).
-- **Without a second screen:** an Android phone or tablet on the same Wi-Fi becomes the widget screen. It shows the PC's dashboard and every card controls the PC (user, 21 Oct 2026).
-
-Built by and for Ali Alyami first, and meant to work for other people with either setup.
+Built by and for Ali Alyami first, and meant to work for anyone with Claude Code on Windows, through the Claude app's Code tab or the command line.
 
 ## Product Purpose
 
-Widget Screen keeps the PC's small, frequent jobs off the main screen: the time, a focus timer, Windows Now Playing, a Quick Launch deck, the sound mixer with per-app outputs and the microphone, a Spotify library, a Discord soundboard, and optional System stats and Weather.
+Claude Dashboard is one window that watches every Claude Code session on the PC. Each project is a pit garage and each thread a pixel-art race car whose motion says its state: working, needs you, your turn, compacting, stuck, idle or ended. Above them sit the plan's 5-hour and weekly limits with pace and a projection, and below them a ledger of tokens, cache reads, model mix and lines changed per project and per thread, for the last 5 hours, today or the week.
 
-Success means the user never leaves their work or game for these things, the dashboard stays light enough not to cost frames, and one failing service never takes the rest down.
+Success means the user stops tabbing through terminals to find the session that is waiting on them, never hits a limit by surprise, and trusts every number on the screen.
 
 ## Positioning
 
-A native dashboard (WPF on Windows, framework views on Android) with no WebView, browser, cloud service or companion server. The phone or tablet turns into the PC's second screen through a link built into the Windows app, paired with a code and limited to the home network. Controls are real system controls: per-app volume and output routing, Windows media, launching apps, files, sites and hotkeys.
+A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud service or companion server. It reads what Claude Code and the Claude app already write on the PC, adds a small hook exe and a loopback telemetry receiver that Settings → Claude → Connect sets up (and Disconnect takes out exactly), and asks Anthropic for nothing but the plan's usage meters, through its own sign-in.
 
-## Operating Context
+## What it reads
 
-- The PC dashboard runs full screen on the secondary display only, or as a preview window on the primary. It sits beside the main monitor during work and full-screen games.
-- The phone or tablet sits on a stand or in the hand, upright or sideways, on the same home Wi-Fi as the PC. It polls the PC for the cards it shows.
-- Quick Launch, Spotify, Discord, the weather city and the System stats readings are set up on the PC. The phone's own Settings are Theme, Display, Widgets and PC.
-- Every change ships to both apps in the same branch and release (`CLAUDE.md`, `BRANCHES.md`, `CHANGELOG.md`).
+- **Claude Code's hooks and status line,** through `ClaudeHook.exe`, which writes one small file per session to the bridge folder (`%LOCALAPPDATA%\WidgetScreen\claude` until phase 5 moves it to `%LOCALAPPDATA%\ClaudeDashboard\claude`): state, project folder, model, title, the notification's own message, cost and context size.
+- **Claude Code's own session list and logs,** read-only: token counts per reply, models, times, tool names and lines changed. It also takes the first line of a thread's first request (about 60 characters) as the thread's name when nothing better exists, and keeps it in memory only.
+- **The Claude app's thread records,** read-only: thread title, folder, archived flag and last activity.
+- **Claude Code's OpenTelemetry,** sent to 127.0.0.1 only: event names, counts, costs and tool decisions. Prompts, replies and tool details stay off.
+- **The plan's usage meters** from `api.anthropic.com`, every 5 minutes by default while signed in with the app's own **Sign in with Claude** (`user:profile` only).
+
+## What it never does
+
+- It never stores or sends a prompt, a reply or a file's contents.
+- It never reads Claude Code's credentials. Its own sign-in is kept encrypted with DPAPI in `claude-session.dat`, and the tokens go only to Anthropic's hosts.
+- It never listens on the network. The telemetry receiver binds to 127.0.0.1 and takes JSON only.
+- It never spends credits. The usage endpoint reads the meters; nothing calls a model.
+- It never overwrites the user's own Claude Code settings: Connect merges into `settings.json` with a dated backup, leaves the user's `OTEL_*` values alone, and says when managed settings override it.
+
+## The honest-numbers promise
+
+- Costs come from Claude Code's own telemetry first, then the published price table, and say "≈ $ at API prices". Replies from a model the table doesn't know show "~" with a tip naming the model, never a guess.
+- Every reply is counted once, by its request id, however many sources report it.
+- A missing reading says why ("Telemetry off: port 43832 in use", "Sign in for plan limits"). Loading, unavailable, disconnected and working always look different.
+- Sample data is always labelled. `--render-claude-sample` draws a fixture that says it is one.
 
 ## Capabilities and Constraints
 
-- **Two apps, one design language.** The Windows app (WPF, .NET Framework 4.8) is the design source. The Android app (Java, framework views, minSdk 26, phones and tablets) keeps the same palettes, glyphs and cards, reworked so they work on a phone (user, 21 Oct 2026). Android's OS guarantees apply (system Back, window insets, 48 dp touch targets, readable text), but Material components and Material theming are not adopted. `Platform` says `android` because the Windows desktop has no value of its own here; the Windows rules live in `CLAUDE.md`.
-- **Not locked to one resolution.** The dashboard must adapt to secondary screens other than 1920 × 720, and to phones and tablets in both orientations (user request, 21 Oct 2026). It keeps the 1920 × 720 design scale and lays out on a canvas shaped like the screen, with layouts per screen shape and pages; the phone mirrors the PC's layout, and upright phones get a scrolling card list (decision 010).
-- **Light on resources.** One 1 s heartbeat on the PC, no polling for hidden widgets or metrics, motion optional and off in Quiet mode.
-- **Honest states.** Loading, unavailable, disconnected and working are always distinguishable. Simulated readings are never shown as live, and fixtures are labelled.
-- **Local and private.** Preferences are local XML. Spotify, Discord and phone pairings are stored encrypted (DPAPI on Windows, Android Keystore on the phone). The phone link is off by default, local addresses only.
-- **Inspectable actions.** Every Quick Launch action is visible in Settings, and consequential ones (arguments, scripts, installers, Delete, Alt+F4) ask first.
-- **Undecided:** the physical size of other people's screens and comfortable text and touch sizing on them; whether controls must work during exclusive-fullscreen games; how the app is distributed to other people (today there is no installer, store listing or updater).
+- **One window on any monitor.** It opens where it was closed, at the size it was left, and behaves like any other Windows app: it takes focus, sits in the taskbar and closes fully. The card picks Small, Medium or Large from the window's size (from phase 4; until then it sits on the old canvas).
+- **Light on resources.** One 1-second heartbeat; file watchers instead of re-reading; the frame clock runs only while a car visibly moves, never while minimised or in Quiet mode (unless the user asks the cars to move in Quiet mode).
+- **Local.** Preferences are local XML, written atomically. Nothing about the user's sessions leaves the PC.
+- **Undecided:** the Android companion's scope and timing, and whether 1.0 needs anything beyond package 4 and that companion.
 
 ## Brand Commitments
 
-- Name **Widget Screen**, author **Ali Alyami**, logo `assets/WidgetScreen.ico` (also the Android launcher icon).
-- The visual system in `design specfication/as-built-specification-and-design.md` §3.3–3.5 is binding: Midnight, Slate and Warm palettes with Lime, Glacier, Lavender and Amber accents. Since the Sticker Sheet redesign (decision 021), widgets also wear eight inks (the four accents plus Coral, Mint, Rose and Lemon); [DESIGN.md](DESIGN.md) describes it.
-- System fonts only: Segoe UI, Segoe UI Light for the clock and Segoe MDL2 Assets glyphs on Windows; the system sans-serif and the line glyphs in `android/.../views/Glyphs.java` on Android. No images or emoji as icons, no custom fonts.
-- Voice: short and plain. Dashboard text only speaks when something is true or wrong (`docs/design/ui-polish.md`).
+- Name **Claude Dashboard**, author **Ali Alyami**. The exe is `ClaudeDashboard.exe`; the logo is redrawn in phase 1 as a car in front of a garage.
+- Claude Dashboard is an independent app built on Claude Code's documented hooks, status line and telemetry. It is not made by Anthropic.
+- The visual language is in [DESIGN.md](DESIGN.md): the pit wall, its palettes, Amber for Needs you and Glacier for Your turn, and the pixel-art rules.
+- System fonts only: Segoe UI and Segoe MDL2 Assets. No images or emoji as icons, no custom fonts. Cars and garages are drawn in code.
+- Voice: short and plain. The card speaks when something is true or wrong, and says why when a reading is missing.
 
 ## Evidence on Hand
 
-- Renders of every screen and Settings tab at 1920 × 720 in `design specfication/as-built-reference/` (`screens.md`, `01…11-*.png`), labelled as fixtures.
-- Decision records `docs/decisions/001…009` and design notes in `docs/design/`.
-- No user research, testimonials, usage numbers or store listing exist. Physical touch, real phones on real Wi-Fi, other screen sizes and live Spotify and Discord use are unverified; don't claim them.
+- The approved pit wall mock: [docs/design/claude-watcher-v2.html](docs/design/claude-watcher-v2.html).
+- The watcher's design note and records: [docs/design/claude-watcher.md](docs/design/claude-watcher.md) and decisions 014–020 and 022–026 in `docs/decisions/`.
+- The Claude checks in `tests/Claude/` and the labelled `--render-claude-sample` renders.
+- No user research or usage numbers exist beyond Ali's own use. Real telemetry for every event type, a real compaction and the sign-in on other people's plans are not all verified; don't claim them.
 
 ## Product Principles
 
-1. **Glance, don't switch.** Anything on the dashboard is one look or one tap away and never pulls focus from the main screen.
-2. **Truth over decoration.** Show what's real, say plainly when something is wrong, and stay quiet otherwise.
-3. **The game comes first.** Native, light and idle when hidden; resource cost is a feature decision.
-4. **One product on every screen.** Each change lands on the PC and the phone, in the same design language, adapted to the screen in hand.
-5. **The user stays in control.** Touch targets at their minimums, actions inspectable, consequential ones confirmed, nothing leaves the home network.
+1. **See who needs you.** A session waiting on the user is the loudest thing on screen, and one click brings its window forward.
+2. **Trust the sources.** Show what Claude Code and the Claude app say, in their order of authority, and say plainly when a source is missing.
+3. **Honest numbers.** Never a guess shown as a fact; every estimate says it is one.
+4. **Cheap to watch.** It runs all day beside work and games, so idle means idle.
+5. **Read, don't reach.** It watches local files and one loopback port, writes only its own hook entries, and touches nothing it can't take back out.
 
 ## Accessibility & Inclusion
 
-- Touch first: inputs, buttons and dropdown rows at least 52 px, slider thumbs 48 × 48, mute buttons at least 48 px on the PC; 48 dp targets on Android.
-- Quiet mode turns motion off. There is no separate OS reduced-motion support yet.
+- State is never colour alone: each car state has its own motion and a still frame, and every chip names its state in words.
+- Quiet mode stops the loops and keeps the state swaps. Text size goes from 100% to 140%.
+- Windows notifications for Needs you, Stuck and long turns reach the user when the window is behind others; they are on by default and silent in Quiet mode.
