@@ -39,22 +39,13 @@ namespace WidgetScreen
                 using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("WidgetScreen.MainWindow.xaml")) window = (Window)XamlReader.Load(stream);
                 string settingsPath = Argument(args, "--settings") ?? SettingsStore.DefaultPath;
                 string renderPath = Argument(args, "--render");
-                // Full-sensors mode (decision 016): a copy started normally runs the elevated one and closes.
-                if (renderPath == null && !args.Contains(FullSensors.Argument) && Argument(args, "--settings") == null && DashboardController.HandOverToElevatedCopy(settingsPath)) return 0;
                 Rendering = renderPath != null;
                 if (Rendering) ScreenSize = RenderSize(Argument(args, "--render-size"));
                 using (var controller = new DashboardController(window, settingsPath, args.Contains("--windowed") || renderPath != null))
                 {
                     running = controller;
                     // A labelled fixture for the Claude card ("Sample" in its heading) instead of this PC's sessions.
-                    // The Soundboard's labelled sample sounds (or none), as if Discord were connected; they never play.
-                    if (renderPath != null && (args.Contains("--render-soundboard-sample") || args.Contains("--render-soundboard-empty"))) controller.UseSoundboardSample(args.Contains("--render-soundboard-empty"));
                     if (renderPath != null && args.Contains("--render-claude-sample")) controller.UseClaudeSample(args.Contains("--render-claude-needs"));
-            // Renders Now Playing's empty state (an empty sleeve) whatever plays on this PC; it shows an absence, not a reading.
-            if (renderPath != null && args.Contains("--render-no-media")) controller.IgnoreMedia = true;
-                    // Weather's failure states: the real reading shown stale, or no reading at all; never made-up readings.
-                    if (renderPath != null && args.Contains("--render-weather-offline")) controller.RenderWeather = "offline";
-                    if (renderPath != null && args.Contains("--render-weather-unreachable")) controller.RenderWeather = "unreachable";
                     if (renderPath != null)
                     {
                         // --render-wait N gives live readings longer to arrive (System stats history fills every 2 s).
@@ -67,12 +58,10 @@ namespace WidgetScreen
                                 ((System.Windows.Controls.Button)window.FindName("EditLayoutButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                                 if (args.Contains("--render-edit-demo"))
                                 {
-                                    controller.Editor.Select("Focus"); controller.Editor.TransformSelected("", 32, 16, false);
-                                    controller.Editor.TransformSelected("SE", 48, 24, false);
-                                    controller.Editor.SetVisible("Media", false);
+                                    controller.Editor.Select("Claude"); controller.Editor.TransformSelected("SE", -48, -24, false);
                                 }
-                                // Mid-drag: Quick launch a few units off its place under Now playing, held there by the alignment guides.
-                                if (args.Contains("--render-edit-guides")) controller.Editor.Drag("Shortcuts", "", 5, -4, false);
+                                // Mid-drag: the card a few units off its place, held there by the alignment guides.
+                                if (args.Contains("--render-edit-guides")) controller.Editor.Drag("Claude", "", 5, -4, false);
                                 if (args.Contains("--render-edit-panel")) controller.OpenEditPanel();
                             }
                             if (args.Contains("--render-settings"))

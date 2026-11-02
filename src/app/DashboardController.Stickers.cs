@@ -15,16 +15,9 @@ namespace WidgetScreen
     public sealed partial class DashboardController
     {
         // The strip hosts in MainWindow.xaml, by widget (Weather's strip is built by WeatherCard).
-        private static readonly string[][] StripHosts = {
-            new[] { "Focus", "FocusStrip" }, new[] { "Media", "MediaStrip" }, new[] { "Shortcuts", "DeckHeading" }, new[] { "Mixer", "MixerStrip" },
-            new[] { "System", "SystemStrip" }, new[] { "Spotify", "SpotifyStrip" }, new[] { "Soundboard", "SoundboardHeading" }, new[] { "Storage", "StorageStrip" },
-            new[] { "Prayer", "PrayerStrip" }, new[] { "Notes", "NotesStrip" }, new[] { "Clipboard", "ClipboardStrip" }, new[] { "Macros", "MacroHeading" },
-            new[] { "Calendar", "CalendarStrip" }, new[] { "Games", "GamesHeading" }, new[] { "Home", "HomeStrip" }, new[] { "Clocks", "ClocksStrip" } };
-        // The right-hand captions that become status stickers. Those drawn in the warning colour only speak up for problems.
-        private static readonly string[][] StatusCaptions = {
-            new[] { "Focus", "FocusState", "" }, new[] { "Media", "MediaSource", "" }, new[] { "Mixer", "MicState", "" }, new[] { "Mixer", "AudioStatus", "warns" }, new[] { "System", "SystemPeak", "" }, new[] { "System", "SystemUptime", "" }, new[] { "System", "SystemStatus", "warns" },
-            new[] { "Storage", "StorageStatus", "warns" }, new[] { "Prayer", "PrayerStatus", "" }, new[] { "Notes", "NotesStatus", "" }, new[] { "Clipboard", "ClipStatus", "" },
-            new[] { "Calendar", "CalendarStatus", "warns" }, new[] { "Home", "HomeStatus", "warns" }, new[] { "Clocks", "ClocksStatus", "" }, new[] { "Soundboard", "SoundboardChannel", "" } };
+        // The strip hosts in MainWindow.xaml, by widget. The Claude Code card draws its own heading.
+        private static readonly string[][] StripHosts = { };
+        private static readonly string[][] StatusCaptions = { };
 
         private readonly Dictionary<string, LabelStrip> strips = new Dictionary<string, LabelStrip>();
         private readonly List<StatusSticker> statusStickers = new List<StatusSticker>();
@@ -35,7 +28,6 @@ namespace WidgetScreen
         public IReadOnlyDictionary<string, LabelStrip> Strips { get { return strips; } }
         public IReadOnlyList<StatusSticker> StatusStickers { get { return statusStickers; } }
         public string EditInks { get { return editInks; } }
-        public LabelStrip WeatherStrip { get { return weatherCard.Strip; } }
 
         // Runs before the card controllers are made, so they keep using their caption TextBlocks by name.
         private void InitializeStickers()

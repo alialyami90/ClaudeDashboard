@@ -161,7 +161,7 @@ namespace WidgetScreen
         {
             if (Editing) return;
             Editing = true; saved = WidgetLayout.Copy(current); undo.Clear(); redo.Clear();
-            Select(current.FirstOrDefault(p => IsVisible(p.Id)) == null ? "Focus" : current.First(p => IsVisible(p.Id)).Id);
+            Select(current.FirstOrDefault(p => IsVisible(p.Id)) == null ? "Claude" : current.First(p => IsVisible(p.Id)).Id);
             Draw();
         }
         public void Cancel()
@@ -182,8 +182,7 @@ namespace WidgetScreen
         {
             if (current == null) return true;
             var p = current.First(w => w.Id == id);
-            bool hasStats = SystemStyles.Any(preferences);
-            return p.Visible && (id != "System" || hasStats);
+            return p.Visible;
         }
         public bool IsEnabled(string id) { return current.First(p => p.Id == id).Visible; }
         public Rect Bounds(string id) { return current.First(p => p.Id == id).Bounds; }
@@ -212,9 +211,7 @@ namespace WidgetScreen
         public void Reset()
         {
             if (!Editing || GestureActive) return;
-            var readings = new AppSettings();
-            foreach (string id in SystemStyles.Ids) SystemStyles.Show(readings, id, SystemStyles.Shown(preferences, id));
-            Remember(Export()); current = WidgetLayout.DefaultFor(readings, canvasSize); Draw();
+            Remember(Export()); current = WidgetLayout.DefaultFor(new AppSettings(), canvasSize); Draw();
         }
         // Lines up the shown widgets neatly in their current order, filling the canvas (WidgetLayout.Arrange). One undo
         // step; returns false when they are already arranged that way.

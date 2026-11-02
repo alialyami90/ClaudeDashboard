@@ -25,12 +25,6 @@ namespace WidgetScreen
         private RemotePairing pairing;
         private string remoteError;
         private readonly CancellationTokenSource remoteLifetime = new CancellationTokenSource();
-        private MediaSnapshot remoteMedia;
-        private List<DiscordSound> remoteSounds = new List<DiscordSound>();
-        private DiscordVoiceChannel remoteChannel;
-        private string remoteDiscordStatus = "";
-        private DateTime remoteDiscordAt = DateTime.MinValue;
-        private bool remoteDiscordBusy;
         private TrayMode tray;
         private DateTime lastPhoneSeen = DateTime.MinValue;
         // The user brought the window back while the phone was connected; don't hide it again until the phone leaves.
@@ -50,7 +44,7 @@ namespace WidgetScreen
         {
             pairing = new RemotePairing(RemotePairing.StorePath(settingsPath));
             tray = new TrayMode(window, () => window.Close());
-            tray.Changed += () => { if (!tray.Hidden && PhoneActive) keepWindowWithPhone = true; UpdateLevelTimer(); };
+            tray.Changed += () => { if (!tray.Hidden && PhoneActive) keepWindowWithPhone = true; };
             Button("TrayButton", () => { if (Editor.Editing || Control<Grid>("SettingsOverlay").Visibility == Visibility.Visible) return; tray.Hide(false); });
             Control<CheckBox>("RemoteTrayChoice").Click += (sender, e) => {
                 bool previous = settings.HideToTrayWithPhone;
@@ -277,9 +271,7 @@ namespace WidgetScreen
             {
                 if (request.Method == "GET" && request.Path == "/state") { PhoneSeen(); UpdateTray(); }
                 if (request.Method == "GET" && request.Path == "/state") return RemoteResponse.Json(200, await RemoteState((request.QueryValue("parts") ?? "").Split(',')));
-                if (request.Method == "GET" && request.Path == "/art") return RemoteArt();
                 if (request.Method == "POST" && request.Path == "/command") return await RemoteCommand(Body(request));
-                if (request.Method == "POST" && request.Path == "/spotify") return await RemoteSpotify(Body(request));
                 return RemoteResponse.Error(404, "Unknown request. Update Widget Screen on the phone or the PC.");
             }
             catch (InvalidOperationException e) { return RemoteResponse.Error(409, e.Message); }
@@ -292,114 +284,8 @@ namespace WidgetScreen
             var state = D("name", Environment.MachineName, "version", Version, "quiet", settings.QuietMode, "use24", settings.Use24HourClock, "layoutVersion", RemoteLayoutVersion());
             RemoteClaudeAlert(state);
             if (parts.Contains("layout")) state["layout"] = RemoteLayout();
-            if (parts.Contains("focus"))
-            {
-                if (focus.FinishIfElapsed()) UpdateFocus();
-                state["focus"] = D("remainingMs", focus.Remaining.TotalMilliseconds, "durationMs", focus.Duration.TotalMilliseconds, "running", focus.Running, "progress", focus.Progress,
-                    "paused", focus.Paused, "finished", focus.Finished, "chime", settings.FocusChime && !settings.QuietMode,
-                    "customMinutes", settings.FocusCustomMinutes, "sessionsToday", FocusSessionsToday, "minutesToday", FocusMinutesToday);
-            }
-            if (parts.Contains("media"))
-            {
-                try
-                {
-                    var m = await ReadMediaAsync(false); remoteMedia = m;
-                    string app = m.Available ? MediaService.SourceName(m.Source) : "";
-                    state["media"] = D("available", m.Available, "playing", m.Playing, "canPlayPause", m.CanPlayPause, "canPrevious", m.CanPrevious, "canNext", m.CanNext, "canSeek", m.CanSeek,
-                        "title", m.Title, "artist", m.Artist ?? "", "key", m.Key, "positionMs", m.Position.TotalMilliseconds, "durationMs", m.Duration.TotalMilliseconds, "art", m.Artwork != null,
-                        "source", app.ToUpperInvariant(), "app", app, "album", m.Available ? m.Album ?? "" : "", "tint", m.Available ? MediaService.Hex(m.Tint) : "");
-                }
-                catch (Exception) { remoteMedia = null; state["media"] = D("error", true); }
-            }
-            if (parts.Contains("audio"))
-            {
-                try
-                {
-                    var snapshot = await ReadAudioAsync(false);
-                    state["audio"] = D("available", true, "device", snapshot.Device, "deviceId", snapshot.DeviceId, "volume", snapshot.Volume, "muted", snapshot.Muted, "microphone", snapshot.MicrophoneMuted,
-                        "sessionsAvailable", snapshot.SessionsAvailable, "canRoute", snapshot.CanRouteApps,
-                        "devices", snapshot.Devices.Select(d => D("id", d.Id, "name", d.Name, "isDefault", d.IsDefault, "formFactor", d.FormFactor)).ToArray(),
-                        "sessions", snapshot.Sessions.Select(s => D("id", s.Id, "name", s.Name, "deviceId", s.DeviceId, "processId", s.ProcessId, "volume", s.Volume, "muted", s.Muted)).ToArray());
-                }
-                catch (Exception) { state["audio"] = D("available", false); }
-            }
-            if (parts.Contains("system"))
-            {
-                var wanted = settings;
-                try
-                {
-                    var s = await ReadSystemAsync(SystemWants.From(wanted, true));
-                    state["system"] = D("showCpu", wanted.ShowCpu, "showGpu", wanted.ShowGpu, "showRam", wanted.ShowRam, "showNetwork", wanted.ShowNetwork, "showUptime", wanted.ShowUptime,
-                        "cpu", s.CpuAvailable ? (object)s.Cpu : null, "gpu", s.Gpu, "gpuStatus", s.GpuStatus ?? "Unavailable",
-                        "memoryPercent", s.MemoryAvailable ? (object)s.MemoryPercent : null, "memoryUsedGB", s.UsedMemoryGB, "memoryTotalGB", s.TotalMemoryGB,
-                        "download", s.NetworkAvailable ? (object)s.DownloadBytes : null, "upload", s.NetworkAvailable ? (object)s.UploadBytes : null, "uptimeMs", s.Uptime.TotalMilliseconds,
-                        // Hardware sensors (decision 016): each reading with the state that says why it's missing.
-                        "showCpuTemp", wanted.ShowCpuTemperature, "showGpuTemp", wanted.ShowGpuTemperature, "showVram", wanted.ShowVram, "showFps", wanted.ShowFps,
-                        "styles", SystemStyles.Ids.Where(id => SystemStyles.Get(wanted.StatStyles, id) != "Auto").ToDictionary(id => id, id => (object)SystemStyles.Get(wanted.StatStyles, id)),
-                        "fahrenheit", wanted.WeatherUnits == "imperial",
-                        "cpuTemp", s.CpuTemperature, "cpuTempState", s.CpuTemperatureState ?? "", "gpuTemp", s.GpuTemperature, "gpuTempState", s.GpuTemperatureState ?? "", "gpuName", s.GpuName ?? "", "cpuName", s.CpuName ?? "",
-                        "vramUsedGB", s.VramUsedGB, "vramTotalGB", s.VramTotalGB, "vramState", s.VramState ?? "",
-                        "fps", s.Fps, "fpsState", s.FpsState ?? "", "fpsSource", s.FpsSource ?? "", "fpsApp", s.FpsApp ?? "",
-                        "fullSensors", system.Elevated);
-                }
-                catch (Exception) { state["system"] = D("error", true); }
-            }
-            if (parts.Contains("deck"))
-            {
-                string hotkeyTarget = deckHotkeys.TargetName;
-                state["deck"] = settings.Shortcuts.Select(s => D("label", s.Label, "glyph", String.IsNullOrEmpty(s.Glyph) ? "E8A7" : ((int)s.Glyph[0]).ToString("X4"), "action", s.Action,
-                    "describe", DeckActions.DescribeWithTarget(s, hotkeyTarget), "confirm", DeckActions.NeedsConfirmation(s), "enabled", !String.IsNullOrWhiteSpace(s.Target),
-                    "color", s.Color ?? "", "on", DeckStateOn(s), "kind", DeckActions.Kind(s))).ToArray();
-            }
-            if (parts.Contains("weather"))
-                state["weather"] = D("location", settings.WeatherLocation ?? "", "latitude", settings.Latitude, "longitude", settings.Longitude, "imperial", settings.WeatherUnits == "imperial");
-            if (parts.Contains("spotify"))
-                state["spotify"] = D("connected", spotifyService.Connected, "canControl", spotifyService.CanControl, "canReadRecent", spotifyService.CanReadRecent);
-            if (parts.Contains("discord")) state["discord"] = await RemoteDiscord(false);
-            if (parts.Contains("storage")) state["storage"] = await RemoteStorage();
-            if (parts.Contains("clocks")) state["clocks"] = RemoteClocks();
-            if (parts.Contains("prayer")) state["prayer"] = RemotePrayer();
-            if (parts.Contains("notes")) state["notes"] = RemoteNotes();
             if (parts.Contains("claude")) state["claude"] = RemoteClaude();
-            if (parts.Contains("clipboard")) state["clipboard"] = RemoteClipboard();
-            if (parts.Contains("macros")) state["macros"] = RemoteMacros();
-            if (parts.Contains("calendar")) state["calendar"] = RemoteCalendar();
-            if (parts.Contains("games")) state["games"] = RemoteGames();
-            if (parts.Contains("home")) state["home"] = RemoteHome();
             return state;
-        }
-
-        // Whether the last read failed (Discord not running or unreachable), for the phone's voice sticker.
-        private bool remoteDiscordFailed;
-        // Sounds and the voice channel, read again after 15 seconds or when the phone asks to reload.
-        private async Task<Dictionary<string, object>> RemoteDiscord(bool reload)
-        {
-            if (!discordService.Connected) return D("connected", false);
-            if (!remoteDiscordBusy && (reload || DateTime.UtcNow - remoteDiscordAt >= TimeSpan.FromSeconds(15)))
-            {
-                remoteDiscordBusy = true; remoteDiscordAt = DateTime.UtcNow;
-                try
-                {
-                    var channel = await discordService.SelectedChannelAsync(remoteLifetime.Token);
-                    var sounds = await discordService.SoundsAsync(remoteLifetime.Token);
-                    remoteChannel = channel; remoteSounds = DiscordService.Order(sounds, channel == null ? null : channel.GuildId);
-                    remoteDiscordStatus = remoteSounds.Count == 0 ? "No soundboard sounds yet. Add some to a server in Discord." : channel == null ? "Join a voice channel in Discord to play sounds." : "";
-                    remoteDiscordFailed = false;
-                }
-                catch (Exception error) { remoteChannel = null; remoteDiscordStatus = SoundboardWidget.Message(error); remoteDiscordFailed = true; }
-                finally { remoteDiscordBusy = false; }
-            }
-            return D("connected", true, "linked", discordService.Linked, "channel", remoteChannel == null ? "" : remoteChannel.Name, "channelGuild", remoteChannel == null ? "" : remoteChannel.GuildId, "status", remoteDiscordStatus, "failed", remoteDiscordFailed,
-                "sounds", remoteSounds.Select(s => D("id", s.Id, "guild", s.GuildId ?? "", "name", s.Name, "isDefault", s.IsDefault)).ToArray());
-        }
-
-        private RemoteResponse RemoteArt()
-        {
-            var artwork = remoteMedia == null ? null : remoteMedia.Artwork;
-            if (artwork == null) return RemoteResponse.Error(404, "No artwork.");
-            var encoder = new JpegBitmapEncoder { QualityLevel = 85 };
-            encoder.Frames.Add(BitmapFrame.Create(artwork));
-            using (var stream = new MemoryStream()) { encoder.Save(stream); return new RemoteResponse { ContentType = "image/jpeg", Body = stream.ToArray() }; }
         }
 
         private RemoteResponse Done(string message) { return RemoteResponse.Json(200, D("ok", true, "message", message ?? "")); }
@@ -409,130 +295,16 @@ namespace WidgetScreen
             string action = Str(body, "action") ?? "";
             switch (action)
             {
-                case "media.toggle": case "media.previous": case "media.next":
-                    {
-                        await ReadMediaAsync(true);
-                        bool sent = await media.CommandAsync(action.Substring(6));
-                        RefreshMedia(true);
-                        if (!sent) throw new InvalidOperationException("Nothing on the PC is playing media to control.");
-                        return Done(null);
-                    }
-                case "media.seek":
-                    {
-                        await ReadMediaAsync(true);
-                        double positionMs = Required(body, "positionMs");
-                        if (!await media.SeekAsync(Str(body, "key"), positionMs)) throw new InvalidOperationException("Couldn't jump there. The app may not allow it, or the song changed.");
-                        return Done(null);
-                    }
-                case "audio.volume": { double value = Required(body, "value"); await RemoteAudio(a => a.SetVolume(value)); return Done(null); }
-                case "audio.mute": await RemoteAudio(a => a.ToggleMute()); return Done(null);
-                case "audio.microphone": await RemoteAudio(a => a.ToggleMicrophone()); return Done(null);
-                case "audio.output": { string id = Str(body, "id"); await RemoteAudio(a => a.SetDefaultOutput(id)); return Done(null); }
-                case "audio.session.volume": { double value = Required(body, "value"); string id = Str(body, "id"); await RemoteAudio(a => a.SetSessionVolume(id, value)); return Done(null); }
-                case "audio.session.mute": { string id = Str(body, "id"); await RemoteAudio(a => a.ToggleSessionMute(id)); return Done(null); }
-                case "audio.session.output":
-                    {
-                        uint process = (uint)Required(body, "processId"); string id = Str(body, "id");
-                        if (process == 0) throw new InvalidOperationException("System sounds always play on the master output.");
-                        await RemoteAudio(a => { if (!a.CanRouteApps) throw new InvalidOperationException("Windows didn't allow changing this app's output."); a.SetAppOutput(process, id); });
-                        return Done(null);
-                    }
-                case "audio.session.routed":
-                    {
-                        uint process = (uint)Required(body, "processId");
-                        var routing = process == 0 ? Tuple.Create(false, (string)null) : await audio.Run(a => Tuple.Create(a.CanRouteApps, a.CanRouteApps ? a.AppOutput(process) : null));
-                        return RemoteResponse.Json(200, D("ok", true, "routed", routing.Item2, "canRoute", routing.Item1));
-                    }
-                case "focus.toggle": focus.Toggle(); UpdateFocus(); return Done(null);
-                case "focus.reset": focus.Reset((int)focus.Duration.TotalMinutes); UpdateFocus(); return Done(null);
-                case "focus.preset": SetFocus((int)Required(body, "minutes")); return Done(null);
-                case "focus.custom": StartCustomFocus((int)Required(body, "minutes")); return Done(null);
-                case "focus.dismiss": DismissFocus(); return Done(null);
-                case "notes.text": case "notes.add": case "notes.toggle": case "notes.delete": case "notes.clearDone": case "notes.move":
-                    return RemoteNotesCommand(action, body);
-                case "clipboard.paste": case "clipboard.pause": case "clipboard.clear":
-                    return await RemoteClipboardCommand(action, body);
-                case "macro.run": return await RemoteMacroCommand(body);
-                case "home.toggle": case "home.brightness": case "home.temperature": return await RemoteHomeCommand(action, body);
-                case "games.launch": case "games.refresh": return RemoteGameCommand(action, body);
-                case "calendar.refresh": lastCalendarAttempt = DateTime.MinValue; RefreshCalendar(); return Done(null);
-                case "prayer.stop": StopPrayerAlert(); return Done(null);
                 case "quiet.toggle":
                     settings.QuietMode = !settings.QuietMode; ApplySettings(); Persist();
-                    Notify(settings.QuietMode ? "Quiet mode on. Output levels are paused and updates are slower." : "Quiet mode off.");
+                    Notify(settings.QuietMode ? "Quiet mode on." : "Quiet mode off.");
                     return Done(null);
-                case "deck.run":
-                    {
-                        int index = (int)Required(body, "index");
-                        string label = Str(body, "label");
-                        if (index < 0 || index >= settings.Shortcuts.Count || (label != null && label != settings.Shortcuts[index].Label)) throw new InvalidOperationException("That button changed on the PC. Try again.");
-                        string error = await RunDeckActionAsync(settings.Shortcuts[index], Flag(body, "confirmed"));
-                        if (error != null) throw new InvalidOperationException(error);
-                        return Done(null);
-                    }
-                case "discord.reload": return RemoteResponse.Json(200, await RemoteDiscord(true));
-                case "discord.play":
-                    {
-                        string id = Str(body, "id");
-                        var sound = remoteSounds.FirstOrDefault(s => s.Id == id);
-                        if (sound == null) throw new InvalidOperationException("That sound isn't available anymore. Reload the sounds.");
-                        Exception failure = null;
-                        try { await discordService.PlayAsync(sound, remoteLifetime.Token); }
-                        catch (Exception error) { failure = error; }
-                        if (failure is OperationCanceledException) throw new InvalidOperationException("Widget Screen is closing.");
-                        if (failure != null) throw new InvalidOperationException(SoundboardWidget.Message(failure));
-                        return Done("Played " + sound.Name + ".");
-                    }
                 case "claude.focus": return RemoteClaudeFocus(body);
                 case "claude.collapse": return RemoteClaudeCollapse(body);
                 case "page.show": case "layout.save": case "layout.inks": case "page.add": case "page.rename": case "page.delete": case "page.move":
                     return RemotePages(Str(body, "action"), body);
                 default: throw new ArgumentException("Unknown command. Update Widget Screen on the phone or the PC.");
             }
-        }
-
-        private async Task RemoteAudio(Action<AudioService> action)
-        {
-            try { await audio.Run(action); }
-            catch (InvalidOperationException) { throw; }
-            catch (Exception) { throw new InvalidOperationException("The PC's audio device changed or went away. Try again."); }
-            finally { if (!disposed) RefreshAudio(true); }
-        }
-
-        private static Dictionary<string, object> Item(SpotifyItem item)
-        {
-            return item == null ? null : D("id", item.Id, "uri", item.Uri, "name", item.Name, "subtitle", item.Subtitle, "imageUrl", item.ImageUrl, "albumUrl", item.AlbumUrl, "position", item.Position, "caption", item.Caption ?? "");
-        }
-        private static Dictionary<string, object> Page(SpotifyPage page) { return D("items", page.Items.Select(Item).ToArray(), "hasMore", page.HasMore); }
-
-        // The phone's Spotify widget uses the PC's Spotify connection, so the phone needs no Spotify setup.
-        private async Task<RemoteResponse> RemoteSpotify(Dictionary<string, object> body)
-        {
-            string op = Str(body, "op") ?? "";
-            try
-            {
-                switch (op)
-                {
-                    case "current":
-                        {
-                            var playback = await spotifyService.CurrentAsync();
-                            return RemoteResponse.Json(200, D("item", Item(playback.Item), "playing", playback.Playing, "canSeek", playback.CanSeek, "positionMs", playback.PositionMs, "durationMs", playback.DurationMs));
-                        }
-                    case "browse": return RemoteResponse.Json(200, Page(await spotifyService.BrowseAsync(Str(body, "kind") ?? "Albums", Str(body, "query"), Math.Max(0, (int)Num(body, "offset")))));
-                    case "tracks": return RemoteResponse.Json(200, Page(await spotifyService.TracksAsync(new SpotifyItem { Uri = Str(body, "uri") }, Math.Max(0, (int)Num(body, "offset")))));
-                    case "liked": return RemoteResponse.Json(200, D("liked", await spotifyService.IsLikedAsync(Str(body, "uri"))));
-                    case "like": await spotifyService.SetLikedAsync(Str(body, "uri"), Flag(body, "liked")); return Done(null);
-                    case "playCollection": await spotifyService.PlayInCollectionAsync(Str(body, "uri"), (int)Num(body, "position")); return Done(null);
-                    case "playTrack": await spotifyService.PlayTrackAsync(Str(body, "uri")); return Done(null);
-                    // No active Spotify device: open Spotify on the PC so the phone can retry, as the PC widget does.
-                    case "open": Launcher.Open("spotify:"); return Done(null);
-                    default: throw new ArgumentException("Unknown Spotify request. Update Widget Screen on the phone or the PC.");
-                }
-            }
-            catch (SpotifyNoDeviceException e) { return RemoteResponse.Json(409, D("error", e.Message, "noDevice", true)); }
-            catch (InvalidOperationException e) { if (!spotifyService.Connected) spotify.AccountChanged(); return RemoteResponse.Json(409, D("error", e.Message, "connected", spotifyService.Connected)); }
-            catch (OperationCanceledException) { return RemoteResponse.Error(409, "Spotify request cancelled or timed out. Try again."); }
-            catch (System.Net.Http.HttpRequestException) { return RemoteResponse.Error(409, "The PC couldn't reach Spotify. Check its connection and try again."); }
         }
 
         private void DisposeRemote()
