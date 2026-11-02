@@ -33,7 +33,7 @@ namespace WidgetScreen
                 Write(line + "\n");
                 return 0;
             }
-            Write("ClaudeHook.exe is Widget Screen's bridge for Claude Code. Connect it in Widget Screen: Settings → Claude.\n");
+            Write("ClaudeHook.exe is Claude Dashboard's bridge for Claude Code. Connect it in Claude Dashboard: Settings → Claude.\n");
             return 0;
         }
 
