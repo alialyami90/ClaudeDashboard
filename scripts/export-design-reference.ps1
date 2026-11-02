@@ -2,7 +2,7 @@ param([string]$AppDirectory = 'artifacts\specification', [string]$OutputDirector
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $outputPath = Join-Path $projectRoot $OutputDirectory
-$appPath = Join-Path (Join-Path $projectRoot $AppDirectory) 'WidgetScreen.exe'
+$appPath = Join-Path (Join-Path $projectRoot $AppDirectory) 'ClaudeDashboard.exe'
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Xaml
 $assembly = [Reflection.Assembly]::LoadFrom($appPath)

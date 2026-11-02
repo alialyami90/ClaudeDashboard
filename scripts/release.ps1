@@ -32,14 +32,6 @@ try {
         & (Join-Path $buildCheckout 'scripts\build.ps1') -Test
         New-Item -ItemType Directory -Path $releasePath -Force | Out-Null
         Copy-Item -Path (Join-Path $buildCheckout 'artifacts\app\*') -Destination $releasePath -Recurse
-        # The Android app (tags from v0.4.0 on) ships next to the exe when the Android SDK is installed.
-        $androidScript = Join-Path $buildCheckout 'scripts\build-android.ps1'
-        if (Test-Path -LiteralPath $androidScript) {
-            try {
-                & $androidScript -Test
-                Copy-Item -LiteralPath (Join-Path $buildCheckout 'artifacts\android\WidgetScreen.apk') -Destination $releasePath
-            } catch { Write-Warning "The Android app was not built for this release: $($_.Exception.Message)" }
-        }
         # The setup exe (tags from v0.12.0 on) installs this release with Start menu and startup shortcuts.
         $packageScript = Join-Path $buildCheckout 'scripts\package.ps1'
         if (Test-Path -LiteralPath $packageScript) { & $packageScript -SourceDirectory $releasePath -OutputDirectory $releasePath -Version $Version -Test }
@@ -50,21 +42,33 @@ try {
 } finally { Pop-Location }
 
 @(
-    "Widget Screen $Version"
+    "Claude Dashboard $Version"
     "Commit: $commit"
     "Built: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
     'Settings: %LOCALAPPDATA%\WidgetScreen\settings.xml (shared with every build)'
-    $(if (Test-Path -LiteralPath (Join-Path $releasePath "WidgetScreen-Setup-$Version.exe")) { "Setup: WidgetScreen-Setup-$Version.exe installs it for you, with Start menu and startup shortcuts and an uninstaller (docs\design\setup.md)" })
-    $(if (Test-Path -LiteralPath (Join-Path $releasePath 'WidgetScreen.apk')) { 'Android: WidgetScreen.apk, to install on a phone or tablet (docs\design\android-app.md)' })
+    $(if (Test-Path -LiteralPath (Join-Path $releasePath "ClaudeDashboard-Setup-$Version.exe")) { "Setup: ClaudeDashboard-Setup-$Version.exe installs it for you, with Start menu and startup shortcuts and an uninstaller" })
 ) | Set-Content -LiteralPath (Join-Path $releasePath 'release.txt') -Encoding utf8
-Write-Output "Release: $releasePath\WidgetScreen.exe"
+Write-Output "Release: $releasePath\ClaudeDashboard.exe"
 
 if ($UpdateShortcut) {
-    $shortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Widget Screen.lnk'
-    $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = Join-Path $releasePath 'WidgetScreen.exe'
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcutPath = Join-Path $desktop 'Claude Dashboard.lnk'
+    $shortcut = $shell.CreateShortcut($shortcutPath)
+    $shortcut.TargetPath = Join-Path $releasePath 'ClaudeDashboard.exe'
     $shortcut.WorkingDirectory = $releasePath
-    $shortcut.Description = "Widget Screen $Version"
+    $shortcut.Description = "Claude Dashboard $Version"
     $shortcut.Save()
     Write-Output "Shortcut: $shortcutPath -> $($shortcut.TargetPath)"
+    # The app was called Widget Screen until v0.42 (decision 026): its desktop shortcut goes when it opens one of this
+    # folder's own releases, so the desktop has one shortcut to the newest version. Others are left alone.
+    $oldShortcutPath = Join-Path $desktop 'Widget Screen.lnk'
+    if (Test-Path -LiteralPath $oldShortcutPath) {
+        $oldTarget = $shell.CreateShortcut($oldShortcutPath).TargetPath
+        $releasesRoot = (Join-Path $projectRoot 'releases').TrimEnd('\') + '\'
+        if ($oldTarget -and $oldTarget.StartsWith($releasesRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $oldShortcutPath -Force
+            Write-Output "Removed the old Widget Screen shortcut ($oldTarget)"
+        }
+    }
 }
