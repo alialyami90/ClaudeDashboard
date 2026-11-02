@@ -36,8 +36,6 @@ internal static class SmokeTests
     private static int Main(string[] args)
     {
         string directory = args.Length > 0 ? args[0] : AppDomain.CurrentDomain.BaseDirectory;
-        // Dashboards in the checks are laid out for the 1920 × 720 reference screen, whatever monitors this PC has.
-        Program.ScreenSize = new System.Windows.Size(1920, 720);
         // Claude Code's folder is a throwaway one for every check: the real settings.json, sign-in and logs are never touched.
         Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", Path.Combine(directory, "claude-config"));
         // So are the Claude app's thread records: an empty throwaway folder.
@@ -49,17 +47,16 @@ internal static class SmokeTests
         ClaudeTests.Run(directory, Check);
         ClaudeSourcesTests.Run(directory, Check);
         ClaudeTreeTests.Run(directory, Check);
+        ShellTests.Run(directory, Check);
         ClaudeReviewTests.Run(directory, Check);
         ClaudeTrustTests.Run(directory, Check);
         ClaudeNumbersTests.Run(directory, Check);
         ClaudeInstantTests.Run(directory, Check);
         Check("Native XAML and control templates load", () => {
-            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
-            {
-                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                Assert(window.FindName("SettingsOverlay") != null && window.FindName("ClaudeCard") != null, "Dashboard controls missing.");
-                window.Close();
-            }
+            var window = AppController.LoadWindow("ShellWindow"); var settings = AppController.LoadWindow("SettingsWindow");
+            Assert(window.FindName("ClaudeCard") != null && window.FindName("WindowEdge") != null && window.FindName("SettingsButton") != null, "Dashboard controls missing.");
+            Assert(settings.FindName("SettingsTabs") != null && settings.FindName("SaveSettings") != null && settings.FindName("CancelSettings") != null, "Settings controls missing.");
+            window.Close(); settings.Close();
         });
         Check("Settings round trip and atomic replacement", () => {
             string path = Path.Combine(directory, "round-trip.xml");
@@ -114,10 +111,9 @@ internal static class SmokeTests
             foreach (string gone in new[] { "ShowCpu", "SystemStyles", "WeatherLocation", "SpotifyClientId", "FocusChime", "ShowLevels", "SwapSideWidgets", "<Shortcuts", "<Macros", "WorldClocks", "HomeEntities", "StartFullscreen", "KeepGameFocus", "Monitor", "RemoteEnabled", "HideToTray", "WidgetInks", "WidgetColours", "<WidgetLayout", "PageName", "CurrentPage", "HintDismissed" })
                 Assert(!saved.Contains(gone), gone + " is still written.");
             // The card was hidden in that layout; there is no layout any more, so it shows.
-            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
-                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path))
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, path))
                     Assert(((System.Windows.UIElement)window.FindName("ClaudeCard")).Visibility == System.Windows.Visibility.Visible, "A card hidden in an old layout stays hidden.");
                 window.Close();
             }
@@ -134,48 +130,48 @@ internal static class SmokeTests
         });
         Check("Settings tabs preview, cancel and save", () => {
             string path = Path.Combine(directory, "ui-settings.xml"); SettingsStore.Save(path, new AppSettings());
-            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
-                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path))
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, path))
                 {
-                    Action<string> click = name => ((System.Windows.Controls.Button)window.FindName(name)).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                    Action<string> click = name => ((System.Windows.Controls.Button)(controller.SettingsWindow != null && controller.SettingsWindow.FindName(name) != null ? controller.SettingsWindow.FindName(name) : window.FindName(name))).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                    Func<string, object> find = name => controller.SettingsWindow == null ? null : controller.SettingsWindow.FindName(name);
                     click("SettingsButton");
-                    var tabs = (System.Windows.Controls.TabControl)window.FindName("SettingsTabs"); Assert(tabs.Items.Count == 2 && (string)((System.Windows.Controls.TabItem)tabs.Items[1]).Header == "Claude", "Settings tabs missing.");
-                    ((System.Windows.Controls.ComboBox)window.FindName("ThemeChoice")).SelectedItem = "Warm";
+                    var tabs = (System.Windows.Controls.TabControl)find("SettingsTabs"); Assert(tabs.Items.Count == 3 && (string)((System.Windows.Controls.TabItem)tabs.Items[1]).Header == "Claude", "Settings tabs missing.");
+                    ((System.Windows.Controls.ComboBox)find("ThemeChoice")).SelectedItem = "Warm";
                     var preview = ((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color;
                     click("CancelSettings");
-                    Assert(((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color != preview, "Cancel retained preview theme.");
-                    click("SettingsButton"); ((System.Windows.Controls.ComboBox)window.FindName("ThemeChoice")).SelectedItem = "Slate";
-                    ((System.Windows.Controls.CheckBox)window.FindName("ClockChoice")).IsChecked = true;
-                    tabs.SelectedIndex = 1; click("SaveSettings");
+                    Assert(controller.SettingsWindow == null && ((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color != preview, "Cancel retained preview theme.");
+                    click("SettingsButton"); ((System.Windows.Controls.ComboBox)find("ThemeChoice")).SelectedItem = "Slate";
+                    ((System.Windows.Controls.CheckBox)find("ClockChoice")).IsChecked = true;
+                    ((System.Windows.Controls.TabControl)find("SettingsTabs")).SelectedIndex = 1; click("SaveSettings");
                     string warning; var saved = SettingsStore.Load(path, out warning);
                     Assert(saved.Theme == "Slate" && saved.Use24HourClock, "Cross-tab save lost values.");
                 }
                 window.Close();
             }
         });
-        Check("Footer Cancel discards the same settings draft as the header Cancel", () => {
+        Check("Cancel discards the settings draft, and Settings opens again on the saved choices", () => {
             string path = Path.Combine(directory, "footer-cancel.xml"); SettingsStore.Save(path, new AppSettings());
-            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
-                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path))
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, path))
                 {
-                    Action<string> click = name => ((System.Windows.Controls.Button)window.FindName(name)).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                    var page = ((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color;
-                    click("SettingsButton"); ((System.Windows.Controls.ComboBox)window.FindName("ThemeChoice")).SelectedItem = "Warm";
-                    ((System.Windows.Controls.Slider)window.FindName("ScaleChoice")).Value = 115;
-                    click("CancelSettingsFooter");
-                    Assert(((System.Windows.Controls.Grid)window.FindName("SettingsOverlay")).Visibility == System.Windows.Visibility.Collapsed, "Footer Cancel left Settings open.");
-                    Assert(((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color == page && (double)window.Resources["SmallSize"] == 15, "Footer Cancel kept the previewed appearance.");
-                    string warning; var saved = SettingsStore.Load(path, out warning);
-                    Assert(saved.Theme == "Midnight" && saved.TextScale == 1, "Footer Cancel saved the draft.");
-                    click("SettingsButton");
-                    Assert((string)((System.Windows.Controls.ComboBox)window.FindName("ThemeChoice")).SelectedItem == "Midnight", "Reopened Settings showed the discarded draft.");
+                    Action<string> click = name => ((System.Windows.Controls.Button)(controller.SettingsWindow != null && controller.SettingsWindow.FindName(name) != null ? controller.SettingsWindow.FindName(name) : window.FindName(name))).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                    Func<string, object> find = name => controller.SettingsWindow == null ? null : controller.SettingsWindow.FindName(name);
+                    var page = ((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color; double small = (double)window.Resources["SmallSize"];
+                    click("SettingsButton"); ((System.Windows.Controls.ComboBox)find("ThemeChoice")).SelectedItem = "Warm";
+                    ((System.Windows.Controls.Slider)find("ScaleChoice")).Value = 115;
+                    Assert((double)window.Resources["SmallSize"] > small, "The text size didn't preview.");
                     click("CancelSettings");
-                    var panel = (System.Windows.Controls.Border)((System.Windows.Controls.Grid)window.FindName("SettingsOverlay")).Children[0];
-                    Assert(panel.MaxWidth == 1440 && panel.MaxHeight == 672, "Settings panel can grow past 1440 × 672.");
+                    Assert(controller.SettingsWindow == null, "Cancel left Settings open.");
+                    Assert(((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color == page && (double)window.Resources["SmallSize"] == small, "Cancel kept the previewed appearance.");
+                    string warning; var saved = SettingsStore.Load(path, out warning);
+                    Assert(saved.Theme == "Midnight" && saved.TextScale == 1, "Cancel saved the draft.");
+                    click("SettingsButton");
+                    Assert((string)((System.Windows.Controls.ComboBox)find("ThemeChoice")).SelectedItem == "Midnight", "Reopened Settings showed the discarded draft.");
+                    Assert(controller.SettingsWindow.MinWidth == 640 && controller.SettingsWindow.MinHeight == 480 && !controller.SettingsWindow.ShowInTaskbar, "The Settings window isn't the 640 × 480 one beside the dashboard.");
+                    click("CancelSettings");
                 }
                 window.Close();
             }
@@ -193,13 +189,13 @@ internal static class SmokeTests
         Check("Settings → Save keeps Quiet mode and the card's folds", () => {
             string path = Path.Combine(directory, "save-keeps.xml");
             SettingsStore.Save(path, new AppSettings { QuietMode = true, ClaudeCollapsed = new[] { "C:\\work" } });
-            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
-                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path))
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, path))
                 {
-                    Action<string> click = name => ((System.Windows.Controls.Button)window.FindName(name)).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                    click("SettingsButton"); ((System.Windows.Controls.ComboBox)window.FindName("ThemeChoice")).SelectedItem = "Warm"; click("SaveSettings");
+                    Action<string> click = name => ((System.Windows.Controls.Button)(controller.SettingsWindow != null && controller.SettingsWindow.FindName(name) != null ? controller.SettingsWindow.FindName(name) : window.FindName(name))).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                    Func<string, object> find = name => controller.SettingsWindow == null ? null : controller.SettingsWindow.FindName(name);
+                    click("SettingsButton"); ((System.Windows.Controls.ComboBox)find("ThemeChoice")).SelectedItem = "Warm"; click("SaveSettings");
                     string warning; var saved = SettingsStore.Load(path, out warning);
                     Assert(saved.Theme == "Warm", "The theme change was not saved.");
                     Assert(saved.QuietMode && saved.ClaudeCollapsed.SequenceEqual(new[] { "C:\\work" }), "Save changes reset Quiet mode or the card's folds.");
@@ -207,42 +203,45 @@ internal static class SmokeTests
                 window.Close();
             }
         });
-        Check("Settings has its two tabs in order, and the window is an ordinary one", () => {
+        Check("Settings has its three tabs in order, and the window is an ordinary one", () => {
             string path = Path.Combine(directory, "tabs.xml");
             SettingsStore.Save(path, new AppSettings());
-            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
-                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path))
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, path))
                 {
-                    var tabs = (System.Windows.Controls.TabControl)window.FindName("SettingsTabs");
+                    controller.OpenSettings();
+                    var tabs = (System.Windows.Controls.TabControl)controller.SettingsWindow.FindName("SettingsTabs");
                     var headers = tabs.Items.OfType<System.Windows.Controls.TabItem>().Select(t => (string)t.Header).ToList();
-                    Assert(headers.SequenceEqual(new[] { "Theme", "Claude" }), "The Settings tabs aren't in order: " + String.Join(", ", headers));
+                    Assert(headers.SequenceEqual(new[] { "Theme", "Claude", "Window" }), "The Settings tabs aren't in order: " + String.Join(", ", headers));
+                    controller.CancelSettings();
                     // No fullscreen, tray or focus tricks: a resizable window with its own title bar that takes the focus when clicked.
                     Assert(window.WindowStyle == System.Windows.WindowStyle.SingleBorderWindow && window.ResizeMode == System.Windows.ResizeMode.CanResize && window.ShowInTaskbar && window.ShowActivated, "The window isn't an ordinary one.");
+                    Assert(window.MinWidth == 360 && window.MinHeight == 300, "The window's smallest size isn't 360 × 300.");
                     IntPtr handle = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
                     Assert((GetWindowLong(handle, -20) & 0x08000000) == 0, "The window still refuses the focus.");
-                    foreach (string gone in new[] { "EditLayoutButton", "FullscreenButton", "TrayButton", "PageSwitcher", "ClaudePill", "HintRow", "EditPanelLayer", "RemoteEnabledChoice", "MonitorChoice", "KeepFocusChoice" })
+                    foreach (string gone in new[] { "EditLayoutButton", "FullscreenButton", "TrayButton", "PageSwitcher", "ClaudePill", "HintRow", "EditPanelLayer", "RemoteEnabledChoice", "MonitorChoice", "KeepFocusChoice", "SettingsOverlay", "ClaudeHeading" })
                         Assert(window.FindName(gone) == null, gone + " is still in the window.");
                     Assert(System.Windows.Input.Stylus.GetIsPressAndHoldEnabled(window) && System.Windows.Input.Stylus.GetIsFlicksEnabled(window), "Press-and-hold or flicks are still turned off.");
                 }
                 window.Close();
             }
         });
-        Check("Settings panel touch targets", () => {
+        Check("Buttons and choices keep a 32-unit target in both windows", () => {
             string path = Path.Combine(directory, "touch-targets.xml"); SettingsStore.Save(path, new AppSettings());
-            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
-                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path))
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, path))
                 {
-                    Action<string> click = name => ((System.Windows.Controls.Button)window.FindName(name)).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                    click("SettingsButton");
-                    var dashboard = (System.Windows.FrameworkElement)window.FindName("Dashboard");
-                    dashboard.Measure(new System.Windows.Size(1920, 720)); dashboard.Arrange(new System.Windows.Rect(0, 0, 1920, 720)); dashboard.UpdateLayout();
-                    foreach (string name in new[] { "SaveSettings", "CancelSettingsFooter", "ThemeChoice", "AccentChoice" })
-                        Assert(((System.Windows.FrameworkElement)window.FindName(name)).ActualHeight >= 52, name + " is shorter than 52.");
-                    click("CancelSettings");
+                    controller.OpenSettings();
+                    var settings = controller.SettingsWindow;
+                    AppController.Lay(settings, new System.Windows.Size(980, 720)); AppController.Lay(window, new System.Windows.Size(1280, 760));
+                    foreach (string name in new[] { "SaveSettings", "CancelSettings", "ThemeChoice", "AccentChoice", "SettingsButton", "QuietButton" })
+                    {
+                        var element = (System.Windows.FrameworkElement)(settings.FindName(name) ?? window.FindName(name));
+                        Assert(element.ActualHeight >= 32, name + " is shorter than 32.");
+                    }
+                    controller.CancelSettings();
                 }
                 window.Close();
             }
@@ -259,17 +258,17 @@ internal static class SmokeTests
         });
         Check("The Claude card fills the window and follows its size", () => {
             string path = Path.Combine(directory, "fills.xml"); SettingsStore.Save(path, new AppSettings());
-            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
-                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path))
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, path))
                 {
                     controller.UseClaudeSample(false);
-                    var dashboard = (System.Windows.FrameworkElement)window.FindName("Dashboard"); var card = (System.Windows.FrameworkElement)window.FindName("ClaudeCard");
-                    foreach (var size in new[] { new System.Windows.Size(1920, 720), new System.Windows.Size(1000, 480), new System.Windows.Size(2560, 1400) })
+                    var card = (System.Windows.FrameworkElement)window.FindName("ClaudeCard");
+                    foreach (var size in new[] { new System.Windows.Size(1920, 720), new System.Windows.Size(1000, 480), new System.Windows.Size(2560, 1400), new System.Windows.Size(360, 300) })
                     {
-                        for (int i = 0; i < 2; i++) { dashboard.Measure(size); dashboard.Arrange(new System.Windows.Rect(size)); dashboard.UpdateLayout(); }
-                        Assert(Math.Abs(card.ActualWidth - (size.Width - 64)) < 1 && Math.Abs(card.ActualHeight - (size.Height - 144)) < 1, "The card doesn't fill a " + size + " window: " + card.ActualWidth + " × " + card.ActualHeight);
+                        AppController.Lay(window, size);
+                        // The 3-unit frame on each side, and the 56-unit header.
+                        Assert(Math.Abs(card.ActualWidth - (size.Width - 6)) < 1 && Math.Abs(card.ActualHeight - (size.Height - 62)) < 1, "The card doesn't fill a " + size + " window: " + card.ActualWidth + " × " + card.ActualHeight);
                         Assert(controller.ClaudeCardView.Current == CardSizing.Claude(card.ActualWidth, card.ActualHeight), "The card's design doesn't follow a " + size + " window.");
                     }
                 }
