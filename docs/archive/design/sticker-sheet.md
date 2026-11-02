@@ -1,6 +1,6 @@
 # Sticker Sheet widget redesign
 
-Source: the design doc "Widget redesign: dense, characterful widgets", approved by Ali on 1 Nov 2026 ("I like it. Proceed."). He chose **Sticker Sheet** and approved the new inks. Ali explicitly invoked the Impeccable skill for this redesign. The Claude Code widget is out of scope everywhere. The technical record is [decision 021](../decisions/021-sticker-sheet-inks.md), and the world in short is in [DESIGN.md](../../DESIGN.md).
+Source: the design doc "Widget redesign: dense, characterful widgets", approved by Ali on 1 Nov 2026 ("I like it. Proceed."). He chose **Sticker Sheet** and approved the new inks. Ali explicitly invoked the Impeccable skill for this redesign. The Claude Code widget is out of scope everywhere. The technical record is [decision 021](../decisions/021-sticker-sheet-inks.md), and the world in short is in [DESIGN.md](../widget-screen/DESIGN.md).
 
 The redesign ships in five phases, each a MINOR release (check `main`'s latest tag before tagging). Steam game artwork, per-app mixer level meters and storage "used this week" history are deferred: they're in no phase yet.
 

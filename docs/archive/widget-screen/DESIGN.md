@@ -1,6 +1,6 @@
 # Widget Screen design: the Sticker Sheet
 
-The dashboard is a dark sheet of cards, glanceable from arm's length on a 1920 × 720 touchscreen while a game or app runs on the main screen. Each card is a sticker on that sheet: it has its own ink, says what it is in a bold label strip, and says the one thing that matters now in a status sticker. Everything else stays calm. The full note is [docs/design/sticker-sheet.md](docs/design/sticker-sheet.md), and the technical record is [decision 021](docs/decisions/021-sticker-sheet-inks.md). The as-built spec in `design specfication/` (§3.3–3.5) still defines the palettes and accents.
+The dashboard is a dark sheet of cards, glanceable from arm's length on a 1920 × 720 touchscreen while a game or app runs on the main screen. Each card is a sticker on that sheet: it has its own ink, says what it is in a bold label strip, and says the one thing that matters now in a status sticker. Everything else stays calm. The full note is [docs/design/sticker-sheet.md](../design/sticker-sheet.md), and the technical record is [decision 021](../decisions/021-sticker-sheet-inks.md). The as-built spec in `design specfication/` (§3.3–3.5) still defines the palettes and accents.
 
 ## Surfaces
 

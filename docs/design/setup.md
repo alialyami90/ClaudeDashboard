@@ -1,6 +1,8 @@
 # Setup exe (31 Oct 2026)
 
-The decision and its tradeoffs are in `docs/decisions/012-setup-exe.md`. This note is the behaviour.
+The decision and its tradeoffs are in [decision 012](../archive/decisions/012-setup-exe.md), now archived with the rest of Widget Screen's records. This note is the behaviour.
+
+> **Claude Dashboard (decision 026).** The setup exe stays. From v0.42.1 it installs as Claude Dashboard: `ClaudeDashboard-Setup-vX.Y.Z.exe`, `%LOCALAPPDATA%\Programs\Claude Dashboard`, and its own shortcut and uninstall entry. The "Install hardware sensors" checkbox goes with System stats in v0.44.0, and the settings folder moves to `%LOCALAPPDATA%\ClaudeDashboard` in v0.46.0. Until each of those releases, the text below describes what ships.
 
 ## Installing
 
