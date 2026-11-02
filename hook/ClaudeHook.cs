@@ -8,7 +8,7 @@ namespace WidgetScreen
 {
     // ClaudeHook.exe, the bridge between Claude Code and the dashboard (docs/design/claude-watcher.md, decision 014).
     // Claude Code runs "ClaudeHook.exe hook" for its hooks and "ClaudeHook.exe statusline" for its status line, with JSON
-    // on stdin. The files go into the folder this exe sits in (%LOCALAPPDATA%\WidgetScreen\claude once connected), so
+    // on stdin. The files go into the folder this exe sits in (%LOCALAPPDATA%\ClaudeDashboard\claude once connected), so
     // the dashboard doesn't have to be running. It never blocks Claude Code and always exits 0.
     public static class ClaudeHook
     {

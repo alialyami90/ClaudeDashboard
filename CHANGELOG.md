@@ -6,6 +6,18 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.46.0 (2 Nov 2026)
+
+Claude Dashboard, phase 5 of decision 026: its own settings folder.
+
+- **New folder.** Settings, the Claude sign-in and Claude Code's bridge live in `%LOCALAPPDATA%\ClaudeDashboard`. Setup's "Also delete my settings…" option deletes that folder and never touches Widget Screen's.
+- **Moving over from Widget Screen.** On the first run, if `%LOCALAPPDATA%\WidgetScreen` has settings, a sign-in or a bridge folder, the window asks to bring them over.
+  - **Bring it over** copies the Claude settings, the theme and text size, `claude-session.dat` and the `claude\` folder.
+  - If Claude Code was connected, it's connected again from the new folder on the same telemetry port. Every hook and the status line then run the new `ClaudeHook.exe`, and `settings.json` gets its usual dated backup first.
+  - **Start fresh** copies nothing. Closing the window decides nothing, so the question comes back next time.
+  - Widget Screen's folder is only read. The sheet says to quit Widget Screen afterwards, then uninstall it from Installed apps and keep its settings when asked. If reconnecting fails, the status line says why and points to Settings → Claude → Connect.
+- **Checks.** Six new migration checks, using a v0.41 `settings.xml` and a `settings.json` connected to the old folder.
+
 ## v0.45.1 (2 Nov 2026)
 
 Claude Dashboard: the documents catch up with v0.44.0 to v0.45.0.
