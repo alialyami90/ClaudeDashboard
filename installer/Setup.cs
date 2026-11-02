@@ -134,7 +134,7 @@ namespace WidgetScreenSetup
                 : "This removes version " + installed + ", its Start menu and startup shortcuts, and its Installed apps entry.";
             removeSettings = Check("Also delete my settings, Claude sign-in and Claude Code connection files", false);
             options.Children.Add(removeSettings);
-            options.Children.Add(new TextBlock { Text = "They're in " + installer.SettingsDir + ", which the older Widget Screen uses too. Keep them to pick up where you left off if you install again. To delete them, disconnect Claude Code first (Settings → Claude → Disconnect), or its hooks will point at a file that's gone.", Foreground = Muted, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(44, 0, 0, 0) });
+            options.Children.Add(new TextBlock { Text = "They're in " + installer.SettingsDir + ". Widget Screen's own folder is never touched. Keep them to pick up where you left off if you install again. To delete them, disconnect Claude Code first (Settings → Claude → Disconnect), or its hooks will point at a file that's gone.", Foreground = Muted, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(44, 0, 0, 0) });
             if (installer.RunningCopies().Length > 0) Say("Claude Dashboard is running. Uninstalling will close it first.", Muted);
             SetButtons(Primary("Uninstall", Uninstall), Secondary("Cancel", Close));
         }

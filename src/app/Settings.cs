@@ -105,9 +105,12 @@ namespace WidgetScreen
         public static string ClaudePath(string settingsPath) { return Path.Combine(Path.GetDirectoryName(Path.GetFullPath(settingsPath)), "claude"); }
         // The widget's own Claude sign-in (DPAPI-encrypted), beside settings.xml.
         public static string ClaudeSignInPath(string settingsPath) { return Path.Combine(Path.GetDirectoryName(Path.GetFullPath(settingsPath)), "claude-session.dat"); }
+        // %LOCALAPPDATA%\ClaudeDashboard from phase 5 (decision 026); Widget Screen's %LOCALAPPDATA%\WidgetScreen is only
+        // read, by the first run's offer to bring its Claude files over (Migration).
+        public const string FolderName = "ClaudeDashboard";
         public static string DefaultPath
         {
-            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WidgetScreen", "settings.xml"); }
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), FolderName, "settings.xml"); }
         }
 
         public static AppSettings Load(string path, out string warning)

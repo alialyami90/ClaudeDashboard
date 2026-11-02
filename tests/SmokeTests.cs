@@ -53,6 +53,7 @@ internal static class SmokeTests
         ClaudeTrustTests.Run(directory, Check);
         ClaudeNumbersTests.Run(directory, Check);
         ClaudeInstantTests.Run(directory, Check);
+        MigrationTests.Run(directory, Check);
         Check("Native XAML and control templates load", () => {
             using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
