@@ -228,15 +228,15 @@ internal static class ClaudeTreeTests
             {
                 string path = Path.Combine(folder, "claude-" + size.Width + "x" + size.Height + ".xml");
                 var settings = new AppSettings { TextScale = size.Width == 640 ? 1.4 : 1, ClaudePeriod = "Week" };
-                settings.WidgetLayout = WidgetLayout.SpotifyDefault(settings).Select(p => { p.Visible = p.Id == "Claude"; if (p.Visible) { p.X = 0; p.Y = 0; p.Width = size.Width; p.Height = size.Height; } return p; }).ToArray();
                 SettingsStore.Save(path, settings);
                 using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
                 {
                     var window = (Window)System.Windows.Markup.XamlReader.Load(stream);
                     try
                     {
-                        using (var controller = new DashboardController(window, path, true))
+                        using (var controller = new DashboardController(window, path))
                         {
+                            var sized = (FrameworkElement)window.FindName("ClaudeCard"); sized.Width = size.Width; sized.Height = size.Height;
                             controller.UseClaudeSample(false);
                             var card = (FrameworkElement)window.FindName("ClaudeCard"); var dashboard = (FrameworkElement)window.FindName("Dashboard");
                             Action layout = () => { dashboard.Measure(new Size(1920, 720)); dashboard.Arrange(new Rect(0, 0, 1920, 720)); dashboard.UpdateLayout(); };

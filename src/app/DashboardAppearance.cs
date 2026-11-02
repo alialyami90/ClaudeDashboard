@@ -6,17 +6,6 @@ namespace WidgetScreen
 {
     public static class DashboardAppearance
     {
-        // Minimum widths protect touch controls; the remaining space is shared by preference.
-        public static double[] ColumnWidths(AppSettings settings)
-        {
-            double[] minimum = { 312, 460, 440, 424 };
-            double[] weights = { settings.ClockWidth, settings.MediaWidth, settings.MixerWidth, settings.SystemWidth };
-            double total = 0;
-            foreach (double weight in weights) total += weight;
-            for (int i = 0; i < minimum.Length; i++) minimum[i] += 220 * (total == 0 ? .25 : weights[i] / total);
-            return minimum;
-        }
-
         public static void Apply(Window window, AppSettings settings)
         {
             string[] keys = { "Page", "Surface", "Raised", "Input", "Track", "ControlBorder", "Selected", "Muted", "Text", "ClockSurface", "ClockBorder", "ClockMuted" };

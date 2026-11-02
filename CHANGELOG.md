@@ -6,6 +6,15 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.44.0 (2 Nov 2026)
+
+Claude Dashboard, phases 2 and 3 of decision 026: everything but the Claude Code watcher goes. v0.43.0 is skipped on purpose; both phases ship together in this release.
+
+- **One widget.** The 17 other widgets are gone: Focus, Now Playing, Quick Launch, the sound mixer, Spotify, System stats, Weather, the Soundboard, Storage, World clocks, Prayer times, Notes, Clipboard history, Macros, Calendar, Games and Smart home, with their Settings tabs, hardware sensors and checks.
+- **No phone.** The Android app and the phone link are gone; nothing listens on the network any more. The only listener left is Claude Code's telemetry receiver on 127.0.0.1:43832.
+- **An ordinary window.** The app opens as a resizable window with the Claude card filling it under the header, and closes like any other app. There is no secondary-screen fullscreen, Edit layout, pages, widget inks, tray mode or focus keeping, and Settings has two tabs: Theme and Claude.
+- **Claude data untouched.** Claude Code's connection, the sign-in, the project ticks, folds, period and every other Claude choice carry over. Old `settings.xml` files load; the other widgets' fields are dropped when settings are next saved, and a Claude card an old layout had hidden now shows.
+
 ## v0.42.1 (2 Nov 2026)
 
 Claude Dashboard, phase 1 of decision 026: the names.
