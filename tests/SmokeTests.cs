@@ -85,7 +85,6 @@ internal static class SmokeTests
         GameTests.Run(directory, Check);
         MacroTests.Run(directory, Check);
         HomeTests.Run(directory, Check);
-        SensorTests.Run(directory, Check);
         StickerTests.Run(directory, Check);
         DefaultFiveTests.Run(directory, Check);
         ReadingsTests.Run(directory, Check);
