@@ -22,7 +22,10 @@ $lime = [Convert]::ToUInt32('FFBAF28B', 16); $glacier = [Convert]::ToUInt32('FF8
 # A sprite drawn by PitRaster at w × h hard pixels, then repeated k times each way (nearest neighbour), so the pixels
 # stay square at every icon size.
 function Sprite($ops, [double]$boxWidth, [double]$boxHeight, [int]$w, [int]$h, [int]$k) {
-    $bitmap = $pitRaster.GetMethod('Render').Invoke($null, @($ops, (New-Object System.Windows.Rect (0, 0, $boxWidth, $boxHeight)), $w, $h))
+    # Reflection takes the arguments unwrapped: a New-Object result would arrive as a PSObject.
+    $arguments = New-Object 'object[]' 4
+    $arguments[0] = $ops.psobject.BaseObject; $arguments[1] = [System.Windows.Rect]::new(0, 0, $boxWidth, $boxHeight); $arguments[2] = [int]$w; $arguments[3] = [int]$h
+    $bitmap = $pitRaster.GetMethod('Render').Invoke($null, $arguments)
     $small = New-Object byte[] ($w * $h * 4)
     $bitmap.CopyPixels($small, $w * 4, 0)
     $big = New-Object byte[] ($w * $k * $h * $k * 4)
