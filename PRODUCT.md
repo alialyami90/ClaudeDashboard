@@ -1,0 +1,84 @@
+# Product
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+desktop
+
+Windows 10 and 11, x64. Android is a roadmap item (decision 026).
+
+## Users
+
+People who run Claude Code on a Windows PC, often several sessions at once, and want to know without switching windows which session needs them, which is working, and how much of their plan is left.
+
+Built by and for Ali Alyami first, and meant to work for anyone with Claude Code on Windows, through the Claude app's Code tab or the command line.
+
+## Product Purpose
+
+Claude Dashboard is one window that watches every Claude Code session on the PC. Each project is a pit garage and each thread a pixel-art race car whose motion says its state: working, needs you, your turn, compacting, stuck, idle or ended. Above them sit the plan's 5-hour and weekly limits with pace and a projection, and below them a ledger of tokens, cache reads, model mix and lines changed per project and per thread, for the last 5 hours, today or the week.
+
+Success means the user stops tabbing through terminals to find the session that is waiting on them, never hits a limit by surprise, and trusts every number on the screen.
+
+## Positioning
+
+A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud service or companion server. It reads what Claude Code and the Claude app already write on the PC, adds a small hook exe and a loopback telemetry receiver that Settings → Claude → Connect sets up (and Disconnect takes out exactly), and asks Anthropic for nothing but the plan's usage meters, through its own sign-in.
+
+## What it reads
+
+- **Claude Code's hooks and status line,** through `ClaudeHook.exe`, which writes one small file per session to the bridge folder (`%LOCALAPPDATA%\WidgetScreen\claude` until phase 5 moves it to `%LOCALAPPDATA%\ClaudeDashboard\claude`): state, project folder, model, title, the notification's own message, cost and context size.
+- **Claude Code's own session list and logs,** read-only: token counts per reply, models, times, tool names and lines changed. It also takes the first line of a thread's first request (about 60 characters) as the thread's name when nothing better exists, and keeps it in memory only.
+- **The Claude app's thread records,** read-only: thread title, folder, archived flag and last activity.
+- **Claude Code's OpenTelemetry,** sent to 127.0.0.1 only: event names, counts, costs and tool decisions. Prompts, replies and tool details stay off.
+- **The plan's usage meters** from `api.anthropic.com`, every 5 minutes by default while signed in with the app's own **Sign in with Claude** (`user:profile` only).
+
+## What it never does
+
+- It never stores or sends a prompt, a reply or a file's contents.
+- It never reads Claude Code's credentials. Its own sign-in is kept encrypted with DPAPI in `claude-session.dat`, and the tokens go only to Anthropic's hosts.
+- It never listens on the network. The telemetry receiver binds to 127.0.0.1 and takes JSON only.
+- It never spends credits. The usage endpoint reads the meters; nothing calls a model.
+- It never overwrites the user's own Claude Code settings: Connect merges into `settings.json` with a dated backup, leaves the user's `OTEL_*` values alone, and says when managed settings override it.
+
+## The honest-numbers promise
+
+- Costs come from Claude Code's own telemetry first, then the published price table, and say "≈ $ at API prices". Replies from a model the table doesn't know show "~" with a tip naming the model, never a guess.
+- Every reply is counted once, by its request id, however many sources report it.
+- A missing reading says why ("Telemetry off: port 43832 in use", "Sign in for plan limits"). Loading, unavailable, disconnected and working always look different.
+- Sample data is always labelled. `--render-claude-sample` draws a fixture that says it is one.
+
+## Capabilities and Constraints
+
+- **One window on any monitor.** It opens where it was closed, at the size it was left, and behaves like any other Windows app: it takes focus, sits in the taskbar and closes fully. The card picks Small, Medium or Large from the window's size (from phase 4; until then it sits on the old canvas).
+- **Light on resources.** One 1-second heartbeat; file watchers instead of re-reading; the frame clock runs only while a car visibly moves, never while minimised or in Quiet mode (unless the user asks the cars to move in Quiet mode).
+- **Local.** Preferences are local XML, written atomically. Nothing about the user's sessions leaves the PC.
+- **Undecided:** the Android companion's scope and timing, and whether 1.0 needs anything beyond package 4 and that companion.
+
+## Brand Commitments
+
+- Name **Claude Dashboard**, author **Ali Alyami**. The exe is `ClaudeDashboard.exe`; the logo is redrawn in phase 1 as a car in front of a garage.
+- Claude Dashboard is an independent app built on Claude Code's documented hooks, status line and telemetry. It is not made by Anthropic.
+- The visual language is in [DESIGN.md](DESIGN.md): the pit wall, its palettes, Amber for Needs you and Glacier for Your turn, and the pixel-art rules.
+- System fonts only: Segoe UI and Segoe MDL2 Assets. No images or emoji as icons, no custom fonts. Cars and garages are drawn in code.
+- Voice: short and plain. The card speaks when something is true or wrong, and says why when a reading is missing.
+
+## Evidence on Hand
+
+- The approved pit wall mock: [docs/design/claude-watcher-v2.html](docs/design/claude-watcher-v2.html).
+- The watcher's design note and records: [docs/design/claude-watcher.md](docs/design/claude-watcher.md) and decisions 014–020 and 022–026 in `docs/decisions/`.
+- The Claude checks in `tests/Claude/` and the labelled `--render-claude-sample` renders.
+- No user research or usage numbers exist beyond Ali's own use. Real telemetry for every event type, a real compaction and the sign-in on other people's plans are not all verified; don't claim them.
+
+## Product Principles
+
+1. **See who needs you.** A session waiting on the user is the loudest thing on screen, and one click brings its window forward.
+2. **Trust the sources.** Show what Claude Code and the Claude app say, in their order of authority, and say plainly when a source is missing.
+3. **Honest numbers.** Never a guess shown as a fact; every estimate says it is one.
+4. **Cheap to watch.** It runs all day beside work and games, so idle means idle.
+5. **Read, don't reach.** It watches local files and one loopback port, writes only its own hook entries, and touches nothing it can't take back out.
+
+## Accessibility & Inclusion
+
+- State is never colour alone: each car state has its own motion and a still frame, and every chip names its state in words.
+- Quiet mode stops the loops and keeps the state swaps. Text size goes from 100% to 140%.
+- Windows notifications for Needs you, Stuck and long turns reach the user when the window is behind others; they are on by default and silent in Quiet mode.
