@@ -46,7 +46,6 @@ internal static class SmokeTests
         // And the organisation's managed settings (package 3): a file that doesn't exist. No Claude notification pops up.
         Environment.SetEnvironmentVariable(ClaudeConnector.ManagedVariable, Path.Combine(directory, "claude-managed-settings.json"));
         ClaudeToast.Enabled = false;
-        RemoteTests.Run(directory, Check);
         ClaudeTests.Run(directory, Check);
         ClaudeSourcesTests.Run(directory, Check);
         ClaudeTreeTests.Run(directory, Check);
@@ -80,8 +79,11 @@ internal static class SmokeTests
             string reference = null;
             for (var folder = new DirectoryInfo(Path.GetFullPath(directory)); folder != null && reference == null; folder = folder.Parent)
             {
-                string candidate = Path.Combine(folder.FullName, "design specfication", "as-built-reference", "default-settings.xml");
-                if (File.Exists(candidate)) reference = candidate;
+                foreach (string spec in new[] { Path.Combine("docs", "archive", "widget-screen", "design specfication"), "design specfication" })
+                {
+                    string candidate = Path.Combine(folder.FullName, spec, "as-built-reference", "default-settings.xml");
+                    if (reference == null && File.Exists(candidate)) reference = candidate;
+                }
             }
             string warning;
             if (reference != null)
@@ -95,11 +97,12 @@ internal static class SmokeTests
             File.WriteAllText(path, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<AppSettings xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">"
                 + "<Theme>Slate</Theme><Accent>Glacier</Accent><TextScale>1.1</TextScale><QuietMode>true</QuietMode>"
                 + "<ShowCpu>false</ShowCpu><ShowGpu>true</ShowGpu><SystemStyles>Cpu=Ring</SystemStyles><WeatherLocation>Riyadh</WeatherLocation><Latitude>24.7</Latitude><Longitude>46.7</Longitude>"
+                + "<StartFullscreen>true</StartFullscreen><KeepGameFocus>true</KeepGameFocus><Monitor>\\\\.\\DISPLAY2</Monitor><RemoteEnabled>true</RemoteEnabled><HideToTrayWithPhone>true</HideToTrayWithPhone><WidgetInks>Focus=Rose</WidgetInks><WidgetColours>Each</WidgetColours><PageName>Main</PageName><CurrentPage>0</CurrentPage><HintDismissed>true</HintDismissed>"
                 + "<SpotifyClientId>0123456789abcdef0123456789abcdef</SpotifyClientId><FocusChime>true</FocusChime><ShowLevels>false</ShowLevels><SwapSideWidgets>true</SwapSideWidgets>"
                 + "<Shortcuts><Shortcut><Label>Music</Label><Action>Website</Action><Target>https://example.com</Target></Shortcut></Shortcuts>"
                 + "<Macros><Macro><Name>Stream</Name></Macro></Macros><WorldClocks>Tokyo|Tokyo Standard Time</WorldClocks><HomeEntities>light.desk</HomeEntities>"
                 + "<WidgetLayout><WidgetPlacement><Id>Focus</Id><X>0</X><Y>0</Y><Width>320</Width><Height>576</Height><Visible>true</Visible><Layer>0</Layer></WidgetPlacement>"
-                + "<WidgetPlacement><Id>Claude</Id><X>336</X><Y>0</Y><Width>800</Width><Height>576</Height><Visible>true</Visible><Layer>2</Layer></WidgetPlacement></WidgetLayout>"
+                + "<WidgetPlacement><Id>Claude</Id><X>336</X><Y>0</Y><Width>800</Width><Height>576</Height><Visible>false</Visible><Layer>2</Layer></WidgetPlacement></WidgetLayout>"
                 + "<ClaudePeriod>Week</ClaudePeriod><ClaudeCardSeconds>3</ClaudeCardSeconds><ClaudeShowArchived>true</ClaudeShowArchived>"
                 + "</AppSettings>");
             var loaded = SettingsStore.Load(path, out warning);
@@ -108,16 +111,24 @@ internal static class SmokeTests
             Assert(loaded.ClaudePeriod == "Week" && loaded.ClaudeCardSeconds == 3 && loaded.ClaudeShowArchived, "The Claude choices were lost.");
             SettingsStore.Save(path, loaded);
             string saved = File.ReadAllText(path);
-            foreach (string gone in new[] { "ShowCpu", "SystemStyles", "WeatherLocation", "SpotifyClientId", "FocusChime", "ShowLevels", "SwapSideWidgets", "<Shortcuts", "<Macros", "WorldClocks", "HomeEntities" })
+            foreach (string gone in new[] { "ShowCpu", "SystemStyles", "WeatherLocation", "SpotifyClientId", "FocusChime", "ShowLevels", "SwapSideWidgets", "<Shortcuts", "<Macros", "WorldClocks", "HomeEntities", "StartFullscreen", "KeepGameFocus", "Monitor", "RemoteEnabled", "HideToTray", "WidgetInks", "WidgetColours", "<WidgetLayout", "PageName", "CurrentPage", "HintDismissed" })
                 Assert(!saved.Contains(gone), gone + " is still written.");
+            // The card was hidden in that layout; there is no layout any more, so it shows.
+            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
+            {
+                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
+                using (var controller = new DashboardController(window, path))
+                    Assert(((System.Windows.UIElement)window.FindName("ClaudeCard")).Visibility == System.Windows.Visibility.Visible, "A card hidden in an old layout stays hidden.");
+                window.Close();
+            }
         });
         Check("Appearance survives save, and older settings inherit defaults", () => {
             string path = Path.Combine(directory, "customization.xml");
-            var settings = new AppSettings { Theme = "Warm", CornerRadius = 0, StartFullscreen = false };
+            var settings = new AppSettings { Theme = "Warm", CornerRadius = 0 };
             SettingsStore.Save(path, settings); string warning; var loaded = SettingsStore.Load(path, out warning);
-            Assert(warning == null && loaded.Theme == "Warm" && loaded.CornerRadius == 0 && !loaded.StartFullscreen, "Appearance or launch preference lost.");
+            Assert(warning == null && loaded.Theme == "Warm" && loaded.CornerRadius == 0, "Appearance lost.");
             File.WriteAllText(path, "<AppSettings><Accent>Glacier</Accent></AppSettings>"); loaded = SettingsStore.Load(path, out warning);
-            Assert(loaded.StartFullscreen && loaded.Theme == "Midnight" && loaded.Accent == "Glacier", "Older settings did not inherit defaults.");
+            Assert(loaded.CornerRadius == 20 && loaded.Theme == "Midnight" && loaded.Accent == "Glacier" && loaded.ClaudeToast, "Older settings did not inherit defaults.");
             loaded.CornerRadius = 100; loaded.Theme = "invalid"; loaded.Normalize();
             Assert(loaded.CornerRadius == 24 && loaded.Theme == "Midnight", "Invalid appearance not normalized.");
         });
@@ -126,20 +137,20 @@ internal static class SmokeTests
             using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
                 var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path, true))
+                using (var controller = new DashboardController(window, path))
                 {
                     Action<string> click = name => ((System.Windows.Controls.Button)window.FindName(name)).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                     click("SettingsButton");
-                    var tabs = (System.Windows.Controls.TabControl)window.FindName("SettingsTabs"); Assert(tabs.Items.Count == 5 && (string)((System.Windows.Controls.TabItem)tabs.Items[4]).Header == "Claude", "Settings tabs missing.");
+                    var tabs = (System.Windows.Controls.TabControl)window.FindName("SettingsTabs"); Assert(tabs.Items.Count == 2 && (string)((System.Windows.Controls.TabItem)tabs.Items[1]).Header == "Claude", "Settings tabs missing.");
                     ((System.Windows.Controls.ComboBox)window.FindName("ThemeChoice")).SelectedItem = "Warm";
                     var preview = ((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color;
                     click("CancelSettings");
                     Assert(((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color != preview, "Cancel retained preview theme.");
                     click("SettingsButton"); ((System.Windows.Controls.ComboBox)window.FindName("ThemeChoice")).SelectedItem = "Slate";
-                    ((System.Windows.Controls.CheckBox)window.FindName("StartFullscreenChoice")).IsChecked = false;
-                    tabs.SelectedIndex = 2; click("SaveSettings");
+                    ((System.Windows.Controls.CheckBox)window.FindName("ClockChoice")).IsChecked = true;
+                    tabs.SelectedIndex = 1; click("SaveSettings");
                     string warning; var saved = SettingsStore.Load(path, out warning);
-                    Assert(saved.Theme == "Slate" && !saved.StartFullscreen, "Cross-tab save lost values.");
+                    Assert(saved.Theme == "Slate" && saved.Use24HourClock, "Cross-tab save lost values.");
                 }
                 window.Close();
             }
@@ -149,7 +160,7 @@ internal static class SmokeTests
             using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
                 var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path, true))
+                using (var controller = new DashboardController(window, path))
                 {
                     Action<string> click = name => ((System.Windows.Controls.Button)window.FindName(name)).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                     var page = ((System.Windows.Media.SolidColorBrush)window.Resources["Page"]).Color;
@@ -164,89 +175,57 @@ internal static class SmokeTests
                     Assert((string)((System.Windows.Controls.ComboBox)window.FindName("ThemeChoice")).SelectedItem == "Midnight", "Reopened Settings showed the discarded draft.");
                     click("CancelSettings");
                     var panel = (System.Windows.Controls.Border)((System.Windows.Controls.Grid)window.FindName("SettingsOverlay")).Children[0];
-                    Assert(panel.Width == 1440 && panel.Height == 672, "Settings panel is not 1440 × 672.");
+                    Assert(panel.MaxWidth == 1440 && panel.MaxHeight == 672, "Settings panel can grow past 1440 × 672.");
                 }
                 window.Close();
             }
         });
         Check("Settings copy is deep and complete", () => {
-            var original = new AppSettings { Accent = "Amber", RemoteEnabled = true, HideToTrayWithPhone = false, QuietMode = true, CurrentPage = 1, PageName = "Work", ClaudeCollapsed = new[] { "C:\\work" },
-                MorePages = new[] { new LayoutPage { Name = "Games", WidgetLayout = WidgetLayout.DefaultFor(new AppSettings(), WidgetLayout.Reference) } },
-                CanvasLayouts = new[] { new CanvasLayout { Width = 1000, Height = 500, Widgets = WidgetLayout.DefaultFor(new AppSettings(), new System.Windows.Size(1000, 500)) } } };
-            original.WidgetLayout = WidgetLayout.DefaultFor(original, WidgetLayout.Reference);
+            var original = new AppSettings { Accent = "Amber", QuietMode = true, ClaudeCollapsed = new[] { "C:\\work" }, ClaudeFacts = new[] { "tokens" },
+                ClaudeProjects = new[] { new ClaudeProjectChoice { Folder = "C:\\work", Shown = false } } };
             var copy = original.Copy();
             Func<AppSettings, string> xml = s => { using (var writer = new StringWriter()) { new System.Xml.Serialization.XmlSerializer(typeof(AppSettings)).Serialize(writer, s); return writer.ToString(); } };
             Assert(xml(copy) == xml(original), "The copy differs from the original.");
-            Assert(copy.WidgetLayout != original.WidgetLayout && copy.CanvasLayouts != original.CanvasLayouts && copy.MorePages != original.MorePages, "The copy shares collections with the original.");
-            copy.WidgetLayout[0].X += 8; copy.MorePages[0].Name = "Changed"; copy.CanvasLayouts[0].Widgets[0].Y += 8;
-            Assert(original.WidgetLayout[0].X != copy.WidgetLayout[0].X && original.MorePages[0].Name == "Games" && original.CanvasLayouts[0].Widgets[0].Y != copy.CanvasLayouts[0].Widgets[0].Y, "Changing the copy changed the original.");
+            Assert(copy.ClaudeCollapsed != original.ClaudeCollapsed && copy.ClaudeProjects != original.ClaudeProjects && copy.ClaudeFacts != original.ClaudeFacts, "The copy shares collections with the original.");
+            copy.ClaudeProjects[0].Shown = true; copy.ClaudeCollapsed[0] = "C:\\other";
+            Assert(!original.ClaudeProjects[0].Shown && original.ClaudeCollapsed[0] == "C:\\work", "Changing the copy changed the original.");
         });
-        Check("Settings → Save keeps pages, the current page, Quiet mode and the phone link", () => {
+        Check("Settings → Save keeps Quiet mode and the card's folds", () => {
             string path = Path.Combine(directory, "save-keeps.xml");
-            SettingsStore.Save(path, new AppSettings { RemoteEnabled = true, HideToTrayWithPhone = false, QuietMode = true, PageName = "Work", MorePages = new[] { new LayoutPage { Name = "Games" }, new LayoutPage { Name = "Music" } }, CurrentPage = 1 });
+            SettingsStore.Save(path, new AppSettings { QuietMode = true, ClaudeCollapsed = new[] { "C:\\work" } });
             using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
                 var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path, true))
+                using (var controller = new DashboardController(window, path))
                 {
                     Action<string> click = name => ((System.Windows.Controls.Button)window.FindName(name)).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                     click("SettingsButton"); ((System.Windows.Controls.ComboBox)window.FindName("ThemeChoice")).SelectedItem = "Warm"; click("SaveSettings");
                     string warning; var saved = SettingsStore.Load(path, out warning);
                     Assert(saved.Theme == "Warm", "The theme change was not saved.");
-                    Assert(WidgetLayout.PageCount(saved) == 3 && saved.PageName == "Work" && saved.MorePages[1].Name == "Music" && saved.CurrentPage == 1, "Save changes dropped the pages or the current page.");
-                    Assert(saved.RemoteEnabled && !saved.HideToTrayWithPhone && saved.QuietMode, "Save changes reset the phone link or Quiet mode.");
-                    click("SettingsButton");
-                    Assert(((System.Windows.Controls.CheckBox)window.FindName("RemoteEnabledChoice")).IsChecked == true && ((System.Windows.Controls.TextBlock)window.FindName("PageNameText")).Text == "Games", "The dashboard shows a different state than it saved.");
-                    click("CancelSettings");
+                    Assert(saved.QuietMode && saved.ClaudeCollapsed.SequenceEqual(new[] { "C:\\work" }), "Save changes reset Quiet mode or the card's folds.");
                 }
                 window.Close();
             }
         });
-        Check("The tips go away with Got it, and Settings has its five tabs in order", () => {
-            string path = Path.Combine(directory, "tips.xml");
+        Check("Settings has its two tabs in order, and the window is an ordinary one", () => {
+            string path = Path.Combine(directory, "tabs.xml");
             SettingsStore.Save(path, new AppSettings());
             using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
                 var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path, true))
+                using (var controller = new DashboardController(window, path))
                 {
-                    Action<System.Windows.Controls.Button> click = button => button.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                    string warning;
-                    var hint = (System.Windows.Controls.StackPanel)window.FindName("HintRow");
-                    Assert(hint.Visibility == System.Windows.Visibility.Visible, "The first-launch tips aren't shown.");
-                    click((System.Windows.Controls.Button)window.FindName("HintDismiss"));
-                    Assert(hint.Visibility == System.Windows.Visibility.Collapsed && SettingsStore.Load(path, out warning).HintDismissed, "Got it didn't put the tips away for good.");
                     var tabs = (System.Windows.Controls.TabControl)window.FindName("SettingsTabs");
                     var headers = tabs.Items.OfType<System.Windows.Controls.TabItem>().Select(t => (string)t.Header).ToList();
-                    Assert(headers.SequenceEqual(new[] { "Theme", "Display", "Widgets", "Phone", "Claude" }), "The Settings tabs aren't in order: " + String.Join(", ", headers));
-                    Assert(!new AppSettings().HideToTrayWithPhone, "Tray mode with the phone is on by default.");
+                    Assert(headers.SequenceEqual(new[] { "Theme", "Claude" }), "The Settings tabs aren't in order: " + String.Join(", ", headers));
+                    // No fullscreen, tray or focus tricks: a resizable window with its own title bar that takes the focus when clicked.
+                    Assert(window.WindowStyle == System.Windows.WindowStyle.SingleBorderWindow && window.ResizeMode == System.Windows.ResizeMode.CanResize && window.ShowInTaskbar && window.ShowActivated, "The window isn't an ordinary one.");
+                    IntPtr handle = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+                    Assert((GetWindowLong(handle, -20) & 0x08000000) == 0, "The window still refuses the focus.");
+                    foreach (string gone in new[] { "EditLayoutButton", "FullscreenButton", "TrayButton", "PageSwitcher", "ClaudePill", "HintRow", "EditPanelLayer", "RemoteEnabledChoice", "MonitorChoice", "KeepFocusChoice" })
+                        Assert(window.FindName(gone) == null, gone + " is still in the window.");
+                    Assert(System.Windows.Input.Stylus.GetIsPressAndHoldEnabled(window) && System.Windows.Input.Stylus.GetIsFlicksEnabled(window), "Press-and-hold or flicks are still turned off.");
                 }
-                window.Close();
-            }
-        });
-        Check("Touch sliders map to the rendered track, clamp, snap and follow direction changes", () => {
-            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
-            {
-                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                var style = (System.Windows.Style)window.Resources[typeof(System.Windows.Controls.Slider)];
-                Func<double, double, double, System.Windows.Controls.Slider> make = (min, max, tick) => {
-                    var s = new System.Windows.Controls.Slider { Style = style, Minimum = min, Maximum = max, TickFrequency = tick, IsSnapToTickEnabled = tick > 0 };
-                    s.ApplyTemplate(); s.Measure(new System.Windows.Size(448, 48)); s.Arrange(new System.Windows.Rect(0, 0, 448, 48)); s.UpdateLayout(); return s;
-                };
-                var volume = make(0, 100, 0);
-                var track = (System.Windows.Controls.Primitives.Track)volume.Template.FindName("PART_Track", volume);
-                Assert(track.Thumb.ActualWidth == 48 && track.Thumb.ActualHeight == 48, "Slider thumb target is not 48 × 48.");
-                double start = track.TranslatePoint(new System.Windows.Point(0, 0), volume).X, length = track.ActualWidth;
-                Func<double, double> at = fraction => start + 24 + fraction * (length - 48);
-                Assert(Math.Abs(TouchSlider.ValueAt(volume, at(.5)) - 50) < .01 && Math.Abs(TouchSlider.ValueAt(volume, at(.25)) - 25) < .01, "Touch does not map to the track centre line.");
-                Assert(TouchSlider.ValueAt(volume, -500) == 0 && TouchSlider.ValueAt(volume, 5000) == 100 && TouchSlider.ValueAt(volume, at(0)) == 0 && TouchSlider.ValueAt(volume, at(1)) == 100, "Endpoints are not clamped.");
-                // Rapid changes: the thumb has not been re-arranged, so mapping must not depend on the current value.
-                foreach (double fraction in new[] { .9, .1, .7, .3, .95 }) { volume.Value = TouchSlider.ValueAt(volume, at(fraction)); Assert(Math.Abs(volume.Value - fraction * 100) < .01, "Rapid or reversed movement drifted before relayout."); }
-                var corners = make(0, 24, 4);
-                Assert(TouchSlider.ValueAt(corners, at(.30)) == 8 && TouchSlider.ValueAt(corners, at(.36)) == 8 && TouchSlider.ValueAt(corners, at(.42)) == 12 && TouchSlider.ValueAt(corners, at(1.2)) == 24, "Corner steps do not snap.");
-                var scale = make(90, 115, 5);
-                Assert(TouchSlider.ValueAt(scale, at(0)) == 90 && TouchSlider.ValueAt(scale, at(.62)) == 105 && TouchSlider.ValueAt(scale, at(.58)) == 105 && TouchSlider.ValueAt(scale, at(.5)) % 5 == 0, "Text size steps do not snap.");
-                Assert(System.Windows.Input.Stylus.GetIsPressAndHoldEnabled(window) == false && System.Windows.Input.Stylus.GetIsFlicksEnabled(window) == false, "Press-and-hold or flicks are still enabled.");
                 window.Close();
             }
         });
@@ -255,7 +234,7 @@ internal static class SmokeTests
             using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
             {
                 var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
-                using (var controller = new DashboardController(window, path, true))
+                using (var controller = new DashboardController(window, path))
                 {
                     Action<string> click = name => ((System.Windows.Controls.Button)window.FindName(name)).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                     click("SettingsButton");
@@ -278,12 +257,24 @@ internal static class SmokeTests
             var settings = new AppSettings { TextScale = 9, Accent = "invalid" }; settings.Normalize();
             Assert(settings.TextScale == 1.4 && settings.Accent == "Lime", "Invalid settings were not normalized.");
         });
-        Check("A fresh install shows the Claude card filling the canvas", () => {
-            var layout = WidgetLayout.DefaultFor(new AppSettings(), WidgetLayout.Reference);
-            Assert(layout.Length == 1 && layout[0].Id == "Claude" && layout[0].Visible && layout[0].Bounds == new System.Windows.Rect(0, 0, WidgetLayout.ReferenceWidth, WidgetLayout.ReferenceHeight), "The default layout isn't the Claude card alone.");
-            var old = new[] { new WidgetPlacement { Id = "Focus", Width = 320, Height = 576 }, new WidgetPlacement { Id = "Claude", X = 336, Width = 800, Height = 576 } };
-            var kept = WidgetLayout.Normalize(old, new AppSettings());
-            Assert(kept.Length == 1 && kept[0].Id == "Claude" && kept[0].X == 336, "An older layout kept other widgets or lost the Claude card's place.");
+        Check("The Claude card fills the window and follows its size", () => {
+            string path = Path.Combine(directory, "fills.xml"); SettingsStore.Save(path, new AppSettings());
+            using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
+            {
+                var window = (System.Windows.Window)System.Windows.Markup.XamlReader.Load(stream);
+                using (var controller = new DashboardController(window, path))
+                {
+                    controller.UseClaudeSample(false);
+                    var dashboard = (System.Windows.FrameworkElement)window.FindName("Dashboard"); var card = (System.Windows.FrameworkElement)window.FindName("ClaudeCard");
+                    foreach (var size in new[] { new System.Windows.Size(1920, 720), new System.Windows.Size(1000, 480), new System.Windows.Size(2560, 1400) })
+                    {
+                        for (int i = 0; i < 2; i++) { dashboard.Measure(size); dashboard.Arrange(new System.Windows.Rect(size)); dashboard.UpdateLayout(); }
+                        Assert(Math.Abs(card.ActualWidth - (size.Width - 64)) < 1 && Math.Abs(card.ActualHeight - (size.Height - 144)) < 1, "The card doesn't fill a " + size + " window: " + card.ActualWidth + " × " + card.ActualHeight);
+                        Assert(controller.ClaudeCardView.Current == CardSizing.Claude(card.ActualWidth, card.ActualHeight), "The card's design doesn't follow a " + size + " window.");
+                    }
+                }
+                window.Close();
+            }
         });
         Console.WriteLine(failures == 0 ? "All checks passed." : failures + " check(s) failed.");
         return failures == 0 ? 0 : 1;

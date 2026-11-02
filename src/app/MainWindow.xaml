@@ -3,8 +3,7 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         Title="Claude Dashboard" Width="1536" Height="640" MinWidth="960" MinHeight="400"
         Background="{DynamicResource Page}" Foreground="{DynamicResource Text}" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen"
-        UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display"
-        Stylus.IsPressAndHoldEnabled="False" Stylus.IsFlicksEnabled="False">
+        UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display">
   <Window.Resources>
 <SolidColorBrush x:Key="Page" Color="#0C0E13"/>
 <SolidColorBrush x:Key="Surface" Color="#161A22"/>
@@ -105,91 +104,7 @@
       <Setter Property="FontSize" Value="22"/>
       <Setter Property="Padding" Value="10"/>
     </Style>
-    <!-- Quick Launch keycaps (docs/design/sticker-sheet.md, phase 2): the cap sits on a 4-unit darker skirt and drops 2 units while pressed; an LED dot in the widget's ink lights for a button that's on (Tag = True). -->
-    <Style x:Key="Keycap" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Template">
-        <Setter.Value><ControlTemplate TargetType="Button">
-          <Grid>
-            <Border x:Name="Skirt" Background="{DynamicResource Input}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="12" Margin="0,4,0,0"/>
-            <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12" Padding="{TemplateBinding Padding}" Margin="0,0,0,4">
-              <Grid>
-                <Border x:Name="Hover" Background="White" Opacity="0" CornerRadius="8" IsHitTestVisible="False"/>
-                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
-                <Ellipse x:Name="Led" Width="8" Height="8" Fill="{DynamicResource InkOfShortcuts}" Stroke="{DynamicResource Page}" StrokeThickness="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-2,0" Visibility="Collapsed" IsHitTestVisible="False"/>
-              </Grid>
-            </Border>
-          </Grid>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.06"/></Trigger>
-            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/><Setter TargetName="Chrome" Property="Margin" Value="0,2,0,2"/></Trigger>
-            <Trigger Property="Tag"><Trigger.Value><sys:Boolean>True</sys:Boolean></Trigger.Value><Setter TargetName="Led" Property="Visibility" Value="Visible"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Text}"/><Setter TargetName="Chrome" Property="BorderThickness" Value="2"/></Trigger>
-            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.35"/><Setter TargetName="Skirt" Property="Opacity" Value="0.35"/></Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate></Setter.Value>
-      </Setter>
-    </Style>
-    <!-- Soundboard sampler pads (docs/design/sticker-sheet.md, phase 5): a rubber pad edged in the card's ink on a solid
-         lift. It lights in the ink, with dark text, while pressed and for 150 ms after a tap (Tag = true). -->
-    <Style x:Key="Pad" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-      <Setter Property="Template">
-        <Setter.Value><ControlTemplate TargetType="Button">
-          <Grid>
-            <Border x:Name="Lift" Background="{DynamicResource Page}" CornerRadius="14" Margin="0,3,0,0"/>
-            <Border x:Name="Face" Background="{DynamicResource Raised}" BorderBrush="{DynamicResource InkOfSoundboard}" BorderThickness="2" CornerRadius="14" Margin="0,0,0,3">
-              <Grid>
-                <Border x:Name="Lit" Background="{DynamicResource InkOfSoundboard}" CornerRadius="12" Opacity="0.1" IsHitTestVisible="False"/>
-                <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
-              </Grid>
-            </Border>
-          </Grid>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Lit" Property="Opacity" Value="0.2"/></Trigger>
-            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Lit" Property="Opacity" Value="1"/><Setter Property="Foreground" Value="{DynamicResource InkText}"/><Setter TargetName="Face" Property="Margin" Value="0,2,0,1"/></Trigger>
-            <Trigger Property="Tag"><Trigger.Value><sys:Boolean>True</sys:Boolean></Trigger.Value><Setter TargetName="Lit" Property="Opacity" Value="1"/><Setter Property="Foreground" Value="{DynamicResource InkText}"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource Text}"/></Trigger>
-            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Face" Property="Opacity" Value="0.4"/><Setter TargetName="Lift" Property="Opacity" Value="0.4"/></Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate></Setter.Value>
-      </Setter>
-    </Style>
-    <!-- The mixer's channel strips (docs/design/sticker-sheet.md, phase 2): the same slider standing up, filling from the bottom, with the 48 × 48 thumb. -->
-    <Style x:Key="VerticalSlider" TargetType="Slider">
-      <Setter Property="Orientation" Value="Vertical"/>
-      <Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/>
-      <Setter Property="MinWidth" Value="48"/><Setter Property="IsMoveToPointEnabled" Value="True"/>
-      <Setter Property="SmallChange" Value="1"/><Setter Property="LargeChange" Value="5"/>
-      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider">
-        <Border x:Name="SliderChrome" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="10" Padding="0,2"><Track x:Name="PART_Track" HorizontalAlignment="Center">
-          <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False"><RepeatButton.Template><ControlTemplate><Border Width="6" CornerRadius="3" Background="{DynamicResource Accent}"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseRepeatButton>
-          <Track.Thumb><Thumb Width="48" Height="48"><Thumb.Template><ControlTemplate><Grid Background="Transparent"><Border Width="30" Height="30" Background="{DynamicResource Accent}" BorderBrush="{DynamicResource Surface}" BorderThickness="3" CornerRadius="15"/></Grid></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
-          <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False"><RepeatButton.Template><ControlTemplate><Border Width="6" CornerRadius="3" Background="{DynamicResource Track}"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseRepeatButton>
-        </Track></Border>
-        <ControlTemplate.Triggers>
-          <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="SliderChrome" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
-          <Trigger Property="IsEnabled" Value="False"><Setter TargetName="SliderChrome" Property="Opacity" Value="0.3"/></Trigger>
-        </ControlTemplate.Triggers>
-      </ControlTemplate></Setter.Value></Setter>
-    </Style>    <!-- Spotify's crate tabs (docs/design/sticker-sheet.md, phase 2): dividers with rounded tops; the chosen one is filled with the widget's ink over an ink line. -->
-    <Style x:Key="CrateTab" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Template">
-        <Setter.Value><ControlTemplate TargetType="Button">
-          <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12,12,0,0" Padding="{TemplateBinding Padding}">
-            <Grid>
-              <Border x:Name="Hover" Background="White" Opacity="0" CornerRadius="8,8,0,0" IsHitTestVisible="False"/>
-              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
-            </Grid>
-          </Border>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.06"/></Trigger>
-            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Text}"/><Setter TargetName="Chrome" Property="BorderThickness" Value="2"/></Trigger>
-            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.35"/></Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate></Setter.Value>
-      </Setter>
-    </Style>    <Style TargetType="Slider">
+    <Style TargetType="Slider">
       <Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/>
       <Setter Property="MinHeight" Value="48"/><Setter Property="IsMoveToPointEnabled" Value="True"/>
       <Setter Property="SmallChange" Value="1"/><Setter Property="LargeChange" Value="5"/>
@@ -276,14 +191,13 @@
     <Style TargetType="ProgressBar"><Setter Property="Foreground" Value="{DynamicResource Accent}"/><Setter Property="Background" Value="{DynamicResource Track}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Height" Value="5"/></Style>
   </Window.Resources>
 
-  <!-- The dashboard is designed at the 1920 × 720 scale; DashboardController.Screen.cs gives this grid a logical size shaped like the screen. -->
-  <Viewbox Stretch="Uniform">
-    <Grid x:Name="Dashboard" Width="1920" Height="720" Background="{DynamicResource Page}">
+  <!-- One ordinary window: the Claude card fills it under the header. -->
+    <Grid x:Name="Dashboard" Background="{DynamicResource Page}">
       <Grid x:Name="DashboardContent" Margin="32,20,32,16">
         <Grid.RowDefinitions><RowDefinition Height="72"/><RowDefinition Height="*"/><RowDefinition Height="36"/></Grid.RowDefinitions>
         <Grid>
           <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
-          <!-- The clock lives in the header so time and date stay visible in every layout, including while editing. -->
+          <!-- The clock lives in the header so time and date stay visible. -->
           <StackPanel x:Name="HeaderClock" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,-8,32,0" AutomationProperties.Name="Local time and date">
             <TextBlock x:Name="ClockTime" Text="00:00" FontSize="{DynamicResource HeaderClockSize}" FontWeight="Light" FontFamily="Segoe UI Light" Typography.NumeralAlignment="Tabular" VerticalAlignment="Center"/>
             <TextBlock x:Name="ClockPeriod" Text="AM" FontSize="{DynamicResource BodySize}" Foreground="{DynamicResource ClockMuted}" VerticalAlignment="Bottom" Margin="8,0,0,14"/>
@@ -293,69 +207,25 @@
               <TextBlock x:Name="ClockDate" Text="October 8" FontSize="{DynamicResource TitleSize}" Margin="0,1,0,0"/>
             </StackPanel>
           </StackPanel>
-          <!-- Layout pages: shown when there is more than one. Swiping the dashboard sideways also switches pages. -->
-          <StackPanel x:Name="PageSwitcher" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" AutomationProperties.Name="Layout pages">
-            <Button x:Name="PreviousPageButton" Content="&#xE76B;" Style="{StaticResource IconButton}" ToolTip="Previous page" AutomationProperties.Name="Previous page"/>
-            <StackPanel VerticalAlignment="Center" Margin="14,0" MinWidth="120" MaxWidth="260">
-              <TextBlock x:Name="PageNameText" Text="Main" HorizontalAlignment="Center"/>
-              <TextBlock x:Name="PageCountText" Text="1 of 1" Style="{StaticResource Caption}" HorizontalAlignment="Center"/>
-            </StackPanel>
-            <Button x:Name="NextPageButton" Content="&#xE76C;" Style="{StaticResource IconButton}" ToolTip="Next page" AutomationProperties.Name="Next page"/>
-            <!-- Shown while a Claude Code session needs you and the Claude card is on another page; a tap shows that page. -->
-            <Button x:Name="ClaudePill" Visibility="Collapsed" Margin="20,0,0,0" Padding="10,4,16,4" BorderBrush="{DynamicResource Warning}" BorderThickness="2" ToolTip="A Claude Code session needs you. Tap to show its page." AutomationProperties.Name="Claude needs you. Show the Claude page.">
-              <StackPanel Orientation="Horizontal"><Grid x:Name="ClaudePillCar" Width="40" Height="32" VerticalAlignment="Center"/><TextBlock Text="Claude needs you" Foreground="{DynamicResource Warning}" FontSize="{DynamicResource SmallSize}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0"/></StackPanel>
-            </Button>
-          </StackPanel>
-          <!-- A one-time hint for what the dashboard doesn't show by itself; Got it puts it away for good. -->
-          <StackPanel x:Name="HintRow" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" AutomationProperties.Name="Tips">
-            <TextBlock x:Name="HintText" Text="Swipe sideways to switch pages  ·  Settings → Phone pairs your phone" Style="{StaticResource Small}" VerticalAlignment="Center" MaxWidth="560" TextTrimming="CharacterEllipsis"/>
-            <Button x:Name="HintDismiss" Content="Got it" FontSize="{DynamicResource SmallSize}" Padding="12,4" Margin="14,0,0,0" AutomationProperties.Name="Dismiss tips"/>
-          </StackPanel>
           <StackPanel x:Name="MainActions" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-            <Button x:Name="EditLayoutButton" Content="Edit layout" Margin="0,0,10,0" ToolTip="Move and resize widgets directly on the dashboard."/>
             <Button x:Name="QuietButton" Content="Quiet mode" Margin="0,0,10,0" ToolTip="Pause output levels and slow down updates, for example while gaming." AutomationProperties.Name="Quiet mode, off"/>
-            <Button x:Name="FullscreenButton" Content="Second screen" Margin="0,0,10,0" ToolTip="Show the dashboard fullscreen on your second display. F11 switches; Escape returns to a window."/>
-            <Button x:Name="TrayButton" Content="Hide to tray" Margin="0,0,10,0" ToolTip="Hide Widget Screen from the taskbar. Its icon stays in the notification area; click it to bring the dashboard back."/>
             <Button x:Name="SettingsButton" Margin="0,0,24,0" ToolTip="Settings" AutomationProperties.Name="Settings"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0"/><TextBlock Text="Settings" VerticalAlignment="Center"/></StackPanel></Button>
             <Button x:Name="CloseButton" Content="&#xE8BB;" Style="{StaticResource IconButton}" Background="Transparent" BorderBrush="{DynamicResource Raised}" ToolTip="Close Widget Screen" AutomationProperties.Name="Close Widget Screen"/>
           </StackPanel>
-          <Grid x:Name="EditToolbar" Grid.Column="1" Visibility="Collapsed" VerticalAlignment="Top">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="225"/><ColumnDefinition/><ColumnDefinition Width="260"/></Grid.ColumnDefinitions>
-            <StackPanel><TextBlock Text="Edit layout" FontSize="25" FontWeight="SemiBold"/><TextBlock Text="Drag to move or resize" Style="{StaticResource Small}" Margin="0,2,0,0"/></StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-              <Button x:Name="UndoLayoutButton" Content="Undo" Margin="0,0,8,0" ToolTip="Undo the last layout change (Ctrl+Z)."/>
-              <Button x:Name="RedoLayoutButton" Content="Redo" Margin="0,0,8,0" ToolTip="Redo a layout change (Ctrl+Y)."/>
-              <Button x:Name="ResetLayoutButton" Content="Reset layout" Margin="0,0,8,0" ToolTip="Return every widget to the default arrangement. You can undo this."/>
-              <Button x:Name="ArrangeLayoutButton" Content="Arrange" Margin="0,0,18,0" ToolTip="Line up the shown widgets neatly in their current order, filling the screen without gaps or overlaps. You can undo this." AutomationProperties.Name="Arrange widgets"/>
-              <CheckBox x:Name="SnapLayoutChoice" Content="Snap" Margin="0,0,18,0" ToolTip="Snap to an 8 pixel grid and to other widgets' edges, with guide lines while you drag."/>
-              <Button x:Name="EditWidgetsButton" Content="Widgets" ToolTip="Show or hide widgets, and add, rename, order or delete pages." AutomationProperties.Name="Widgets and pages"/>
-            </StackPanel>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-              <Button x:Name="CancelLayoutButton" Content="Cancel" Margin="0,0,8,0"/>
-              <Button x:Name="SaveLayoutButton" Content="Save layout" Style="{StaticResource AccentButton}"/>
-            </StackPanel>
-          </Grid>
         </Grid>
 
-        <Grid x:Name="WidgetColumns" Grid.Row="1">
+        <Grid x:Name="CardArea" Grid.Row="1">
           <!-- Claude Code sessions, plan limits and usage. ClaudeCard builds the Small, Medium or Large design in ClaudeBody (docs/design/claude-watcher.md). -->
           <Border x:Name="ClaudeCard" Style="{StaticResource Card}" AutomationProperties.Name="Claude Code">
             <Grid x:Name="ClaudeBody"/>
           </Border>
         </Grid>
 
-        <DockPanel Grid.Row="2" VerticalAlignment="Bottom"><TextBlock x:Name="StatusMessage" Text="" Style="{StaticResource Small}" MaxWidth="1380"/><TextBlock x:Name="DisplayStatus" Text="" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel>
-      </Grid>
-
-      <!-- Edit layout's list, the same as the phone's: a check mark per widget and the layout pages. Tapping outside closes it. -->
-      <Grid x:Name="EditPanelLayer" Visibility="Collapsed" Background="Transparent">
-        <Border x:Name="EditPanel" Background="{DynamicResource Raised}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="16" Width="460" Padding="16,12" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,92,332,52">
-          <ScrollViewer VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly"><StackPanel x:Name="EditPanelContent"/></ScrollViewer>
-        </Border>
+        <DockPanel Grid.Row="2" VerticalAlignment="Bottom"><TextBlock x:Name="StatusMessage" Text="" Style="{StaticResource Small}" MaxWidth="1380"/></DockPanel>
       </Grid>
 
       <Grid x:Name="SettingsOverlay" Visibility="Collapsed" Background="#E80C0E13" KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle">
-        <Border x:Name="SettingsCard" Style="{StaticResource Card}" Width="1440" Height="672" Padding="28" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="{DynamicResource ControlBorder}">
+        <Border x:Name="SettingsCard" Style="{StaticResource Card}" MaxWidth="1440" MaxHeight="672" Margin="16" Padding="28" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="{DynamicResource ControlBorder}">
           <Border.Resources>
             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="MinHeight" Value="52"/></Style>
             <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="MinHeight" Value="52"/></Style>
@@ -379,8 +249,6 @@
               <ComboBox x:Name="ThemeChoice" AutomationProperties.Name="Theme"/>
               <TextBlock Text="Accent color" Style="{StaticResource Small}" Margin="0,10,0,6"/>
               <ComboBox x:Name="AccentChoice" AutomationProperties.Name="Accent color"/>
-              <TextBlock Text="Widget colours" Style="{StaticResource Small}" Margin="0,10,0,6"/>
-              <ComboBox x:Name="InkModeChoice" AutomationProperties.Name="Widget colours" ToolTip="Each its own: every widget wears its ink (change one in Edit layout). Accent only: every widget wears the accent colour."/>
               <DockPanel Margin="0,14,0,0">
               <TextBlock Text="Widget corners" Style="{StaticResource Small}"/>
               <TextBlock x:Name="CornersLabel" Style="{StaticResource Small}" HorizontalAlignment="Right"/>
@@ -395,67 +263,10 @@
               <TextBlock x:Name="ScaleLabel" Style="{StaticResource Small}" HorizontalAlignment="Right"/>
               </DockPanel>
               <Slider x:Name="ScaleChoice" Minimum="90" Maximum="140" TickFrequency="5" IsSnapToTickEnabled="True" AutomationProperties.Name="Text size"/>
-              <TextBlock Text="Above 115% some cards show less at once; give them more room in Edit layout." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,4,0,8"/>
+              <TextBlock Text="Above 115% the card shows less at once; a bigger window gives it more room." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,4,0,8"/>
               <CheckBox x:Name="ClockChoice" Content="Use a 24-hour clock"/>
               </StackPanel>
               </Grid>
-              </TabItem>
-              <TabItem Header="Display">
-              <StackPanel MaxWidth="780" HorizontalAlignment="Left">
-              <TextBlock Text="Display" FontSize="24" Margin="0,0,0,10"/>
-              <TextBlock Text="Choose the monitor the dashboard fills in fullscreen." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <TextBlock Text="Secondary display" Style="{StaticResource Small}" Margin="0,10,0,6"/>
-              <ComboBox x:Name="MonitorChoice" AutomationProperties.Name="Secondary display"/>
-              <CheckBox x:Name="StartFullscreenChoice" Content="Open fullscreen on this display at launch" Margin="0,10,0,0"/>
-              <TextBlock Text="If this display is unplugged, another secondary display is used. With none connected, the dashboard opens in a window on your main screen." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,8,0,12"/>
-              <TextBlock Text="F11 switches between fullscreen and a window. Escape leaves fullscreen." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <CheckBox x:Name="KeepFocusChoice" Content="Keep the focus on the game or app I'm using"/>
-              <TextBlock Text="Tapping the dashboard won't take the keyboard away from your main screen. Tapping a text box still does, so you can type. F11 and Escape only work after that." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="38,0,0,16"/>
-              </StackPanel>
-              </TabItem>
-              <TabItem Header="Widgets">
-              <Grid>
-              <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="740"/>
-              <ColumnDefinition Width="32"/>
-              <ColumnDefinition/>
-              </Grid.ColumnDefinitions>
-              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
-              <StackPanel Margin="0,0,12,0">
-              <TextBlock Text="Layout" FontSize="24" Margin="0,0,0,10"/>
-              <TextBlock Text="Arrange widgets right on the dashboard: drag to move, stretch a corner to resize, and show or hide each one. Undo, snapping to other widgets, Arrange and Reset are in the editor." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <Button x:Name="OpenLayoutEditor" Content="Edit layout" HorizontalAlignment="Left" MinWidth="200" Margin="0,0,0,12"/>
-              <TextBlock Text="Opening the editor closes Settings without saving other changes here." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              </StackPanel>
-              </ScrollViewer>
-              </Grid>
-              </TabItem>
-              <TabItem Header="Phone">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="740"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Phone remote" FontSize="24" Margin="0,0,0,12"/>
-                    <TextBlock Text="Use the Widget Screen app on your Android phone to see this dashboard and control this PC over your home Wi-Fi." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <CheckBox x:Name="RemoteEnabledChoice" Content="Let my phone control this PC"/>
-                    <CheckBox x:Name="RemoteTrayChoice" Content="Move to the tray while my phone shows the dashboard" ToolTip="Hides Widget Screen from the taskbar while a paired phone is connected, and brings it back a minute after the phone stops."/>
-                    <TextBlock x:Name="RemoteStatus" Text="" TextWrapping="Wrap" Margin="0,8,0,12" FontSize="{DynamicResource BodySize}"/>
-                    <WrapPanel><Button x:Name="RemotePairButton" Content="Pair a phone" Style="{StaticResource AccentButton}" MinHeight="52" Margin="0,0,8,8"/><Button x:Name="RemoteForgetButton" Content="Forget all phones" Margin="0,0,8,8"/></WrapPanel>
-                    <TextBlock x:Name="RemoteDevicesText" Text="" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,4,0,12"/>
-                    <!-- One row per paired phone: name, when it paired and was last seen, and its own Forget button. -->
-                    <StackPanel x:Name="RemoteDevices" Margin="0,0,0,12"/>
-                    <TextBlock Text="Changes here take effect right away. Only phones on your local network can connect, and only after pairing with a code from this screen. The connection isn't encrypted, so use it on a Wi-Fi you trust." Style="{StaticResource Small}" TextWrapping="Wrap"/>
-                  </StackPanel></ScrollViewer>
-                  <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Pairing" FontSize="24" Margin="0,0,0,12"/>
-                    <TextBlock Text="1.  Install Widget Screen on your phone and join the same Wi-Fi as this PC." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="2.  Tap Pair a phone. On the phone, pick this PC (or type the address below) and enter the code." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="PC address" Style="{StaticResource Small}"/>
-                    <TextBox x:Name="RemoteAddress" IsReadOnly="True" Margin="0,8,0,12" AutomationProperties.Name="PC address for the phone"/>
-                    <TextBlock Text="Pairing code" Style="{StaticResource Small}"/>
-                    <TextBlock x:Name="RemoteCode" Text="—" FontSize="54" FontWeight="Light" FontFamily="Segoe UI Light" Typography.NumeralAlignment="Tabular" AutomationProperties.Name="Pairing code"/>
-                    <TextBlock x:Name="RemoteCodeHint" Text="" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <TextBlock Text="3.  If Windows asks whether Widget Screen may use private networks, allow it. Otherwise the phone can't reach this PC." Style="{StaticResource Small}" TextWrapping="Wrap"/>
-                  </StackPanel></ScrollViewer>
-                </Grid>
               </TabItem>
               <TabItem Header="Claude">
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="740"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
@@ -522,7 +333,6 @@
                     <TextBlock Text="Your own hooks stay as they are. If you had a status line, it keeps showing: Claude Dashboard runs it and passes on what it prints." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <TextBlock Text="A backup is saved next to it as settings.json.widgetscreen-backup. Disconnect takes out exactly what Connect added and puts your earlier status line back." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <TextBlock Text="Sessions in the Claude app's Code tab, a terminal or an editor all show, including ones started before you connected. Usage per project is counted from Claude Code's logs and telemetry on this PC, with what it would cost at API prices (your plan doesn't pay those). Tap a session on the card to bring its window to the front." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="Turn on the Claude Code widget in Edit layout." Style="{StaticResource Small}" TextWrapping="Wrap"/>
                   </StackPanel></ScrollViewer>
                 </Grid>
               </TabItem>
@@ -547,5 +357,4 @@
         </Border>
       </Grid>
     </Grid>
-  </Viewbox>
 </Window>

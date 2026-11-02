@@ -18,35 +18,11 @@ namespace WidgetScreen
     {
         public int Version { get; set; }
         public string Accent { get; set; }
-        // Sticker Sheet inks (decision 021): "Focus=Coral;…" for widgets whose ink was changed in Edit layout, and
-        // Settings → Theme → Widget colours: "Each" (every widget its own ink) or "Accent" (every ink is the accent).
-        public string WidgetInks { get; set; }
-        public string WidgetColours { get; set; }
         public string Theme { get; set; }
         public double CornerRadius { get; set; }
-        public bool StartFullscreen { get; set; }
-        // Taps on the dashboard leave the game or app in front focused (decision 013).
-        public bool KeepGameFocus { get; set; }
-        // The layout of the reference 1856 × 576 canvas (a 1920 × 720 screen), where it has always been.
-        public WidgetPlacement[] WidgetLayout { get; set; }
-        // Layouts saved on screens of other shapes, one per canvas size (docs/design/any-screen-size.md).
-        public CanvasLayout[] CanvasLayouts { get; set; }
-        // Pages: the fields above are the first page, named PageName; MorePages hold the rest. CurrentPage is the page
-        // shown, on the PC and on a paired phone alike.
-        public string PageName { get; set; }
-        public LayoutPage[] MorePages { get; set; }
-        public int CurrentPage { get; set; }
-        public bool SnapWidgets { get; set; }
         public double TextScale { get; set; }
-        public string Monitor { get; set; }
         public bool QuietMode { get; set; }
         public bool Use24HourClock { get; set; }
-        // The one-time tips in the header were put away with Got it.
-        public bool HintDismissed { get; set; }
-        // Phone remote (Settings → Phone). Off until the user turns it on.
-        public bool RemoteEnabled { get; set; }
-        // Move the dashboard to the tray while a paired phone shows it (Settings → Phone).
-        public bool HideToTrayWithPhone { get; set; }
         // Claude Code (Settings → Claude): a chime when a session starts needing you, and which projects the card shows.
         // A project with no choice follows ClaudeShowNewProjects (on by default). The plan meters always show the plan.
         public bool ClaudeChime { get; set; }
@@ -82,35 +58,24 @@ namespace WidgetScreen
         {
             Version = 1;
             Accent = "Lime";
-            WidgetInks = ""; WidgetColours = Inks.EachOwn;
             Theme = "Midnight";
             CornerRadius = 20;
-            StartFullscreen = true;
-            KeepGameFocus = true;
-            SnapWidgets = true;
             TextScale = 1;
             Use24HourClock = false;
-            // Tray mode with the phone is opt-in (audit, 22 Oct 2026): the dashboard vanishing when the phone app opens
-            // surprised more than it helped when both screens were in use.
-            HideToTrayWithPhone = false;
             ClaudeShowNewProjects = true;
             ClaudeToast = true;
             ClaudeCardSeconds = ClaudeIntervals.CardDefault; ClaudePlanSeconds = ClaudeIntervals.PlanDefault;
             ClaudePeriod = "Today";
-            Monitor = "";
         }
 
         // A deep copy. Settings → Save starts from one and overwrites only the fields the panel owns, so everything
-        // the panel doesn't show (pages, the current page, the phone link, Quiet mode) survives a save.
+        // the panel doesn't show (Quiet mode, the Claude card's folds) survives a save.
         public AppSettings Copy()
         {
             var copy = (AppSettings)MemberwiseClone();
-            copy.WidgetLayout = WidgetLayout == null ? null : WidgetScreen.WidgetLayout.Copy(WidgetLayout);
-            copy.CanvasLayouts = CanvasLayouts == null ? null : CanvasLayouts.Where(c => c != null).Select(c => c.Copy()).ToArray();
             copy.ClaudeProjects = ClaudeProjects == null ? null : ClaudeProjects.Where(c => c != null).Select(c => c.Copy()).ToArray();
             copy.ClaudeCollapsed = ClaudeCollapsed == null ? null : ClaudeCollapsed.ToArray();
             copy.ClaudeFacts = ClaudeFacts == null ? null : ClaudeFacts.ToArray();
-            copy.MorePages = MorePages == null ? null : MorePages.Where(p => p != null).Select(p => p.Copy()).ToArray();
             return copy;
         }
 
@@ -120,16 +85,12 @@ namespace WidgetScreen
             TextScale = Math.Max(0.9, Math.Min(1.4, Double.IsNaN(TextScale) ? 1 : TextScale));
             if (Accent != "Lime" && Accent != "Glacier" && Accent != "Lavender" && Accent != "Amber") Accent = "Lime";
             if (Theme != "Midnight" && Theme != "Slate" && Theme != "Warm") Theme = "Midnight";
-            WidgetInks = Inks.Clean(WidgetInks); WidgetColours = Inks.Mode(WidgetColours);
             CornerRadius = Clamp(CornerRadius, 0, 24, 20);
             ClaudeCardSeconds = ClaudeCardSeconds == 0 ? ClaudeIntervals.CardDefault : ClaudeIntervals.Card(ClaudeCardSeconds);
             ClaudePlanSeconds = ClaudePlanSeconds == 0 ? ClaudeIntervals.PlanDefault : ClaudeIntervals.Plan(ClaudePlanSeconds);
             ClaudeCollapsed = (ClaudeCollapsed ?? new string[0]).Select(ClaudeUsage.Key).Where(f => f.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             if (ClaudePeriod != "FiveHour" && ClaudePeriod != "Today" && ClaudePeriod != "Week") ClaudePeriod = "Today";
             ClaudeFacts = ClaudeFactKinds.Clean(ClaudeFacts);
-            var pages = WidgetScreen.WidgetLayout.Pages(this).Take(WidgetScreen.WidgetLayout.MaxPages).ToList();
-            for (int i = 0; i < pages.Count; i++) WidgetScreen.WidgetLayout.NormalizePage(pages[i], this, i);
-            WidgetScreen.WidgetLayout.SetPages(this, pages);
         }
 
         private static double Clamp(double value, double min, double max, double fallback)

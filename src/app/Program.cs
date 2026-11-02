@@ -12,9 +12,9 @@ namespace WidgetScreen
 {
     public static class Program
     {
-        // Render runs capture the window and exit; they never open the phone link.
+        // Render runs capture the window and exit; they never read this PC's sessions.
         public static bool Rendering { get; private set; }
-        // A fixed screen size in pixels for renders (--render-size WxH, 1920 × 720 by default) and tests; null follows the real screens.
+        // The window's size in pixels for renders (--render-size WxH, 1920 × 720 by default); null for an ordinary start.
         public static Size? ScreenSize { get; set; }
 
         [STAThread]
@@ -40,8 +40,8 @@ namespace WidgetScreen
                 string settingsPath = Argument(args, "--settings") ?? SettingsStore.DefaultPath;
                 string renderPath = Argument(args, "--render");
                 Rendering = renderPath != null;
-                if (Rendering) ScreenSize = RenderSize(Argument(args, "--render-size"));
-                using (var controller = new DashboardController(window, settingsPath, args.Contains("--windowed") || renderPath != null))
+                if (Rendering) { ScreenSize = RenderSize(Argument(args, "--render-size")); window.Width = ScreenSize.Value.Width; window.Height = ScreenSize.Value.Height; }
+                using (var controller = new DashboardController(window, settingsPath))
                 {
                     running = controller;
                     // A labelled fixture for the Claude card ("Sample" in its heading) instead of this PC's sessions.
@@ -53,17 +53,6 @@ namespace WidgetScreen
                         var renderTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(wait) };
                         renderTimer.Tick += (sender, e) => {
                             renderTimer.Stop();
-                            if (args.Contains("--render-edit"))
-                            {
-                                ((System.Windows.Controls.Button)window.FindName("EditLayoutButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                                if (args.Contains("--render-edit-demo"))
-                                {
-                                    controller.Editor.Select("Claude"); controller.Editor.TransformSelected("SE", -48, -24, false);
-                                }
-                                // Mid-drag: the card a few units off its place, held there by the alignment guides.
-                                if (args.Contains("--render-edit-guides")) controller.Editor.Drag("Claude", "", 5, -4, false);
-                                if (args.Contains("--render-edit-panel")) controller.OpenEditPanel();
-                            }
                             if (args.Contains("--render-settings"))
                             {
                                 ((System.Windows.Controls.Button)window.FindName("SettingsButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
@@ -73,11 +62,11 @@ namespace WidgetScreen
                                     ((System.Windows.Controls.TabControl)window.FindName("SettingsTabs")).SelectedIndex = tabIndex;
                                 else if (tab != null) DashboardController.SelectSettingsTab(window, tab);
                             }
+                            // The window's content is drawn at the render size, one unit to a pixel.
                             var dashboard = (FrameworkElement)window.FindName("Dashboard");
-                            dashboard.UpdateLayout();
-                            // The logical dashboard is drawn at the screen's pixel size, as the Viewbox would show it.
-                            Size size = ScreenSize.Value; double dpi = 96 * controller.Fit.Scale;
-                            var bitmap = new RenderTargetBitmap((int)size.Width, (int)size.Height, dpi, dpi, PixelFormats.Pbgra32);
+                            Size size = ScreenSize.Value;
+                            dashboard.Measure(size); dashboard.Arrange(new Rect(size)); dashboard.UpdateLayout();
+                            var bitmap = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
                             bitmap.Render(dashboard);
                             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
                             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(renderPath)));
