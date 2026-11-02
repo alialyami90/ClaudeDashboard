@@ -6,6 +6,16 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.45.1 (2 Nov 2026)
+
+Claude Dashboard: the documents catch up with v0.44.0 to v0.45.0.
+
+- **Decision 026** gains an "As built" section: the 360 × 300 window minimum, the new window files, the header and window edge, the Settings changes, what the app does while minimised, v0.44.1's installer and icon, and the namespace rename moving to v0.47.1.
+- **DESIGN.md, README.md and PRODUCT.md** describe the window as it is: the Claude palette and Terracotta accent, the header, the edge, the window sizes and the Settings tabs.
+- **docs/design/setup.md** says what v0.44.1 changed in setup.
+- **CLAUDE.md**: the namespace rename is its own PR at v0.47.1, the `CardSizing.Claude` members live in `ClaudeCard.cs`, the window is at least 360 × 300, phase 6 no longer answers permission prompts, and a new rule says the dashboard never answers a permission dialog (decision 027, which arrives with package 4).
+- No app changes.
+
 ## v0.45.0 (unreleased)
 
 Claude Dashboard, phase 4 of decision 026: the dashboard window.

@@ -4,8 +4,8 @@ The window is a race team's pit wall. Each project is a garage, each Claude Code
 
 ## Surfaces
 
-- **Palettes:** Midnight (default), Slate and Warm, each with its own Page, Surface, Raised, Input, Track, ControlBorder, Selected, Muted and Text colours (`DashboardAppearance.cs`). Phase 4 adds a **Claude** palette in the spirit of the Claude app: warm paper, soft black text and a terracotta accent, with Amber kept for warnings.
-- **Accent:** one of Lime `#BAF28B`, Glacier `#8ED8F8` or Lavender `#C5AEFF`. It fills gauges, meters, the hour's burn line and the selected period.
+- **Palettes** (`Palettes.cs`): Midnight (default), Slate and Warm, and since v0.45.0 the light **Claude** palette in the spirit of the Claude app: warm paper `#FAF9F5`, soft black text `#1F1E1D` and a terracotta accent. Each sets the same keys (Page, Surface, Raised, Input, Track, ControlBorder, Selected, Muted, Text, Warning, Turn, OnAccent…), so the pit wall, the header and the Settings window change together. On paper, Amber and Glacier are darkened (`#9E5A0A`, `#27709A`) so they read as text.
+- **Accent:** Lime `#BAF28B`, Glacier `#8ED8F8`, Lavender `#C5AEFF`, Amber or Terracotta (`#E08A68`; the Claude palette's default), each with a deeper shade on paper. It fills gauges, meters, the hour's burn line and the selected period.
 - **Warning:** Amber `#F5C47D`, used for Needs you, meters from 80%, and the fuel lamp. Nothing decorative is Amber.
 - **Project colours:** each garage and its cars take Lime, Glacier or Lavender from a hash of the project's name, so a project keeps its colour everywhere.
 
@@ -27,17 +27,17 @@ Each state has a still frame and, when motion is on, a stepped 8-frame cycle. A 
 
 Two plan states sit on top of any car: a fuel lamp that blinks at 90% of the 5-hour limit, and glowing brake discs at the redline. A context ring appears at 60%, 80% and 95% of the context window.
 
-**The one state allowed to shout is Needs you.** Today it turns the card's border Amber. From phase 4 the window's own edge turns Amber for Needs you and Glacier for Your turn, and the pit stop strip names the thread with Go to it.
+**The one state allowed to shout is Needs you.** The window's own 3-unit edge turns Amber (Glacier, the `Turn` colour, while a thread waits for your reply), the title bar says "Claude needs you · Claude Dashboard" so the taskbar shows it, and the pit stop strip names the thread with Go to it.
 
 ## Window sizes
 
-The card picks its design from the space it has, and switches live while the window is resized. The numbers are today's `CardSizing.Claude` thresholds; phase 4 moves them into `ClaudeCard` and checks them at 100% and 150% display scaling.
+The window is an ordinary one, at least 360 × 300, with a 56-unit header (the app name, the live summary, 5 h / Today / Week, Quiet and Settings; the words fold away as it narrows). The card fills the rest, picks its design from the space it has, and switches live while the window is resized. The thresholds are `CardSizing.Claude` at the bottom of `ClaudeCard.cs`, in device-independent pixels, checked at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900, and at 150% display scaling (`tests/Shell/ShellTests.cs`).
 
-- **Large** (from 640 × 420, the window's minimum): heading with the live summary and the 5 h / Today / Week switch; the plan row (tank, week laps, and the rev counter from 860 wide); the pit stop strip while a thread needs you; the ledger of garages and cars, which scrolls; and from 1000 wide a side panel with the 5-hour lanes and four facts.
+- **Large** (card from 640 × 420): the plan row (tank, week laps, and the rev counter from 860 wide); the pit stop strip while a thread needs you; the ledger of garages and cars, which scrolls; and from 1000 wide a side panel with the 5-hour lanes and four facts.
 - **Medium:** two mini plan tiles over the top garages, with up to three cars inline.
 - **Small** (under 360 × 280): the car that needs you, or the busiest running one, over the 5-hour meter.
 
-Tap targets keep the sizes they have now (48-unit garages and period buttons), but these are no longer touchscreen requirements. The window may scroll its ledger; nothing else scrolls.
+The card has no heading of its own since v0.45.0: the window's header carries the summary and the period switch. Garages stay 48-unit tap targets; Settings controls are 32 units, a desktop window's size, now that the touchscreen minimums are gone (decision 026). The ledger may scroll; nothing else does.
 
 ## Pixel art
 
@@ -49,7 +49,7 @@ Tap targets keep the sizes they have now (48-unit garages and period buttons), b
 ## Motion
 
 - One frame clock per card (`PitClock`), at the rate the fastest moving car needs (at most 24 fps; 20 while rolling), and only while something visible moves.
-- It stops when the window is minimised or the card hidden. In Quiet mode the cars keep still unless Settings → Claude says they may move, and the state swaps stay.
+- It stops when the window is minimised. Minimised, the app still watches the session files (so Needs you still notifies and chimes) but doesn't scan logs or work out the view on the clock. In Quiet mode the cars keep still unless Settings → Claude says they may move, and the state swaps stay.
 - Tapping a garage rolls its cars in (tail lights toward you) or out (headlights toward you), about 1.2 s, instant in Quiet mode.
 - No other animation: no spinners, no transitions, no hover effects.
 

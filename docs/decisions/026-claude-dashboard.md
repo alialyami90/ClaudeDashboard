@@ -7,7 +7,7 @@ On 2 Nov 2026 Ali decided to turn Widget Screen into **Claude Dashboard**: a nor
 1. **One app, one widget.** The Claude Code watcher (decisions 014–020 and 022–025) becomes the whole product. The other 17 widgets, the canvas, pages, Edit layout, the second-screen machinery and the phone link go.
 2. **Same stack.** WPF on .NET Framework 4.8, x64, built with the Framework's `csc.exe`, no packages, no WebView. The watcher already works on this stack, and a rewrite would throw away about 7,000 lines of tested code (the engine in `src/integrations/Claude`, the card and pixel art, the hook and the Claude checks).
 3. **Windows only for now.** The Android app leaves the tree in phase 2 and stays in history at the `v0.41.0` tag, the last commit that has `android/` and the phone link. A Claude-only phone companion is a roadmap item after v0.47.0. It would start from that tag's `android/` and `src/integrations/Remote/`, and its link would carry only the `claude` section, `claudeAlerts`, `claude.focus` and `claude.collapse`.
-4. **A normal window.** One resizable window, minimum 640 × 420 (today's Large threshold), that opens where it was closed, takes focus when clicked, sits in the taskbar and closes fully when closed. No `Viewbox`, no 1920 × 720 design canvas, no secondary-monitor fullscreen, no no-activate window, no tray mode. The card picks Small, Medium or Large from the window's own size.
+4. **A normal window.** One resizable window (the plan said minimum 640 × 420; it shipped at 360 × 300, see "As built"), that opens where it was closed, takes focus when clicked, sits in the taskbar and closes fully when closed. No `Viewbox`, no 1920 × 720 design canvas, no secondary-monitor fullscreen, no no-activate window, no tray mode. The card picks Small, Medium or Large from the window's own size.
 5. **The engine doesn't change.** The hooks, the bridge, the telemetry receiver on 127.0.0.1:43832–43839, the sign-in, the price table, the file watchers, the alerts and the Windows notification stay exactly as they are. The transformation changes the frame, not the picture.
 6. **Docs first.** The standing rules were written for a two-platform touchscreen app. They are rewritten in phase 1, before any code is cut, so every later phase works from rules that are true.
 
@@ -61,7 +61,7 @@ Six pull requests, one release each. Each leaves CI green, `build.ps1 -Test` pas
 
 Two decisions hold the order together:
 
-- **The namespace stays `WidgetScreen` until phase 4.** Renaming it in phase 1 would touch about 130 files for nothing the user sees; in phase 4 the few remaining files are rewritten anyway.
+- **The namespace stays `WidgetScreen` until phase 4** (moved to its own release after phases 5 and 6, see "As built"). Renaming it in phase 1 would touch about 130 files for nothing the user sees; in phase 4 the few remaining files are rewritten anyway.
 - **The settings and bridge folder stays `%LOCALAPPDATA%\WidgetScreen` until phase 5.** Connect wrote `%LOCALAPPDATA%\WidgetScreen\claude\ClaudeHook.exe` into Claude Code's `settings.json`. Moving it earlier would make every Claude Code session fail its hooks with "file not found" until Connect runs again, so phase 5 moves the folder and re-runs Connect in the same step.
 
 ## The team
@@ -113,3 +113,16 @@ Moved in phase 1 to `docs/archive/`, unchanged except for links that the move br
 - `AGENTS.md` is deleted rather than archived: it is the source snapshot's copy, still inside `implementation-source.zip`, and `CLAUDE.md` is the one rules file.
 
 The Claude records (014, 015, 016 projects and threads, 017–020, 022 review fixes, 023–025) stay in `docs/decisions/`. Their mentions of the phone, both apps and pages describe what was built at the time.
+
+## As built (v0.42.0–v0.45.0)
+
+Where the releases differ from the plan above, and why. The plan's text is left as Ali approved it.
+
+- **Phases 2 and 3 merged once, as v0.44.0,** as the team plan intended. The intermediate commits on that branch don't each build; only the merge does.
+- **v0.44.1 (installer and icon)** wasn't a phase of its own. It removed the hardware-sensors checkbox, `--no-sensors` and the sensor files from setup, so an update deletes an older install's `sensors` folder. It also changed the uninstall wording to say to disconnect Claude Code first. The icon (`assets\ClaudeDashboard.ico`) is a Lime car, head-on in front of a Glacier garage on a Midnight tile, drawn by `scripts\make-icon.ps1` from the app's own `PitArt` and `PitRaster`.
+- **The window's minimum is 360 × 300, not 640 × 420.** The plan also says Small and Medium survive as compact modes for a narrow window, and a 640 × 420 minimum would make them unreachable. The card's thresholds are unchanged (Small under 360 × 280, Large from 640 × 420, rev counter from 860, side panel from 1000), now in device-independent pixels. The checks cover them at four sizes and at 150% scaling.
+- **The window is new files, not a rewritten `MainWindow.xaml`.** `ShellWindow.xaml`, `SettingsWindow.xaml`, `ShellStyles.xaml`, `AppController.cs` (with `AppController.Claude.cs`), `Palettes.cs` and `ShellProgram.cs` replaced `MainWindow.xaml`, `DashboardController.cs`, `DashboardAppearance.cs`, `CardSizing.cs` and `Stickers.cs`. `CardSizing`'s Claude members live at the bottom of `ClaudeCard.cs`.
+- **The card has no heading.** The window's header carries the name, the live summary, the period switch, Quiet and Settings. The window's edge turns Amber for Needs you and Glacier for Your turn, and the title bar says "Claude needs you".
+- **Settings dropped the corner-radius choice and the touch sizes.** Theme is palette, accent (adding Terracotta), text size, clock and Quiet. Settings controls are 32 units.
+- **Minimised does less.** The app still watches the session files, so Needs you notifies and chimes from the taskbar. It no longer scans logs or works out the view on the clock until the window is restored, and a click on the notification restores it.
+- **The namespace rename moved after phases 5 and 6,** to its own release (v0.47.1), so it doesn't collide with the migration and package 4. That release also has to update `scripts\make-icon.ps1`, which loads `WidgetScreen.PitArt` by name.
