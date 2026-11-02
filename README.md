@@ -4,7 +4,7 @@ A Windows desktop app that watches every Claude Code session on your PC. Each pr
 
 It is native WPF on .NET Framework 4.8, with no WebView, no packages and no server. It reads what Claude Code and the Claude app already write on your PC, and nothing about your sessions leaves it. Claude Dashboard is an independent app, not made by Anthropic.
 
-> **Being rebuilt (Nov 2026).** Claude Dashboard grew out of Widget Screen, a touchscreen dashboard with 19 widgets. It is being cut down to the Claude watcher in six releases, v0.42.0 to v0.47.0 ([decision 026](docs/decisions/026-claude-dashboard.md)). Until v0.44.0 the other widgets are still in the code, and until v0.45.0 the watcher still sits on the old dashboard canvas. Settings stay in `%LOCALAPPDATA%\WidgetScreen` until v0.46.0 moves them.
+> **Being rebuilt (Nov 2026).** Claude Dashboard grew out of Widget Screen, a touchscreen dashboard with 19 widgets. It is being cut down to the Claude watcher in six releases, v0.42.0 to v0.47.0 ([decision 026](docs/decisions/026-claude-dashboard.md)). Since v0.45.0 the other widgets are gone and the watcher is its own window. Settings stay in `%LOCALAPPDATA%\WidgetScreen` until v0.46.0 moves them, and v0.47.0 adds Watcher package 4.
 
 ## What it shows
 
@@ -14,7 +14,7 @@ It is native WPF on .NET Framework 4.8, with no WebView, no packages and no serv
 - **The ledger.** Tokens, cache reads, replies or ≈ $ at API prices, model mix and lines added and removed, per project and per thread.
 - **Alerts.** A Windows notification when a session needs you, gets stuck or finishes a long turn, and an optional chime. Quiet mode keeps both silent.
 
-The window picks a Large, Medium or Small design from its size: the full pit wall, the top garages under two plan tiles, or just the car that needs you over the 5-hour meter.
+It's an ordinary window (at least 360 × 300) that remembers where it was and picks a Large, Medium or Small design from its size: the full pit wall, the top garages under two plan tiles, or just the car that needs you over the 5-hour meter. Its edge turns Amber when a session needs you. Settings has three tabs: Theme (Midnight, Slate, Warm or the light Claude palette, accent, text size, clock, Quiet mode), Claude, and Window (start with Windows, start minimised, open where I last closed it).
 
 ## Setting it up
 
@@ -47,15 +47,15 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\package.ps1 -T
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1             # run the build
 ```
 
-The app lands in `artifacts\app\` (`ClaudeDashboard.exe` from v0.42.1, `WidgetScreen.exe` before). The checks print `PASS` and `FAIL` lines; they use a throwaway Claude Code folder and isolated settings, so your real Claude Code setup, sign-in and settings are never touched.
+The app lands in `artifacts\app\ClaudeDashboard.exe`. The checks print `PASS` and `FAIL` lines; they use a throwaway Claude Code folder and isolated settings, so your real Claude Code setup, sign-in and settings are never touched.
 
 To see the card with labelled sample data, render it to a PNG:
 
 ```powershell
-.\artifacts\app\WidgetScreen.exe --settings "$env:TEMP\cd-sample\settings.xml" --render sample.png --render-claude-sample
+.\artifacts\app\ClaudeDashboard.exe --settings "$env:TEMP\cd-sample\settings.xml" --render sample.png --render-claude-sample
 ```
 
-Add `--render-claude-needs` to draw a thread that needs you.
+Add `--render-size 1000x600` for another window size, `--render-claude-needs` to draw a thread that needs you, or `--render-settings --render-tab Claude` for the Settings window.
 
 CI on GitHub runs the same checks on every push and pull request. Every change goes through a pull request and ships as a tagged release with the setup exe and a portable zip; see [BRANCHES.md](BRANCHES.md) and [CHANGELOG.md](CHANGELOG.md).
 
@@ -65,7 +65,7 @@ CI on GitHub runs the same checks on every push and pull request. Every change g
 | --- | --- |
 | `src/integrations/Claude/` | The engine: the bridge, Claude Code's session list and logs, the Claude app's threads, sign-in and plan meters, the telemetry receiver, file watchers, alerts |
 | `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs` | The card's three designs, the pixel-art cars and garages, the gauges |
-| `src/app/` | Start-up, the window, settings, the Settings → Claude wiring and notifications |
+| `src/app/` | Start-up (`ShellProgram`), the window (`ShellWindow.xaml`), Settings (`SettingsWindow.xaml`), `AppController` and its Claude part, palettes, settings XML, notifications |
 | `hook/` | `ClaudeHook.exe`, which Claude Code's hooks and status line call |
 | `installer/` | The setup exe |
 | `tests/Claude/` | The watcher's checks |

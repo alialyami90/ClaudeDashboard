@@ -49,7 +49,7 @@ A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud s
 
 ## Capabilities and Constraints
 
-- **One window on any monitor.** It opens where it was closed, at the size it was left, and behaves like any other Windows app: it takes focus, sits in the taskbar and closes fully. The card picks Small, Medium or Large from the window's size (from phase 4; until then it sits on the old canvas).
+- **One window on any monitor.** It opens where it was closed, at the size it was left, and behaves like any other Windows app: it takes focus, sits in the taskbar and closes fully. The card picks Small, Medium or Large from the window's size, and the window is at least 360 × 300.
 - **Light on resources.** One 1-second heartbeat; file watchers instead of re-reading; the frame clock runs only while a car visibly moves, never while minimised or in Quiet mode (unless the user asks the cars to move in Quiet mode).
 - **Local.** Preferences are local XML, written atomically. Nothing about the user's sessions leaves the PC.
 - **Undecided:** the Android companion's scope and timing, and whether 1.0 needs anything beyond package 4 and that companion.

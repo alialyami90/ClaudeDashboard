@@ -14,14 +14,14 @@ A Windows desktop app whose whole window is the Claude Code watcher: every Claud
 | 2+3. Cut the other widgets, then the second-screen machinery | v0.44.0 (one merge) | Demolition |
 | 4. The dashboard window, Settings window, Claude palette | v0.45.0 | Shell |
 | 5. Move users over to `%LOCALAPPDATA%\ClaudeDashboard` | v0.46.0 | Builder |
-| 6. Watcher package 4 (Allow and Deny from the notification) | v0.47.0 | Watcher |
+| 6. Watcher package 4 (the Cockpit; answering permission prompts dropped, decision 027) | v0.47.0 | Watcher |
 
-Until the phase that changes them: the C# namespace stays `WidgetScreen` (phase 4), and the settings and bridge folder stays `%LOCALAPPDATA%\WidgetScreen` (phase 5), because Claude Code's hooks point at `...\WidgetScreen\claude\ClaudeHook.exe`. Each member touches only the files the plan gives them; the Lead writes `CHANGELOG.md`, `CLAUDE.md` and `BRANCHES.md` at each merge, and the Scribe reviews every PR.
+Until the step that changes them: the C# namespace stays `WidgetScreen` until its own rename PR at v0.47.1, after package 4 (it moved out of phase 4; `make-icon.ps1` loads `WidgetScreen.PitArt` by name), and the settings and bridge folder stays `%LOCALAPPDATA%\WidgetScreen` until phase 5, because Claude Code's hooks point at `...\WidgetScreen\claude\ClaudeHook.exe`. Each member touches only the files the plan gives them; the Lead writes `CHANGELOG.md`, `CLAUDE.md` and `BRANCHES.md` at each merge, and the Scribe reviews every PR.
 
 ## The engine (don't change it in the cut phases)
 
 - `src/integrations/Claude/`: the bridge folder written by `hook/ClaudeHook.cs` (Claude Code's hooks and status line); Claude Code's `sessions\` and `projects\` logs under `%USERPROFILE%\.claude` or `CLAUDE_CONFIG_DIR`, read-only; the Claude app's thread records, read-only; the widget's own **Sign in with Claude** (PKCE, `user:profile`, DPAPI `claude-session.dat`, usage meters from `api.anthropic.com` every 5 minutes); OpenTelemetry to a loopback receiver on **127.0.0.1:43832** (next free up to 43839); `ClaudeWatch` file watchers with a 30 s fallback; alerts and `ClaudeToast`.
-- The card: `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs`. Small, Medium and Large by `CardSizing.Claude*` (moves into `ClaudeCard` in phase 4).
+- The card: `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs`. Small, Medium and Large by the `CardSizing.Claude` members, which live at the bottom of `ClaudeCard.cs` since v0.45.0. The window is at least 360 × 300.
 - Settings → Claude → Connect merges into Claude Code's `settings.json` with five dated backups and never overwrites the user's `OTEL_*`; Disconnect takes out exactly that. `ClaudeHook.exe` and the `.widgetscreen-backup` suffix keep their names so Disconnect finds its own entries.
 - Decisions 014, 015, 016 (projects and threads), 017–020, 022 (review fixes), 023–026 are current. Everything else is in `docs/archive/`, read-only history.
 
@@ -39,6 +39,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1
 
 ## Non-negotiables
 
+- The dashboard never answers a permission dialog; Needs you only opens the session (decision 027).
 - Native WPF only. No WebView, no packages without Ali's agreement.
 - No server. The telemetry receiver stays loopback-only (`POST /v1/logs`, `/v1/metrics`, JSON only). Never store or send prompts, replies or file contents; never read Claude Code's credentials; the sign-in tokens go only to Anthropic's hosts.
 - One 1 s heartbeat; nothing polls while hidden or minimised; the frame clock runs only while a visible car moves.
