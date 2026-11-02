@@ -13,13 +13,15 @@ namespace WidgetScreen
     public static class Program
     {
         // Render runs capture the window and exit; they never open the phone link.
-        public static bool Rendering { get; private set; }
+        public static bool Rendering { get; internal set; }
         // A fixed screen size in pixels for renders (--render-size WxH, 1920 × 720 by default) and tests; null follows the real screens.
         public static Size? ScreenSize { get; set; }
 
         [STAThread]
         public static int Main(string[] args)
         {
+            // Claude Dashboard's new window (phase 4), beside the widget app's until the swap.
+            if (args.Contains("--shell")) return ShellProgram.Run(args);
             try
             {
                 var application = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };

@@ -18,6 +18,7 @@
   <SolidColorBrush x:Key="Warning" Color="#F5C47D"/>
   <SolidColorBrush x:Key="Turn" Color="#8ED8F8"/>
   <SolidColorBrush x:Key="Scrim" Color="#E80C0E13"/>
+  <SolidColorBrush x:Key="OnWarning" Color="#11170E"/>
   <CornerRadius x:Key="CardRadius">16</CornerRadius>
   <sys:Double x:Key="SmallSize">13</sys:Double>
   <sys:Double x:Key="BodySize">15</sys:Double>

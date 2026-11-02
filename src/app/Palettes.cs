@@ -8,14 +8,14 @@ namespace WidgetScreen
     // and Claude, a light one in the spirit of the Claude app (warm paper, soft black, terracotta). Every window of the
     // app takes the same keys, so the pit wall, the header and the Settings window change together, and Settings
     // previews a palette by applying it and Cancel by applying the saved one again. Amber stays the warning colour in
-    // every palette (darker on paper, so it reads as text), and Turn is the Glacier edge for a session waiting for your
-    // reply.
+    // every palette (darker on paper, so it reads as text), Turn is the Glacier edge for a session waiting for your
+    // reply, and OnAccent and OnWarning are the words on an accent or Amber fill.
     public static class Palettes
     {
         public static readonly string[] Themes = { "Midnight", "Slate", "Warm", "Claude" };
         public static readonly string[] Accents = { "Lime", "Glacier", "Lavender", "Amber", "Terracotta" };
         // The brushes every palette sets, in the order of the colour lists below.
-        public static readonly string[] Keys = { "Page", "Surface", "Raised", "Input", "Track", "ControlBorder", "Selected", "Muted", "Text", "ClockSurface", "ClockBorder", "ClockMuted", "Warning", "Turn", "OnAccent", "Scrim" };
+        public static readonly string[] Keys = { "Page", "Surface", "Raised", "Input", "Track", "ControlBorder", "Selected", "Muted", "Text", "ClockSurface", "ClockBorder", "ClockMuted", "Warning", "Turn", "OnAccent", "Scrim", "OnWarning" };
 
         public static string CleanTheme(string theme) { return Array.IndexOf(Themes, theme) >= 0 ? theme : "Midnight"; }
         public static string CleanAccent(string accent) { return Array.IndexOf(Accents, accent) >= 0 ? accent : "Lime"; }
@@ -28,11 +28,11 @@ namespace WidgetScreen
         {
             switch (CleanTheme(theme))
             {
-                case "Slate": return new[] { "#101923", "#1B2938", "#293C50", "#142130", "#40546A", "#4C637C", "#3A536E", "#B6C7DA", "#F0F6FF", "#1E3341", "#476175", "#B6CDD9", "#F5C47D", "#8ED8F8", "#11170E", "#E8101923" };
-                case "Warm": return new[] { "#181411", "#27211D", "#3B3028", "#1F1915", "#544638", "#665344", "#564534", "#C8B8A6", "#FAF3E9", "#30291F", "#61533C", "#D2C4A8", "#F5C47D", "#8ED8F8", "#11170E", "#E8181411" };
+                case "Slate": return new[] { "#101923", "#1B2938", "#293C50", "#142130", "#40546A", "#4C637C", "#3A536E", "#B6C7DA", "#F0F6FF", "#1E3341", "#476175", "#B6CDD9", "#F5C47D", "#8ED8F8", "#11170E", "#E8101923", "#11170E" };
+                case "Warm": return new[] { "#181411", "#27211D", "#3B3028", "#1F1915", "#544638", "#665344", "#564534", "#C8B8A6", "#FAF3E9", "#30291F", "#61533C", "#D2C4A8", "#F5C47D", "#8ED8F8", "#11170E", "#E8181411", "#11170E" };
                 // Warm paper, soft black text and quiet borders; Amber and Glacier darkened so they read on paper.
-                case "Claude": return new[] { "#F0EEE6", "#FAF9F5", "#EBE7DC", "#FFFFFF", "#D8D2C4", "#D6D0C2", "#E3DCCB", "#6B6760", "#1F1E1D", "#F4F1E8", "#D6D0C2", "#6B6760", "#B5650B", "#2E7FA8", "#FFFFFF", "#E0F0EEE6" };
-                default: return new[] { "#0C0E13", "#161A22", "#252B36", "#10141C", "#353D49", "#343C49", "#394252", "#A0AABB", "#F2F4F8", "#1C2420", "#344235", "#A8BAAA", "#F5C47D", "#8ED8F8", "#11170E", "#E80C0E13" };
+                case "Claude": return new[] { "#F0EEE6", "#FAF9F5", "#EBE7DC", "#FFFFFF", "#D8D2C4", "#D6D0C2", "#E3DCCB", "#65615A", "#1F1E1D", "#F4F1E8", "#D6D0C2", "#65615A", "#9E5A0A", "#27709A", "#FFFFFF", "#E0F0EEE6", "#FFFFFF" };
+                default: return new[] { "#0C0E13", "#161A22", "#252B36", "#10141C", "#353D49", "#343C49", "#394252", "#A0AABB", "#F2F4F8", "#1C2420", "#344235", "#A8BAAA", "#F5C47D", "#8ED8F8", "#11170E", "#E80C0E13", "#11170E" };
             }
         }
 
@@ -43,10 +43,10 @@ namespace WidgetScreen
             bool light = Light(theme);
             switch (CleanAccent(accent))
             {
-                case "Glacier": return light ? "#2E7FA8" : "#8ED8F8";
+                case "Glacier": return light ? "#27709A" : "#8ED8F8";
                 case "Lavender": return light ? "#6E55C9" : "#C5AEFF";
                 case "Amber": return light ? "#A15C10" : "#F5C47D";
-                case "Terracotta": return light ? "#C15F3C" : "#E08A68";
+                case "Terracotta": return light ? "#B5562F" : "#E08A68";
                 default: return light ? "#4E7D1E" : "#BAF28B";
             }
         }

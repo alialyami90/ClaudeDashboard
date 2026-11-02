@@ -243,7 +243,7 @@ namespace WidgetScreen
             Control<CheckBox>("StartMinimisedChoice").IsChecked = settings.StartMinimised;
             Control<CheckBox>("RememberWindowChoice").IsChecked = !settings.WindowCentred;
             Button("SaveSettings", SaveSettings);
-            Button("CancelSettings", () => { if (settingsWindow != null) settingsWindow.Close(); });
+            Button("CancelSettings", CancelSettings);
             settingsWindow.PreviewKeyDown += (sender, e) => { if (e.Key == Key.Escape && settingsConfirm != null && settingsConfirm.IsOpen) { settingsConfirm.Cancel(); e.Handled = true; } };
             var opened = settingsWindow;
             settingsWindow.Closing += (sender, e) => { if (opened == settingsWindow) CloseSettings(); };
@@ -294,7 +294,7 @@ namespace WidgetScreen
             settings = candidate;
             string startupProblem = startup == StartupShortcut.Exists ? null : StartupShortcut.Set(startup);
             savingSettings = true;
-            try { settingsWindow.Close(); } finally { savingSettings = false; }
+            try { CloseSettingsWindow(); } finally { savingSettings = false; }
             Notify(startupProblem ?? "Settings saved.");
         }
 
@@ -308,7 +308,16 @@ namespace WidgetScreen
             ApplySettings();
             if (window.IsVisible && !closing) window.Activate();
         }
-        private void CloseSettingsWindow() { if (settingsWindow != null) settingsWindow.Close(); }
+        // Cancel: the saved settings come back. The window is let go before it closes, so the same path works for a
+        // window that was never shown (renders and checks), whose Close raises no Closing.
+        public void CancelSettings() { CloseSettingsWindow(); }
+        private void CloseSettingsWindow()
+        {
+            var open = settingsWindow;
+            if (open == null) return;
+            CloseSettings();
+            open.Close();
+        }
 
         // ----- The window's place -----
 

@@ -896,7 +896,7 @@ namespace WidgetScreen
             if (thread.CanFocus)
             {
                 var go = new Button { Content = "Go to it", MinHeight = 48, MinWidth = 96, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold, BorderThickness = new Thickness(0) };
-                go.SetResourceReference(Control.BackgroundProperty, "Warning"); go.Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x17, 0x0E));
+                go.SetResourceReference(Control.BackgroundProperty, "Warning"); go.Foreground = OnWarning();
                 go.SetResourceReference(Control.FontSizeProperty, "SmallSize");
                 string id = thread.Id; go.Click += (sender, e) => focus(id);
                 AutomationProperties.SetName(go, "Go to the thread that needs you");
@@ -914,6 +914,10 @@ namespace WidgetScreen
             });
             return names.Add(strip, "ClaudeAsk");
         }
+        // The words on an Amber fill: the palette's (white on paper), else the dark ink the dark palettes use.
+        private Brush OnWarning() { return host.TryFindResource("OnWarning") as Brush ?? DarkInk; }
+        private static readonly Brush DarkInk = Frozen(Color.FromRgb(0x11, 0x17, 0x0E));
+        private static Brush Frozen(Color color) { var brush = new SolidColorBrush(color); brush.Freeze(); return brush; }
         private Brush Tint(string key, double opacity)
         {
             var brush = host.TryFindResource(key) as SolidColorBrush;
@@ -1074,9 +1078,16 @@ namespace WidgetScreen
             chip.BorderThickness = new Thickness(state == PitState.End || state == PitState.Idle ? 1 : 0);
             chip.Opacity = ClaudePace.Parked(state) ? 0.7 : 1;
             chip.SetResourceReference(Border.BorderBrushProperty, "ControlBorder");
-            if (state == PitState.Need) { chip.SetResourceReference(Border.BackgroundProperty, "Warning"); text.Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x17, 0x0E)); text.FontWeight = FontWeights.Bold; return; }
+            if (state == PitState.Need) { chip.SetResourceReference(Border.BackgroundProperty, "Warning"); text.Foreground = OnWarning(); text.FontWeight = FontWeights.Bold; return; }
             text.FontWeight = FontWeights.Normal;
-            if (state == PitState.Done) { chip.Background = Solid(PitArt.Alpha(PitArt.Accents[1], 0.14)); text.Foreground = Solid(PitArt.Accents[1]); return; }
+            if (state == PitState.Done)
+            {
+                // Claude Dashboard's palettes name the Glacier they read in (darker on paper); the widget app has none.
+                var turn = host.TryFindResource("Turn") as SolidColorBrush;
+                if (turn != null) { chip.Background = Tint("Turn", 0.14); text.Foreground = turn; }
+                else { chip.Background = Solid(PitArt.Alpha(PitArt.Accents[1], 0.14)); text.Foreground = Solid(PitArt.Accents[1]); }
+                return;
+            }
             if (state == PitState.Stuck) { chip.Background = Tint("Warning", 0.16); text.SetResourceReference(TextBlock.ForegroundProperty, "Warning"); return; }
             if (state == PitState.End || state == PitState.Idle || ClaudePace.Parked(state)) { chip.Background = Brushes.Transparent; text.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); return; }
             chip.Background = Tint("Accent", 0.16); text.SetResourceReference(TextBlock.ForegroundProperty, "Accent");
