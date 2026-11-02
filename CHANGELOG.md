@@ -15,7 +15,7 @@ Claude Dashboard, phase 5 of decision 026: its own settings folder.
   - **Bring it over** copies the Claude settings, the theme and text size, `claude-session.dat` and the `claude\` folder.
   - If Claude Code was connected, it's connected again from the new folder on the same telemetry port. Every hook and the status line then run the new `ClaudeHook.exe`, and `settings.json` gets its usual dated backup first.
   - **Start fresh** copies nothing. Closing the window decides nothing, so the question comes back next time.
-  - Widget Screen's folder is only read, so Widget Screen can be uninstalled afterwards.
+  - Widget Screen's folder is only read. The sheet says to uninstall Widget Screen afterwards from Installed apps and keep its settings when asked.
 - **Checks.** Six new migration checks, using a v0.41 `settings.xml` and a `settings.json` connected to the old folder.
 
 ## v0.45.0 (unreleased)

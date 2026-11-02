@@ -66,7 +66,7 @@ namespace WidgetScreen
             try
             {
                 Migration.Run(oldFolder, settingsPath, config, BundledHook);
-                moveMessage = "Your Claude setup came over from Widget Screen" + (found.Connected ? ", and Claude Code now runs Claude Dashboard's hooks" : "") + ". You can uninstall Widget Screen now.";
+                moveMessage = "Your Claude setup came over from Widget Screen" + (found.Connected ? ", and Claude Code now runs Claude Dashboard's hooks" : "") + ". Uninstall Widget Screen from Installed apps now, and keep its settings when asked.";
             }
             catch (InvalidOperationException e)
             {
@@ -90,7 +90,7 @@ namespace WidgetScreen
             string list = parts.Count == 0 ? "nothing" : parts.Count == 1 ? parts[0] : String.Join(", ", parts.GetRange(0, parts.Count - 1)) + " and " + parts[parts.Count - 1];
             string text = "Copies " + list + " from " + oldFolder + ".";
             if (found.Connected) text += " Claude Code's hooks and status line then run Claude Dashboard's own ClaudeHook.exe; its settings.json is backed up first.";
-            text += " Widget Screen's folder isn't changed, and you can uninstall Widget Screen afterwards. Start fresh copies nothing";
+            text += " Widget Screen's folder isn't changed: afterwards, uninstall Widget Screen from Installed apps and keep its settings when asked. Start fresh copies nothing";
             text += found.Connected ? ", and Claude Code stays connected to Widget Screen until you connect it here." : ".";
             return text;
         }
