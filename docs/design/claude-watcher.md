@@ -2,6 +2,29 @@
 
 The Claude Code widget on both apps, built from the design brief below (kept as Ali approved it). The technical choices are in [decision 014](../decisions/014-claude-code-bridge.md), [decision 015](../decisions/015-claude-sign-in-and-telemetry.md) (the fix that made it work with the Claude app's Code tab) [decision 016](../decisions/016-claude-projects-and-threads.md) (projects with their threads, and the refresh intervals) [decision 023](../decisions/023-claude-trust-the-sources.md) (which sessions are alive, Stuck, the plan check and the telemetry port) [decision 024](../decisions/024-claude-honest-numbers.md) (where costs come from, the side panel facts, and Windows first for packages 2–4) and [decision 025](../decisions/025-claude-instant-and-everywhere.md) (watchers, notifications, phone alerts, helpers on the car, resolved without the app).
 
+## Cockpit (package 4, decision 027, v0.47.0)
+
+Package 4 of the Watcher action plan, the last one, Windows only. It lands after the Claude Dashboard transformation (phase 6 of the transformation plan) and is built for its single window. The list as the action plan wrote it (4.1–4.6), fitted to the new app on 2 Nov 2026:
+
+| # | Item | What it does | Where |
+| --- | --- | --- | --- |
+| 4.1 | **Answer from the notification and the car** | Allow once, Deny or Open for a permission dialog, from a small window of our own (the balloon has no buttons) and from a Needs-you car. Claude Code's PermissionRequest hook waits for the answer through the bridge folder; with no answer it shows its own dialog as before. | `ClaudeBridge` (ask mode), `ClaudeAsks`, `ClaudePermissions`, `ClaudeAskToast`, Connect's ask hook |
+| 4.2 | ~~The same from the phone~~ | Dropped for now: the phone link is removed in phase 3. Moves to the Android companion on the roadmap. | — |
+| 4.3 | **Cloud garage** | Cloud and Remote Control threads from the Claude app's own records show as cars in a Cloud garage, with Ready, Working, Needs you and Done from the record. The second-PC garage over the link is dropped with the link. | `ClaudeAppThreads`, `ClaudeService` |
+| 4.4 | **History** | One small summary file per day (`claude\history\YYYY-MM-DD.json`: tokens, replies, threads, needs, the longest wait, per garage), kept 8 weeks; a 7-day sparkline and a "same time last week" tick on the plan row; History in Settings → Claude, with a switch that turns it off and deletes the files. | `ClaudeHistory`, the card's plan row, Settings |
+| 4.5 | **Export** | Settings → Claude → Copy summary (Markdown) and Save CSV of the last 7 days' ledger. | `ClaudeExport`, Settings |
+| 4.6 | **Plain mode** | A list view of the same data with the same colours, chosen in Settings → Claude; also the screen-reader path. | `ClaudeCard`, Settings |
+
+Left out on purpose, as in the action plan: the session launcher and the status-line companion.
+
+### Answering a permission dialog (4.1)
+
+- **Opt-in.** Settings → Claude → Answer permission prompts from Claude Dashboard, off by default, with how long Claude Code waits for the answer (10–120 s, default 30).
+- **Only when it helps.** The ask hook waits only while the dashboard is running and listening (`claude\asks\listener.json` with its process id and start), Quiet mode is off, and the session's own window isn't the one in front. Otherwise it ends at once and Claude Code shows its dialog straight away.
+- **Allow once, never always.** Allow prints Claude Code's `{"behavior":"allow"}` with no `updatedPermissions` and no `updatedInput`; Deny adds a message for Claude; Open prints nothing (Claude Code's own dialog shows) and brings the session's window forward. Deny rules in Claude Code still apply after an Allow.
+- **The toast.** Bottom-right of the main screen, on top, never taking the keyboard from the game or app in front. It names the project and thread, the tool, and what it's about (the command, the file or the address, one line of at most 300 characters), and counts down to Claude Code's own dialog. Up to four show at once; a fifth goes straight to Claude Code's dialog. The plain Needs-you notification stays quiet for a dialog with its own toast.
+- **Nothing lingers.** The ask and its answer are deleted when the hook ends; the dashboard clears asks whose hook has gone.
+
 ## Instant and everywhere (decision 025, v0.41.0)
 
 Package 3 of the Watcher action plan, Windows only (the phone link already sends what the phone will show).

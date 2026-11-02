@@ -25,6 +25,15 @@ namespace WidgetScreen
                 try { ClaudeBridge.Hook(input, folder, owner, DateTime.UtcNow); } catch (Exception) { }
                 return 0;
             }
+            // Package 4 (decision 027): a permission dialog the dashboard may answer. Prints Claude Code's decision, or
+            // nothing so its own dialog shows.
+            if (mode == "ask")
+            {
+                string answer = "";
+                try { answer = ClaudeBridge.Ask(input, folder, owner, () => DateTime.UtcNow, System.Threading.Thread.Sleep, ClaudeBridge.ListenerAlive, ClaudeProcesses.InFront, Process.GetCurrentProcess().Id); } catch (Exception) { }
+                if (answer.Length > 0) Write(answer + "\n");
+                return 0;
+            }
             if (mode == "statusline")
             {
                 string line = "Claude Code";

@@ -84,7 +84,7 @@ internal static class ClaudeTests
             var hooks = ClaudeJson.Obj(root, "hooks");
             var post = (List<object>)hooks.Get("PostToolUse");
             Assert(post.Count == 2 && ClaudeJson.Str(ClaudeJson.Obj(post[0]), "matcher") == "Edit" && ClaudeJson.Str(ClaudeJson.Obj(((List<object>)ClaudeJson.Obj(post[0]).Get("hooks"))[0]), "command") == "npx prettier --write", "The user's own hook was replaced.");
-            foreach (var e in ClaudeConnector.Events) Assert(((List<object>)hooks.Get(e[0])).OfType<JsonObject>().Count(g => ClaudeJson.List(g, "hooks").Any(ClaudeConnector.Ours)) == 1, "Missing hook for " + e[0] + ".");
+            foreach (var e in ClaudeConnector.Events) Assert(((List<object>)hooks.Get(e[0])).OfType<JsonObject>().Count(g => ClaudeJson.List(g, "hooks").Any(ClaudeConnector.Ours)) == (e[0] == "PermissionRequest" ? 2 : 1), "Missing hook for " + e[0] + ".");
             var notification = ((List<object>)hooks.Get("Notification")).OfType<JsonObject>().Single();
             Assert(ClaudeJson.Str(notification, "matcher") == ClaudeConnector.NotificationTypes && ClaudeConnector.NotificationTypes.StartsWith("permission_prompt|elicitation_dialog|"), "Notification hook matcher wrong.");
             string command = ClaudeJson.Str(ClaudeJson.Obj(ClaudeJson.List(notification, "hooks")[0]), "command");

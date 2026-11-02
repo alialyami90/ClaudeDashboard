@@ -205,6 +205,8 @@ namespace WidgetScreen
                     if (!((hooks == null ? null : hooks.Get(entry[0]) as List<object>) ?? new List<object>()).OfType<JsonObject>()
                         .Any(g => ClaudeJson.Str(g, "matcher") == matcher && (ClaudeJson.List(g, "hooks") ?? new List<object>()).Any(h => Ours(h) && ClaudeJson.Str(h as JsonObject, "command") == Command("hook")))) return true;
                 }
+                // Package 4's ask hook, an ordinary (not async) one.
+                if (!HasAsk(hooks)) return true;
                 // Package 2's status line refreshes on a timer too.
                 var status = ClaudeJson.Obj(root, "statusLine");
                 if (Ours(status) && !(status.Get("refreshInterval") is JsonNumber)) return true;
@@ -221,6 +223,19 @@ namespace WidgetScreen
             catch (Exception) { return false; }
         }
 
+        // Whether settings.json's hooks have package 4's ask hook as Connect writes it: not async, with its timeout.
+        private bool HasAsk(JsonObject hooks)
+        {
+            return ((hooks == null ? null : hooks.Get("PermissionRequest") as List<object>) ?? new List<object>()).OfType<JsonObject>()
+                .Any(g => (ClaudeJson.List(g, "hooks") ?? new List<object>()).OfType<JsonObject>().Any(h => Ours(h) && ClaudeJson.Str(h, "command") == Command("ask")
+                    && !ClaudeJson.Bool(h, "async") && ClaudeJson.Num(h, "timeout") >= ClaudeBridge.AskTimeout));
+        }
+        public bool HasAskHook()
+        {
+            try { return File.Exists(SettingsPath) && HasAsk(ClaudeJson.Obj(ClaudeJson.Obj(ClaudeJson.Parse(File.ReadAllText(SettingsPath, Encoding.UTF8))), "hooks")); }
+            catch (Exception) { return false; }
+        }
+
         // Copies the bridge into its stable folder, then adds the hooks and status line. hookSource is the
         // ClaudeHook.exe that came with this app; port is the loopback port telemetry goes to (the one the receiver
         // could bind; 0 for TelemetryPort). Throws InvalidOperationException with a message for the user.
@@ -228,7 +243,7 @@ namespace WidgetScreen
         {
             if (port <= 0) port = TelemetryPort;
             var root = Load();
-            if (String.IsNullOrEmpty(hookSource) || !File.Exists(hookSource)) throw new InvalidOperationException(ClaudeBridge.HookExe + " is missing from Widget Screen's folder. Reinstall Widget Screen, then try again.");
+            if (String.IsNullOrEmpty(hookSource) || !File.Exists(hookSource)) throw new InvalidOperationException(ClaudeBridge.HookExe + " is missing from Claude Dashboard's folder. Reinstall Claude Dashboard, then try again.");
             Directory.CreateDirectory(BridgeFolder);
             Directory.CreateDirectory(ClaudeBridge.SessionsFolder(BridgeFolder));
             CopyHook(hookSource);
@@ -244,6 +259,16 @@ namespace WidgetScreen
                 var group = new JsonObject();
                 if (entry[1] != null) group["matcher"] = entry[1];
                 var hook = new JsonObject(); hook["type"] = "command"; hook["command"] = Command("hook"); hook["async"] = true; hook["timeout"] = new JsonNumber(10);
+                group["hooks"] = new List<object> { hook };
+                list.Add(group);
+            }
+            // Package 4 (decision 027): the permission dialog may be answered from the dashboard, so one more
+            // PermissionRequest hook runs as an ordinary one, whose answer Claude Code reads. It only waits while the
+            // dashboard listens; otherwise it ends at once and prints nothing.
+            {
+                var list = (List<object>)hooks.Get("PermissionRequest");
+                var group = new JsonObject(); group["matcher"] = "*";
+                var hook = new JsonObject(); hook["type"] = "command"; hook["command"] = Command("ask"); hook["timeout"] = new JsonNumber(ClaudeBridge.AskTimeout);
                 group["hooks"] = new List<object> { hook };
                 list.Add(group);
             }
@@ -346,7 +371,7 @@ namespace WidgetScreen
             catch (Exception e) { throw new InvalidOperationException("Couldn't read " + SettingsPath + ": " + e.Message); }
             if (String.IsNullOrWhiteSpace(text)) return new JsonObject();
             object parsed;
-            if (!ClaudeJson.TryParse(text, out parsed) || !(parsed is JsonObject)) throw new InvalidOperationException("Claude Code's settings.json isn't valid JSON, so Widget Screen left it alone. Fix the file (or let Claude Code rewrite it), then try again.");
+            if (!ClaudeJson.TryParse(text, out parsed) || !(parsed is JsonObject)) throw new InvalidOperationException("Claude Code's settings.json isn't valid JSON, so Claude Dashboard left it alone. Fix the file (or let Claude Code rewrite it), then try again.");
             return (JsonObject)parsed;
         }
 
