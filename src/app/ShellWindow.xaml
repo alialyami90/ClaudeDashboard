@@ -1,0 +1,60 @@
+<!-- Claude Dashboard's window (phase 4 of the transformation plan): an ordinary resizable Windows window that is the pit
+     wall and nothing else. A header with the live summary, the period switch, Quiet mode and Settings, then the Claude
+     card filling the rest; the card picks its Small, Medium or Large design from its own size as the window resizes.
+     The window's edge turns Amber while a session needs you and Glacier while one waits for your reply. AppController
+     merges ShellStyles.xaml and the palette into the resources, so styles here are DynamicResource. -->
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Claude Dashboard" Width="1280" Height="760" MinWidth="360" MinHeight="300"
+        Background="{DynamicResource Surface}" Foreground="{DynamicResource Text}" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display">
+  <!--SHELL STYLES-->
+  <Grid x:Name="Dashboard" Background="{DynamicResource Surface}">
+    <Border x:Name="WindowEdge" BorderThickness="3" BorderBrush="Transparent" AutomationProperties.Name="Claude Dashboard">
+      <Grid x:Name="DashboardContent">
+        <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <DockPanel x:Name="Header" Margin="24,12,20,0" LastChildFill="True">
+          <StackPanel x:Name="HeaderActions" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <StackPanel x:Name="PeriodSwitch" Orientation="Horizontal" Margin="0,0,10,0" AutomationProperties.Name="Period">
+              <Button x:Name="ShellPeriod0" Content="5 h" Style="{DynamicResource HeaderButton}" MinWidth="52" ToolTip="Threads and usage in the last 5 hours"/>
+              <Button x:Name="ShellPeriod1" Content="Today" Style="{DynamicResource HeaderButton}" MinWidth="52" ToolTip="Threads and usage today"/>
+              <Button x:Name="ShellPeriod2" Content="Week" Style="{DynamicResource HeaderButton}" MinWidth="52" ToolTip="Threads and usage this week"/>
+            </StackPanel>
+            <Button x:Name="QuietButton" Style="{DynamicResource HeaderButton}" ToolTip="Quiet mode: no chime and no Windows notifications. The cars keep still too if Settings → Claude says so." AutomationProperties.Name="Quiet mode, off">
+              <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE708;" Style="{DynamicResource Glyph}"/><TextBlock x:Name="QuietLabel" Text="Quiet" Margin="8,0,0,0" FontSize="{DynamicResource SmallSize}" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+            <Button x:Name="SettingsButton" Style="{DynamicResource HeaderButton}" ToolTip="Settings" AutomationProperties.Name="Settings">
+              <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE713;" Style="{DynamicResource Glyph}"/><TextBlock x:Name="SettingsLabel" Text="Settings" Margin="8,0,0,0" FontSize="{DynamicResource SmallSize}" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+          </StackPanel>
+          <TextBlock x:Name="AppName" Text="Claude Dashboard" DockPanel.Dock="Left" FontSize="{DynamicResource TitleSize}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,18,0" TextTrimming="None"/>
+          <TextBlock x:Name="ClaudeFlag" DockPanel.Dock="Right" Text="" Style="{DynamicResource Caption}" VerticalAlignment="Center" Margin="12,0,12,0"/>
+          <DockPanel x:Name="SummaryRow" VerticalAlignment="Center" LastChildFill="True">
+            <Ellipse x:Name="ClaudeSummaryDot" DockPanel.Dock="Left" Width="8" Height="8" Fill="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,1,8,0"/>
+            <TextBlock x:Name="ClaudeSummary" Text="" FontSize="{DynamicResource BodySize}" VerticalAlignment="Center"/>
+          </DockPanel>
+        </DockPanel>
+        <!-- ClaudeCard builds the Small, Medium or Large design in ClaudeBody (docs/design/claude-watcher.md). -->
+        <Border x:Name="ClaudeCard" Grid.Row="1" Padding="24" Background="Transparent" AutomationProperties.Name="Claude Code">
+          <Grid x:Name="ClaudeBody"/>
+        </Border>
+        <TextBlock x:Name="StatusMessage" Grid.Row="2" Text="" Style="{DynamicResource Small}" Margin="24,0,24,10" Visibility="Collapsed"/>
+      </Grid>
+    </Border>
+
+    <!-- The confirm sheet (ConfirmSheet): the one "are you sure" in this window. Clicking outside cancels. -->
+    <Grid x:Name="ConfirmOverlay" Visibility="Collapsed" Background="{DynamicResource Scrim}" KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle">
+      <Border Style="{DynamicResource Card}" MaxWidth="560" Margin="24" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel>
+          <TextBlock x:Name="ConfirmTitle" Text="CLAUDE" Style="{DynamicResource Label}"/>
+          <TextBlock x:Name="ConfirmSubject" Text="" FontSize="{DynamicResource TitleSize}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"/>
+          <TextBlock x:Name="ConfirmDetail" Text="" Style="{DynamicResource Small}" TextWrapping="Wrap" TextTrimming="None" Margin="0,8,0,0"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button x:Name="ConfirmCancel" Content="Cancel" MinWidth="110" Margin="0,0,10,0" AutomationProperties.Name="Cancel"/>
+            <Button x:Name="ConfirmAction" Content="OK" Style="{DynamicResource AccentButton}" MinWidth="130"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

@@ -43,10 +43,6 @@ jobs:
           git merge-base --is-ancestor HEAD origin/main
           if ($LASTEXITCODE -ne 0) { throw "$env:TAG isn't on main." }
 
-      # Releases ship the pinned, hash-checked hardware-sensor files (decision 016), so a failed fetch fails the run.
-      - name: Hardware sensor files
-        run: if (Test-Path .\scripts\get-sensors.ps1) { .\scripts\get-sensors.ps1 }
-
       - name: App and checks
         run: .\scripts\build.ps1 -Test
 

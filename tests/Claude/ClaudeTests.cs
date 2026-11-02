@@ -295,12 +295,11 @@ internal static class ClaudeTests
                 string path = Path.Combine(directory, "claude-" + size.Width + "x" + size.Height + ".xml");
                 var settings = new AppSettings { TextScale = 1.4 };
                 SettingsStore.Save(path, settings);
-                using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
                 {
-                    var window = (Window)System.Windows.Markup.XamlReader.Load(stream);
+                    var window = AppController.LoadWindow("ShellWindow");
                     try
                     {
-                        using (var controller = new DashboardController(window, path))
+                        using (var controller = new AppController(window, path))
                         {
                             var sized = (FrameworkElement)window.FindName("ClaudeCard"); sized.Width = size.Width; sized.Height = size.Height;
                             controller.UseClaudeSample(false);
@@ -312,8 +311,11 @@ internal static class ClaudeTests
                                 var card = (FrameworkElement)window.FindName("ClaudeCard");
                                 Assert(card.Visibility == Visibility.Visible && window.FindName("ClaudeView") != null && Descendants(card).OfType<PitSprite>().Any(), "Claude built no design (or no car) at " + size + " (" + pair.Key + ").");
                                 Assert(controller.ClaudeCardView.Current == CardSizing.Claude(size.Width, size.Height), "Claude picked the wrong design at " + size + ".");
-                                if (pair.Key == "needs") Assert(((System.Windows.Controls.Border)card).BorderThickness.Left == 2, "The card doesn't light up when a session needs you.");
-                                if (pair.Key == "sample") Assert(((System.Windows.Controls.Border)card).BorderThickness.Left == 1, "The card stays lit.");
+                                // The window's frame lights up Amber (phase 4), without changing its thickness.
+                                var edge = (System.Windows.Controls.Border)window.FindName("WindowEdge");
+                                Func<bool> amber = () => edge.BorderBrush is System.Windows.Media.SolidColorBrush && window.Resources["Warning"] is System.Windows.Media.SolidColorBrush && ((System.Windows.Media.SolidColorBrush)edge.BorderBrush).Color == ((System.Windows.Media.SolidColorBrush)window.Resources["Warning"]).Color;
+                                if (pair.Key == "needs") Assert(amber() && edge.BorderThickness.Left == 3, "The window doesn't light up when a session needs you.");
+                                if (pair.Key == "sample") Assert(!amber() && edge.BorderThickness.Left == 3, "The window stays lit.");
                                 foreach (var part in Descendants(card).OfType<FrameworkElement>().Where(e => Shown(e, card) && e.ActualWidth > 0 && (e is System.Windows.Controls.TextBlock || e is PitSprite || e is PitInstrument || e is MeterBar || e is System.Windows.Controls.Button)))
                                 {
                                     var box = part.TransformToAncestor(card).TransformBounds(new Rect(0, 0, part.ActualWidth, part.ActualHeight));

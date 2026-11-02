@@ -53,6 +53,16 @@ namespace WidgetScreen
         [XmlArray("ClaudeCollapsed"), XmlArrayItem("Folder")]
         public string[] ClaudeCollapsed { get; set; }
         public string ClaudePeriod { get; set; }
+        // Claude Dashboard's window (phase 4): where and how big it was when it closed (0 wide = never saved), whether it
+        // was maximised, whether it opens minimised, and WindowCentred when Settings → Window → Open where I last closed
+        // it is off.
+        public double WindowLeft { get; set; }
+        public double WindowTop { get; set; }
+        public double WindowWidth { get; set; }
+        public double WindowHeight { get; set; }
+        public bool WindowMaximised { get; set; }
+        public bool StartMinimised { get; set; }
+        public bool WindowCentred { get; set; }
         // The four facts on the Claude card's side panel (package 2), from ClaudeFactKinds.All.
         [XmlArray("ClaudeFacts"), XmlArrayItem("Fact")]
         public string[] ClaudeFacts { get; set; }
@@ -87,8 +97,8 @@ namespace WidgetScreen
         {
             // Up to 140% (audit, 22 Oct 2026): small or far-away screens need more than the 115% the baseline allowed.
             TextScale = Math.Max(0.9, Math.Min(1.4, Double.IsNaN(TextScale) ? 1 : TextScale));
-            if (Accent != "Lime" && Accent != "Glacier" && Accent != "Lavender" && Accent != "Amber") Accent = "Lime";
-            if (Theme != "Midnight" && Theme != "Slate" && Theme != "Warm") Theme = "Midnight";
+            Accent = Palettes.CleanAccent(Accent);
+            Theme = Palettes.CleanTheme(Theme);
             CornerRadius = Clamp(CornerRadius, 0, 24, 20);
             ClaudeCardSeconds = ClaudeCardSeconds == 0 ? ClaudeIntervals.CardDefault : ClaudeIntervals.Card(ClaudeCardSeconds);
             ClaudePlanSeconds = ClaudePlanSeconds == 0 ? ClaudeIntervals.PlanDefault : ClaudeIntervals.Plan(ClaudePlanSeconds);
