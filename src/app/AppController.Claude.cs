@@ -302,6 +302,7 @@ namespace WidgetScreen
             Control<CheckBox>("ClaudeChimeChoice").IsChecked = settings.ClaudeChime;
             Control<CheckBox>("ClaudeToastChoice").IsChecked = settings.ClaudeToast;
             Control<CheckBox>("ClaudeHistoryChoice").IsChecked = settings.ClaudeHistory;
+            Control<CheckBox>("ClaudePlainChoice").IsChecked = settings.ClaudePlain;
             var managed = claude.Connector.ManagedOverrides();
             Text("ClaudeManagedText", managed.Count == 0 ? "" : "Your organisation's managed Claude Code settings (" + claude.Connector.ManagedPath + ") take precedence over yours, so Claude Dashboard's " + String.Join(", ", managed) + (managed.Count == 1 ? " doesn't" : " don't") + " take effect. Ask whoever manages Claude Code on this PC to allow them.");
             Control<TextBlock>("ClaudeManagedText").Visibility = managed.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -371,6 +372,7 @@ namespace WidgetScreen
             candidate.ClaudeChime = Control<CheckBox>("ClaudeChimeChoice").IsChecked == true;
             candidate.ClaudeToast = Control<CheckBox>("ClaudeToastChoice").IsChecked == true;
             candidate.ClaudeHistory = Control<CheckBox>("ClaudeHistoryChoice").IsChecked == true;
+            candidate.ClaudePlain = Control<CheckBox>("ClaudePlainChoice").IsChecked == true;
             candidate.ClaudeStillInQuiet = Control<CheckBox>("ClaudeStillChoice").IsChecked == true;
             candidate.ClaudeShowApiValue = Control<CheckBox>("ClaudeApiValueChoice").IsChecked == true;
             candidate.ClaudeShowArchived = Control<CheckBox>("ClaudeHideArchivedChoice").IsChecked != true;

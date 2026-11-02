@@ -187,6 +187,42 @@ namespace WidgetScreen
             return calls + " " + f.Asked + " asked you and " + f.Denied + " were denied" + (f.AskedPartial ? ", from the sessions that sent telemetry (not every session does, so this is partial)." : ".");
         }
         public const string TokensTip = "Fresh input, cache writes and output. Cache reads aren't counted here (see Cache hits).";
+        // Package 4.6, the plain list's words. The plan: "5-hour 23%, resets 3:40 pm · Week 41%, resets Thu 9:00 am".
+        public static string PlainPlan(ClaudeView view, DateTime now, bool use24)
+        {
+            var limits = view == null ? null : view.Limits;
+            string text;
+            if (limits == null || !limits.Known) text = LimitsMissing(view);
+            else
+            {
+                var parts = new List<string>();
+                if (limits.FiveHour != null) parts.Add("5-hour " + Math.Round(Percent(limits.FiveHour, now)).ToString(CultureInfo.InvariantCulture) + "%, " + FiveHourReset(limits.FiveHour, now, use24));
+                else parts.Add(NoFiveHour);
+                if (limits.Week != null) parts.Add("Week " + Math.Round(Percent(limits.Week, now)).ToString(CultureInfo.InvariantCulture) + "%" + (limits.Week.Current(now) ? ", resets " + WeekReset(limits.Week, use24) : ", reset"));
+                text = String.Join(" · ", parts);
+            }
+            if (view != null && view.NeedsYou > 0) text = (view.NeedsYou == 1 ? "1 thread needs you. " : view.NeedsYou + " threads need you. ") + text;
+            return view != null && view.Sample ? "Sample. " + text : text;
+        }
+        public static string PlainProject(ClaudeProjectGroup group, bool counted)
+        {
+            int n = group.Threads.Count;
+            return n + (n == 1 ? " thread" : " threads") + " · " + (counted ? "" : "≈") + ClaudeUsage.Format(group.Tokens) + " tokens";
+        }
+        // Under the thread's name: what it waits on or why it stopped, else since when.
+        public static string PlainDetail(ClaudeSession thread, ClaudeView view, DateTime now, bool use24)
+        {
+            if (thread.State == ClaudeState.Stuck) { string why = StuckReason(thread, view, now, use24); if (!String.IsNullOrEmpty(why)) return why; }
+            if (thread.State == ClaudeState.NeedsYou && !String.IsNullOrWhiteSpace(thread.Message)) return Ask(thread.Message);
+            DateTime at = thread.Running ? thread.Since : thread.LastActive;
+            return at == DateTime.MinValue ? (thread.Running ? "Running" : "Ended") : (thread.Running ? "Since " : "Last active ") + Ago(at, now, use24);
+        }
+        public static string PlainNumbers(ClaudeSession thread, ClaudePeriod period, bool counted)
+        {
+            int replies = thread.RepliesFor(period);
+            return (counted ? "" : "≈") + ClaudeUsage.Format(thread.TokensFor(period)) + " tokens · " + replies + (replies == 1 ? " reply" : " replies");
+        }
+
         // Package 4: the plan row's 7-day bars, in words.
         public static string DaysTip(long[] days, long? lastWeek, bool sample)
         {
@@ -556,6 +592,14 @@ namespace WidgetScreen
             live = shown && !quiet;
             clock.SetLive(live && host.IsVisible);
         }
+        // Package 4.6: Settings → Claude → Plain list. The same threads, states and numbers as a list of text rows, with no
+        // cars or garages to animate; the screen-reader path, since every row is plain words.
+        private bool plain;
+        public bool Plain
+        {
+            get { return plain; }
+            set { if (value == plain) return; plain = value; built = ""; if (plain) EndRoll(false); Rebuild(); }
+        }
         public void ShowPeriod(ClaudePeriod next) { period = next; if (choosePeriod != null) choosePeriod(next); Rebuild(); }
 
         // Folds a project's cars into its garage or rolls them out (a tap on the garage). Returns whether it's folded now.
@@ -581,7 +625,7 @@ namespace WidgetScreen
         private void Rebuild()
         {
             if (bounds.IsEmpty || rolling != null) return;
-            string key = Math.Round(bounds.Width) + "x" + Math.Round(bounds.Height) + "|" + textScale + "|" + period + "|" + Layout();
+            string key = Math.Round(bounds.Width) + "x" + Math.Round(bounds.Height) + "|" + textScale + "|" + period + "|" + plain + "|" + Layout();
             if (key != built) { built = key; Build(); }
             Render();
             if (rollOut != null)
@@ -614,6 +658,7 @@ namespace WidgetScreen
             design = CardSizing.Claude(bounds.Width, bounds.Height);
             FrameworkElement content;
             if (view == null) content = Caption("Reading Claude Code…");
+            else if (plain) content = BuildPlain(width);
             else content = design == CardSizing.Design.Small ? BuildSmall(width, height) : design == CardSizing.Design.Medium ? BuildMedium(width, height) : BuildLarge(width, height);
             host.Children.Add(names.Add(content, "ClaudeView"));
             layer = new Canvas { IsHitTestVisible = false, ClipToBounds = false };
@@ -737,6 +782,68 @@ namespace WidgetScreen
                 }
             });
             return names.Add(row, "ClaudePlanChips");
+        }
+
+        // ----- Plain list (package 4.6) -----
+
+        // The plan in one line, then each project with its threads under it: state, name, since when, tokens. A row
+        // with a window to show is a button. Numbers follow on every render; a change of threads rebuilds the list.
+        private FrameworkElement BuildPlain(double width)
+        {
+            var list = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
+            AutomationProperties.SetName(list, "Claude Code threads, plain list");
+            var plan = names.Add(Trimmed(Text("", 15, "Text")), "ClaudePlainPlan"); plan.TextWrapping = TextWrapping.Wrap; plan.Margin = new Thickness(0, 0, 0, 12);
+            list.Children.Add(plan);
+            fills.Add(now => { plan.Text = ClaudeText.PlainPlan(view, now, use24); AutomationProperties.SetName(plan, plan.Text); });
+            var groups = view.Groups(period);
+            if (groups.Count == 0) list.Children.Add(Caption(ClaudeText.NoThreads(period)));
+            int index = 0;
+            foreach (var group in groups)
+            {
+                var heading = Text(group.Name, 15, "Text"); heading.FontWeight = FontWeights.SemiBold; heading.Margin = new Thickness(0, index == 0 ? 0 : 14, 0, 4);
+                var totals = Text("", 13, "Muted"); totals.Margin = new Thickness(10, 0, 0, 0);
+                var head = new WrapPanel(); head.Children.Add(heading); head.Children.Add(totals); totals.VerticalAlignment = VerticalAlignment.Bottom; totals.Margin = new Thickness(10, 0, 0, 5);
+                list.Children.Add(names.Add(head, "ClaudePlainProject" + index));
+                string folder = group.Folder;
+                fills.Add(now => {
+                    var g = view.Groups(period).FirstOrDefault(x => String.Equals(x.Folder, folder, StringComparison.OrdinalIgnoreCase));
+                    totals.Text = g == null ? "" : ClaudeText.PlainProject(g, Counted);
+                    AutomationProperties.SetName(head, heading.Text + ". " + totals.Text);
+                });
+                int row = 0;
+                foreach (var thread in group.Threads)
+                {
+                    list.Children.Add(PlainRow(thread, width, "ClaudePlainThread" + index + "_" + row));
+                    row++;
+                }
+                if (group.Hidden > 0) { var hidden = Caption(group.Hidden + (group.Hidden == 1 ? " thread hidden by Settings" : " threads hidden by Settings")); hidden.Margin = new Thickness(0, 2, 0, 0); list.Children.Add(hidden); }
+                index++;
+            }
+            return new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
+        }
+        private FrameworkElement PlainRow(ClaudeSession thread, double width, string name)
+        {
+            var grid = Columns(new GridLength(Math.Min(130, Math.Max(96, width * 0.16))), Star, Auto);
+            grid.Margin = new Thickness(0, 2, 0, 2);
+            var chip = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 2, 8, 2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+            var chipText = Text("", 12, "Text"); chip.Child = chipText; grid.Children.Add(chip);
+            var words = new StackPanel { Margin = new Thickness(10, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
+            var title = Trimmed(Text("", 14, "Text")); var detail = Trimmed(Text("", 12, "Muted"));
+            words.Children.Add(title); words.Children.Add(detail); grid.Children.Add(At(words, 0, 1));
+            var numbers = Right(Text("", 13, "Text")); grid.Children.Add(At(numbers, 0, 2));
+            var area = Tappable(grid, thread);
+            string id = thread.Id;
+            fills.Add(now => {
+                var t = view.Threads.FirstOrDefault(x => x.Id == id);
+                if (t == null) return;
+                chipText.Text = ClaudeText.Chip(t).ToUpperInvariant(); SetChip(chip, chipText, t.Pit);
+                title.Text = ClaudeText.ThreadTitle(t, now, use24);
+                detail.Text = ClaudeText.PlainDetail(t, view, now, use24);
+                numbers.Text = ClaudeText.PlainNumbers(t, period, Counted);
+                string said = ClaudeText.Chip(t) + ". " + title.Text + ". " + detail.Text + ". " + numbers.Text + (t.Running && t.CanFocus ? ". Tap to show its window." : ".");
+                AutomationProperties.SetName(area, said);
+            });
+            return names.Add(area, name);
         }
 
         // The plan row: the 5-hour tank, the week's laps and the rev counter (from 900 wide).

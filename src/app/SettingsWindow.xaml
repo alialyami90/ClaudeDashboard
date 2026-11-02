@@ -56,6 +56,8 @@
               <TextBlock Text="Your Claude plan doesn't pay these prices; the plan meters show your plan's use. Off: each thread's replies show instead." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
               <CheckBox x:Name="ClaudeHideArchivedChoice" Content="Hide resolved and archived threads" AutomationProperties.Name="Hide resolved and archived Claude threads"/>
               <TextBlock Text="Resolved: the Claude app says the latest reply completed the job. Archived: you archived it in the Claude app. On: they leave the pit wall, and each project says how many it hides. Off: they park last, dimmed. A resolved thread that starts working again or needs you shows right away." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <CheckBox x:Name="ClaudePlainChoice" Content="Show a plain list instead of the pit wall" AutomationProperties.Name="Show Claude Code threads as a plain list instead of the pit wall"/>
+              <TextBlock Text="The same projects, threads, states and numbers as rows of text, with no cars or garages. Easier with a screen reader; click a row to bring its session forward." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
               <CheckBox x:Name="ClaudeHideIdleChoice" Content="Hide idle threads" AutomationProperties.Name="Hide idle Claude threads"/>
               <TextBlock Text="Open threads that have waited 30 minutes or more. Their tokens still count in their project's totals." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,20"/>
               <TextBlock Text="Side panel facts" Style="{DynamicResource Heading}"/>

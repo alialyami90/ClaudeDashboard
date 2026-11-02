@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
 using WidgetScreen;
 
 // Package 4 of the watcher plan, "Cockpit": the daily history files and the CSV and Markdown export. (Answering a
@@ -99,6 +102,41 @@ internal static class ClaudeCockpitTests
             Assert(ClaudeText.DaysTip(days, null, false).Contains("No file for this day last week") && ClaudeText.DaysTip(days, 1, true).StartsWith("Sample.") && ClaudeText.DaysTip(null, 1, false) == null, "A missing tick or a sample isn't said.");
             var fixture = ClaudeView.Fixture(Now, false);
             Assert(fixture.Days != null && fixture.Days.Length == ClaudeHistory.SparkDays && fixture.LastWeekByNow.HasValue, "The sample has no 7-day bars.");
+        });
+
+        check("Claude's plain list shows every thread as words, a sample says so, and switching back brings the pit wall", () => {
+            string folder = Fresh(directory, "plain");
+            string path = Path.Combine(folder, "plain.xml");
+            SettingsStore.Save(path, new AppSettings { ClaudePeriod = "Week", ClaudePlain = true });
+            var window = AppController.LoadWindow("ShellWindow");
+            try
+            {
+                using (var controller = new AppController(window, path))
+                {
+                    var card = (FrameworkElement)window.FindName("ClaudeCard"); card.Width = 1216; card.Height = 576;
+                    controller.UseClaudeSample(true);
+                    var dashboard = (FrameworkElement)window.FindName("Dashboard");
+                    for (int i = 0; i < 3; i++) { dashboard.Measure(new Size(1920, 720)); dashboard.Arrange(new Rect(0, 0, 1920, 720)); dashboard.UpdateLayout(); }
+                    var view = controller.ClaudeCardView;
+                    Assert(view.Plain, "Settings' plain choice didn't reach the card.");
+                    var plan = window.FindName("ClaudePlainPlan") as TextBlock;
+                    Assert(plan != null && plan.Text.StartsWith("Sample.") && plan.Text.Contains("needs you"), "The plain plan line is wrong: " + (plan == null ? "missing" : plan.Text));
+                    var groups = view.View.Groups(view.Period);
+                    for (int g = 0; g < groups.Count; g++)
+                        for (int t = 0; t < groups[g].Threads.Count; t++)
+                        {
+                            var row = window.FindName("ClaudePlainThread" + g + "_" + t) as FrameworkElement;
+                            Assert(row != null, "Thread " + groups[g].Threads[t].Id + " has no plain row.");
+                            string said = AutomationProperties.GetName(row);
+                            Assert(said.Contains(ClaudeText.Chip(groups[g].Threads[t])) && said.Contains("tokens"), "A plain row doesn't say its state and numbers: " + said);
+                        }
+                    Assert(window.FindName("ClaudeTank") == null && view.Sprites.Count() == 0, "The plain list still built the pit wall's parts.");
+                    view.Plain = false;
+                    Assert(window.FindName("ClaudePlainPlan") == null && view.Sprites.Any(), "Switching back didn't bring the cars.");
+                }
+            }
+            finally { window.Close(); }
+            Assert(ClaudeText.PlainNumbers(new ClaudeSession(), ClaudePeriod.Today, false).StartsWith("≈"), "Numbers before the logs are read aren't marked ≈.");
         });
 
         check("Claude export writes a safe CSV of the last 7 days and a Markdown summary", () => {

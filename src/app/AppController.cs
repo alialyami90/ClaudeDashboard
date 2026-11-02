@@ -145,6 +145,7 @@ namespace WidgetScreen
             quiet.BorderThickness = new Thickness(settings.QuietMode ? 2 : 1);
             AutomationProperties.SetName(quiet, settings.QuietMode ? "Quiet mode, on" : "Quiet mode, off");
             claudeCard.Configure(settings.Use24HourClock, ClaudePeriodChosen, settings.ClaudeShowApiValue, settings.ClaudeFacts);
+            claudeCard.Plain = settings.ClaudePlain;
             claude.PlanEvery = TimeSpan.FromSeconds(settings.ClaudePlanSeconds);
             UpdateClaudeLive();
             UpdateHeader();

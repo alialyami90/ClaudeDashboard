@@ -32,6 +32,8 @@ namespace WidgetScreen
         // Package 4: a small summary file per day, kept 8 weeks, for the plan row's sparkline and Settings → Claude →
         // History (on by default; turning it off deletes the files).
         public bool ClaudeHistory { get; set; }
+        // Package 4.6: the pit wall as a plain list of text rows (off by default).
+        public bool ClaudePlain { get; set; }
         // Quiet mode stops other motion; the Claude cars keep moving unless this is set (Ali, 1 Nov 2026; decision 019).
         public bool ClaudeStillInQuiet { get; set; }
         // The ledger's "API value" (what the tokens would cost at API list prices): off by default, since a plan
