@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -66,16 +67,16 @@ namespace WidgetScreen
             try
             {
                 Migration.Run(oldFolder, settingsPath, config, BundledHook);
-                moveMessage = "Your Claude setup came over from Widget Screen" + (found.Connected ? ", and Claude Code now runs Claude Dashboard's hooks" : "") + ". Uninstall Widget Screen from Installed apps now, and keep its settings when asked.";
-            }
-            catch (InvalidOperationException e)
-            {
-                moveMessage = "Your Claude settings came over from Widget Screen, but Claude Code couldn't be connected again: " + e.Message + " Try Settings → Claude → Connect.";
+                moveMessage = "Your Claude setup came over from Widget Screen" + (found.Connected ? ", and Claude Code now runs Claude Dashboard's hooks" : "") + ". Quit Widget Screen, then uninstall it from Installed apps and keep its settings when asked.";
             }
             catch (Exception e)
             {
-                Program.Log(e);
-                moveMessage = "Widget Screen's Claude setup couldn't be brought over: " + e.GetBaseException().Message + " Details are in error.log next to settings.xml.";
+                // Run copies the files and saves settings.xml before it connects, so once settings.xml is there the
+                // offer won't come back: what's left is Connect, which Settings → Claude can do again.
+                if (!(e is InvalidOperationException)) Program.Log(e);
+                moveMessage = File.Exists(settingsPath)
+                    ? "Your Claude settings came over from Widget Screen, but Claude Code couldn't be connected again: " + e.GetBaseException().Message + " Try Settings → Claude → Connect."
+                    : "Widget Screen's Claude setup couldn't be brought over: " + e.GetBaseException().Message + " Details are in error.log next to settings.xml.";
             }
             return true;
         }
@@ -90,7 +91,7 @@ namespace WidgetScreen
             string list = parts.Count == 0 ? "nothing" : parts.Count == 1 ? parts[0] : String.Join(", ", parts.GetRange(0, parts.Count - 1)) + " and " + parts[parts.Count - 1];
             string text = "Copies " + list + " from " + oldFolder + ".";
             if (found.Connected) text += " Claude Code's hooks and status line then run Claude Dashboard's own ClaudeHook.exe; its settings.json is backed up first.";
-            text += " Widget Screen's folder isn't changed: afterwards, uninstall Widget Screen from Installed apps and keep its settings when asked. Start fresh copies nothing";
+            text += " Widget Screen's folder isn't changed: afterwards, quit Widget Screen, then uninstall it from Installed apps and keep its settings when asked. Start fresh copies nothing";
             text += found.Connected ? ", and Claude Code stays connected to Widget Screen until you connect it here." : ".";
             return text;
         }
