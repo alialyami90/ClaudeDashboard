@@ -54,53 +54,9 @@ namespace WidgetScreen
         // 80% of the reference canvas, less what rounding the canvas down to the snap grid can take off.
         private const double MinimumShrink = 0.78;
         // The clock moved into the header, so "Clock" is no longer a widget. Saved Clock placements are dropped on load.
-        public static readonly string[] Ids = { "Focus", "Media", "Shortcuts", "Mixer", "System", "Weather", "Spotify", "Soundboard", "Storage", "Clocks", "Prayer", "Notes", "Claude", "Clipboard", "Macros", "Calendar", "Games", "Home" };
-        public static string Title(string id)
-        {
-            switch (id) {
-                case "Focus": return "Focus timer";
-                case "Media": return "Now playing";
-                case "Shortcuts": return "Quick launch";
-                case "Mixer": return "Sound mixer";
-                case "System": return "System stats";
-                case "Storage": return "Storage";
-                case "Clocks": return "World clocks";
-                case "Prayer": return "Prayer times";
-                case "Notes": return "Notes and to-do";
-                case "Claude": return "Claude Code";
-                case "Clipboard": return "Clipboard history";
-                case "Macros": return "Macros";
-                case "Calendar": return "Calendar";
-                case "Games": return "Games";
-                case "Home": return "Smart home";
-                default: return id;
-            }
-        }
-        // The smallest each card can be while it keeps its main reading and controls at full size (CardSizing folds
-        // the rest away; docs/design/resizable-widgets.md). Preferred sizes stay where they were.
-        public static Size Minimum(string id)
-        {
-            switch (id) {
-                case "Focus": return new Size(280, 192);
-                case "Media": return new Size(312, 200);
-                case "Spotify": return new Size(360, 360);
-                case "Shortcuts": return new Size(288, 204);
-                case "Mixer": return new Size(320, 224);
-                case "System": return new Size(260, 280);
-                case "Soundboard": return new Size(300, 240);
-                case "Storage": return new Size(240, 152);
-                case "Clocks": return new Size(240, 152);
-                case "Prayer": return new Size(240, 152);
-                case "Notes": return new Size(260, 200);
-                case "Claude": return new Size(260, 180);
-                case "Clipboard": return new Size(240, 200);
-                case "Macros": return new Size(288, 204);
-                case "Calendar": return new Size(240, 152);
-                case "Games": return new Size(288, 204);
-                case "Home": return new Size(240, 152);
-                default: return new Size(232, 152);
-            }
-        }
+        public static readonly string[] Ids = { "Claude" };
+        public static string Title(string id) { return id == "Claude" ? "Claude Code" : id; }
+        public static Size Minimum(string id) { return new Size(260, 180); }
         // On a canvas smaller than the reference (80% at least, see ScreenFit) minimum sizes shrink with it, so widgets
         // keep their places and proportions and only free space inside the cards gets smaller. Upright canvases compare
         // with the upright reference canvas (656 × 1712).
@@ -113,11 +69,9 @@ namespace WidgetScreen
         }
         public static Size Minimum(string id, Size canvas)
         {
-            // Quick Launch and the Soundboard need their full minimum for six 48-unit buttons (CardSizing.PageButtons).
-            Size minimum = Minimum(id), k = KeepsSix(id) ? new Size(1, 1) : Compact(canvas);
+            Size minimum = Minimum(id), k = Compact(canvas);
             return new Size(Math.Min(canvas.Width, Math.Round(minimum.Width * k.Width)), Math.Min(canvas.Height, Math.Round(minimum.Height * k.Height)));
         }
-        public static bool KeepsSix(string id) { return id == "Shortcuts" || id == "Soundboard" || id == "Macros" || id == "Games"; }
         // Layouts are kept per canvas size, rounded down to the 8-unit snap grid.
         public static Size Key(Size canvas) { return new Size(Math.Max(8, Math.Floor(canvas.Width / 8) * 8), Math.Max(8, Math.Floor(canvas.Height / 8) * 8)); }
         public static bool IsReference(Size canvas) { return Key(canvas) == Reference; }
@@ -126,52 +80,12 @@ namespace WidgetScreen
         {
             return new WidgetPlacement { Id = id, X = x, Y = y, Width = width, Height = height };
         }
-        // The old column arrangement on the reference canvas, kept for settings that still carry column sizes.
+        // The Claude card fills the canvas.
         public static WidgetPlacement[] Default(AppSettings settings)
         {
-            double[] widths = DashboardAppearance.ColumnWidths(settings);
-            double focusX = settings.SwapSideWidgets ? ReferenceWidth - widths[0] + 16 : 0;
-            double mediaX = settings.SwapSideWidgets ? widths[3] + 16 : widths[0];
-            double mixerX = mediaX + widths[1];
-            double infoX = settings.SwapSideWidgets ? 0 : mixerX + widths[2];
-            bool stats = SystemStyles.Any(settings);
-            return new[] {
-                Place("Focus", focusX, 0, widths[0] - 16, ReferenceHeight),
-                Place("Media", mediaX, 0, widths[1] - 16, settings.MediaHeight - 16),
-                Place("Shortcuts", mediaX, settings.MediaHeight, widths[1] - 16, ReferenceHeight - settings.MediaHeight),
-                Place("Mixer", mixerX, 0, widths[2] - 16, settings.MixerHeight),
-                Place("System", infoX, 0, widths[3], settings.SystemHeight - 16),
-                Place("Weather", infoX, stats ? settings.SystemHeight : 0, widths[3], stats ? ReferenceHeight - settings.SystemHeight : ReferenceHeight),
-                new WidgetPlacement { Id = "Spotify", X = 376, Y = 0, Width = 600, Height = 576, Visible = false },
-                // Starts hidden; turned on in Edit layout once Discord is set up.
-                new WidgetPlacement { Id = "Soundboard", X = 336, Y = 326, Width = 472, Height = 250, Visible = false },
-                // New widgets start hidden, so the default layout stays the same; they are turned on in Edit layout.
-                new WidgetPlacement { Id = "Storage", X = 1384, Y = 326, Width = 472, Height = 250, Visible = false },
-                new WidgetPlacement { Id = "Clocks", X = 1384, Y = 0, Width = 472, Height = 250, Visible = false },
-                new WidgetPlacement { Id = "Prayer", X = 1384, Y = 326, Width = 472, Height = 250, Visible = false },
-                new WidgetPlacement { Id = "Notes", X = 1384, Y = 0, Width = 472, Height = 310, Visible = false },
-                new WidgetPlacement { Id = "Claude", X = 1384, Y = 0, Width = 472, Height = 310, Visible = false },
-                new WidgetPlacement { Id = "Clipboard", X = 1384, Y = 0, Width = 472, Height = 310, Visible = false },
-                new WidgetPlacement { Id = "Macros", X = 336, Y = 326, Width = 472, Height = 250, Visible = false },
-                new WidgetPlacement { Id = "Calendar", X = 1384, Y = 0, Width = 472, Height = 310, Visible = false },
-                new WidgetPlacement { Id = "Games", X = 336, Y = 326, Width = 472, Height = 250, Visible = false },
-                new WidgetPlacement { Id = "Home", X = 1384, Y = 0, Width = 472, Height = 310, Visible = false }
-            };
+            return new[] { Place("Claude", 0, 0, ReferenceWidth, ReferenceHeight) };
         }
-        public static WidgetPlacement[] SpotifyDefault(AppSettings settings)
-        {
-            var result = Default(settings);
-            foreach (var p in result)
-            {
-                p.Visible = DefaultShown.Contains(p.Id);
-                if (p.Id == "Focus") SetBounds(p, new Rect(0, 0, 320, 576));
-                if (p.Id == "Media") SetBounds(p, new Rect(336, 0, 472, 310));
-                if (p.Id == "Shortcuts") SetBounds(p, new Rect(336, 326, 472, 250));
-                if (p.Id == "Mixer") SetBounds(p, new Rect(824, 0, 456, 576));
-                if (p.Id == "Spotify") SetBounds(p, new Rect(1296, 0, 560, 576));
-            }
-            return result;
-        }
+        public static WidgetPlacement[] SpotifyDefault(AppSettings settings) { return Default(settings); }
         private static double Finite(double value, double fallback)
         {
             return Double.IsNaN(value) || Double.IsInfinity(value) ? fallback : value;
@@ -304,13 +218,6 @@ namespace WidgetScreen
 
         // ----- Layouts per canvas size -----
 
-        // Settings from before free layouts (swapped sides or custom column sizes) keep their column arrangement as the
-        // reference canvas default; everyone else gets the Spotify arrangement there.
-        private static bool LegacyColumns(AppSettings s)
-        {
-            return s.SwapSideWidgets || s.ClockWidth != 1 || s.MediaWidth != 3 || s.MixerWidth != 3 || s.SystemWidth != 2
-                || s.ClockHeight != 246 || s.MediaHeight != 326 || s.MixerHeight != 576 || s.SystemHeight != 326;
-        }
         // Whether a widget is shown on any page, in any canvas shape's layout.
         public static bool ShownAnywhere(AppSettings settings, string id)
         {
@@ -377,7 +284,7 @@ namespace WidgetScreen
         public static WidgetPlacement[] DefaultFor(AppSettings settings, Size canvas)
         {
             canvas = Key(canvas);
-            if (canvas == Reference) return Normalize(LegacyColumns(settings) ? null : SpotifyDefault(settings), settings);
+            if (canvas == Reference) return Normalize(Default(settings), settings);
             return Normalize(Arrange(canvas, DefaultShown), settings, canvas);
         }
         // Shown widgets left to right, then top to bottom: the order of the phone's list and of new arrangements.
@@ -409,18 +316,9 @@ namespace WidgetScreen
 
         // ----- Arrangements for any canvas -----
 
-        public static readonly string[] DefaultShown = { "Focus", "Media", "Shortcuts", "Mixer", "Spotify" };
+        public static readonly string[] DefaultShown = { "Claude" };
         // The size each card is happiest at, from the reference default; arrangements stay close to these.
-        public static Size Preferred(string id)
-        {
-            switch (id) {
-                case "Focus": return new Size(320, 400);
-                case "Mixer": return new Size(456, 576);
-                case "Spotify": return new Size(560, 576);
-                case "Shortcuts": case "Macros": case "Games": case "Weather": case "Soundboard": case "Storage": case "Clocks": case "Prayer": return new Size(472, 250);
-                default: return new Size(472, 310);
-            }
-        }
+        public static Size Preferred(string id) { return new Size(472, 310); }
         // Arranges the shown widgets, in order, as columns of stacked cards or as rows of cards side by side, and picks
         // the split that fits the canvas and keeps every card closest to its preferred size (growing counts half as
         // much as shrinking). Hidden widgets wait in the top left corner at their minimum size.
