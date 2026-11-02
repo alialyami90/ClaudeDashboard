@@ -233,6 +233,23 @@ namespace WidgetScreen
             return list;
         }
 
+        // The last count days for Copy summary, oldest first: a day the replies cover is counted from them, unless its
+        // file holds more (an older day whose first replies fell out of the scan); needs and waits keep the larger number.
+        public List<ClaudeDay> Recent(IEnumerable<ClaudeUsageEntry> replies, Func<string, string> names, DateTime now, int count)
+        {
+            var rolled = Roll(replies, names).ToDictionary(d => d.Date);
+            var list = new List<ClaudeDay>();
+            foreach (var stored in Days(now, count))
+            {
+                ClaudeDay day;
+                if (!rolled.TryGetValue(stored.Date, out day)) { list.Add(stored); continue; }
+                if (stored.Tokens > day.Tokens || stored.Replies > day.Replies) { stored.Needs = Math.Max(stored.Needs, day.Needs); stored.LongestWait = Math.Max(stored.LongestWait, day.LongestWait); list.Add(stored); continue; }
+                day.Needs = Math.Max(day.Needs, stored.Needs); day.LongestWait = Math.Max(day.LongestWait, stored.LongestWait);
+                list.Add(day);
+            }
+            return list;
+        }
+
         // The plan row's sparkline: tokens per day for the last 7 days, oldest first, today counted from today's replies
         // (fresher than its file).
         public long[] Spark(DateTime now, ClaudeDay today)

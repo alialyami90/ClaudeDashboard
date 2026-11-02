@@ -84,6 +84,11 @@
               </WrapPanel>
               <TextBlock x:Name="ClaudePlanSecondsNote" Text="Anthropic may slow down very frequent checks." Foreground="{DynamicResource Warning}" Style="{DynamicResource Small}" TextWrapping="Wrap" Visibility="Collapsed"/>
               <TextBlock Text="At least 10 seconds. If Anthropic asks Claude Dashboard to slow down, it waits twice as long each time (up to 15 minutes) and the pit wall says when the limits are from, then goes back to your interval." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,20"/>
+              <TextBlock Text="History" Style="{DynamicResource Heading}"/>
+              <CheckBox x:Name="ClaudeHistoryChoice" Content="Keep a daily summary" AutomationProperties.Name="Keep a daily summary of Claude Code use"/>
+              <TextBlock Text="One small file a day on this PC, kept 8 weeks: tokens, replies, threads, how often a session needed you and the longest wait, per project. No prompts, replies or file contents. Off: the files are deleted." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <WrapPanel><Button x:Name="ClaudeCopySummaryButton" Content="Copy summary" Margin="0,0,8,8" AutomationProperties.Name="Copy a summary of the last 7 days"/><Button x:Name="ClaudeSaveCsvButton" Content="Save CSV…" Margin="0,0,8,8" AutomationProperties.Name="Save the last 7 days as a CSV file"/></WrapPanel>
+              <TextBlock Text="The last 7 days. Copy summary puts a short Markdown table on the clipboard. Save CSV writes one row per day, project and thread, with what the tokens would cost at API list prices (blank where the price isn't known)." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,20"/>
               <TextBlock Text="Projects" Style="{DynamicResource Heading}"/>
               <CheckBox x:Name="ClaudeShowNewChoice" Content="Show new projects automatically"/>
               <TextBlock Text="Each project is a garage with its threads as cars; click a garage to roll them in. Unticked projects leave the pit wall. The plan meters always show your whole plan." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>

@@ -75,6 +75,23 @@ internal static class ClaudeCockpitTests
             Assert(!Directory.Exists(folder), "Turning History off left the files.");
         });
 
+        check("Claude summary takes each of the last 7 days from the replies or its file, whichever holds more", () => {
+            string bridge = Fresh(directory, "history-recent");
+            var history = new ClaudeHistory(bridge, TimeZoneInfo.Utc);
+            var older = new ClaudeDay { Date = Now.Date.AddDays(-2), Tokens = 5000, Replies = 9, Needs = 3 };
+            var gone = new ClaudeDay { Date = Now.Date.AddDays(-10), Tokens = 7 };
+            Directory.CreateDirectory(ClaudeHistory.Folder(bridge));
+            foreach (var d in new[] { older, gone }) ClaudeBridge.WriteAtomic(Path.Combine(ClaudeHistory.Folder(bridge), d.Name + ".json"), ClaudeJson.Compact(d.ToJson()));
+            history.Note(new[] { new ClaudeSession { Id = "a", Running = true, State = ClaudeState.NeedsYou } }, Now);
+            var replies = new List<ClaudeUsageEntry> {
+                new ClaudeUsageEntry { At = Now.AddDays(-2), Session = "a", Folder = "C:/Code/api", Tokens = 100, Priced = true },
+                new ClaudeUsageEntry { At = Now, Session = "a", Folder = "C:/Code/api", Tokens = 40, Priced = true } };
+            var days = history.Recent(replies, null, Now, 7);
+            Assert(days.Count == 7 && days[0].Date == Now.Date.AddDays(-6) && days[6].Date == Now.Date, "The days aren't the last 7, oldest first.");
+            Assert(days[4].Tokens == 5000 && days[4].Needs == 3, "A stored day with more in it was replaced by a partial scan: " + days[4].Tokens);
+            Assert(days[6].Tokens == 40 && days[6].Needs == 1 && days.Sum(d => d.Tokens) == 5040, "Today isn't counted from its replies: " + days[6].Tokens);
+        });
+
         check("Claude export writes a safe CSV of the last 7 days and a Markdown summary", () => {
             Assert(ClaudeExport.Field("plain") == "plain" && ClaudeExport.Field("a,b") == "\"a,b\"" && ClaudeExport.Field("say \"hi\"") == "\"say \"\"hi\"\"\"", "Quoting is wrong.");
             Assert(ClaudeExport.Field("=HYPERLINK(1)") == "'=HYPERLINK(1)" && ClaudeExport.Field("@cmd") == "'@cmd" && ClaudeExport.Field("-12.5") == "-12.5", "A formula isn't defused, or a number was.");

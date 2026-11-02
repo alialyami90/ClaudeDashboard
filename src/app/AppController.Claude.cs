@@ -263,6 +263,8 @@ namespace WidgetScreen
             Button("ClaudePlanSecondsLess", () => StepClaudeSeconds("ClaudePlanSecondsBox", -10, ClaudeIntervals.Plan, settings.ClaudePlanSeconds));
             Button("ClaudePlanSecondsMore", () => StepClaudeSeconds("ClaudePlanSecondsBox", 10, ClaudeIntervals.Plan, settings.ClaudePlanSeconds));
             Control<TextBox>("ClaudePlanSecondsBox").TextChanged += (sender, e) => UpdateClaudePlanNote();
+            Button("ClaudeCopySummaryButton", CopyClaudeSummary);
+            Button("ClaudeSaveCsvButton", SaveClaudeCsv);
         }
 
         private void UpdateClaudeSettings()
@@ -284,6 +286,7 @@ namespace WidgetScreen
                 : !claude.Connected ? "" : claude.Telemetry.Problem ?? (claude.Telemetry.LastReceived > DateTime.MinValue ? "Telemetry last arrived at " + ClaudeText.Clock(claude.Telemetry.LastReceived, settings.Use24HourClock) + "." : "Telemetry arrives from Claude Code sessions started after connecting."));
             Control<CheckBox>("ClaudeChimeChoice").IsChecked = settings.ClaudeChime;
             Control<CheckBox>("ClaudeToastChoice").IsChecked = settings.ClaudeToast;
+            Control<CheckBox>("ClaudeHistoryChoice").IsChecked = settings.ClaudeHistory;
             var managed = claude.Connector.ManagedOverrides();
             Text("ClaudeManagedText", managed.Count == 0 ? "" : "Your organisation's managed Claude Code settings (" + claude.Connector.ManagedPath + ") take precedence over yours, so Claude Dashboard's " + String.Join(", ", managed) + (managed.Count == 1 ? " doesn't" : " don't") + " take effect. Ask whoever manages Claude Code on this PC to allow them.");
             Control<TextBlock>("ClaudeManagedText").Visibility = managed.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -352,6 +355,7 @@ namespace WidgetScreen
         {
             candidate.ClaudeChime = Control<CheckBox>("ClaudeChimeChoice").IsChecked == true;
             candidate.ClaudeToast = Control<CheckBox>("ClaudeToastChoice").IsChecked == true;
+            candidate.ClaudeHistory = Control<CheckBox>("ClaudeHistoryChoice").IsChecked == true;
             candidate.ClaudeStillInQuiet = Control<CheckBox>("ClaudeStillChoice").IsChecked == true;
             candidate.ClaudeShowApiValue = Control<CheckBox>("ClaudeApiValueChoice").IsChecked == true;
             candidate.ClaudeShowArchived = Control<CheckBox>("ClaudeHideArchivedChoice").IsChecked != true;
@@ -365,6 +369,44 @@ namespace WidgetScreen
             foreach (var pair in claudeProjectBoxes) choices.Add(new ClaudeProjectChoice { Folder = pair.Key, Shown = pair.Value.IsChecked == true });
             candidate.ClaudeProjects = choices.ToArray();
             claudeDirty = true;
+        }
+
+        // Package 4: Settings → Claude → History's Copy summary and Save CSV, both for the last 7 days and both from what
+        // the pit wall already read (names, counts and costs only).
+        private bool ClaudeExportReady()
+        {
+            if (claudeSample || claudeHistory == null) { Text("SettingsStatus", "The pit wall is showing a sample, so there's nothing to export."); return false; }
+            if (!claude.Usage.Scanned) { Text("SettingsStatus", "Claude Code's logs are still being read. Try again in a moment."); return false; }
+            return true;
+        }
+        private void CopyClaudeSummary()
+        {
+            if (!ClaudeExportReady()) return;
+            DateTime now = DateTime.UtcNow;
+            string text = ClaudeExport.Summary(claudeHistory.Recent(claude.Usage.Entries, ClaudeProjectName, now, ClaudeExport.Days), now);
+            try { Clipboard.SetText(text); Text("SettingsStatus", "Copied a summary of the last 7 days. Paste it anywhere."); }
+            catch (Exception e) { Text("SettingsStatus", "Couldn't copy the summary: " + e.Message); }
+        }
+        private void SaveClaudeCsv()
+        {
+            if (!ClaudeExportReady()) return;
+            DateTime now = DateTime.UtcNow;
+            var dialog = new Microsoft.Win32.SaveFileDialog { Title = "Save the last 7 days as CSV", Filter = "CSV files (*.csv)|*.csv", DefaultExt = ".csv", AddExtension = true, OverwritePrompt = true,
+                FileName = "claude-code-" + DateTime.Now.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) + ".csv" };
+            if (dialog.ShowDialog(settingsWindow) != true) return;
+            try
+            {
+                // With a byte order mark, so Excel reads names in any language.
+                File.WriteAllText(dialog.FileName, ClaudeExport.Csv(claude.Usage.Entries, ClaudeThreadTitle, ClaudeProjectName, now), new System.Text.UTF8Encoding(true));
+                Text("SettingsStatus", "Saved " + Path.GetFileName(dialog.FileName) + ".");
+            }
+            catch (Exception e) { Text("SettingsStatus", "Couldn't save the CSV: " + e.Message); }
+        }
+        // A session's thread name for the CSV, or "" when the pit wall doesn't know it (its id is used then).
+        private string ClaudeThreadTitle(string id)
+        {
+            var session = claudeView == null ? null : claudeView.Sessions.FirstOrDefault(x => x.Id == id);
+            return session == null ? "" : session.Title ?? "";
         }
 
         private void StepClaudeSeconds(string box, int step, Func<int, int> clamp, int fallback)
