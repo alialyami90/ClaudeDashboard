@@ -9,9 +9,13 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $appPath = Join-Path (Join-Path $projectRoot $AppDirectory) 'ClaudeDashboard.exe'
 if (-not (Test-Path -LiteralPath $appPath)) { throw "$appPath is missing. Run scripts\build.ps1 first." }
 $app = [System.Reflection.Assembly]::LoadFrom($appPath)
-$pitArt = $app.GetType('WidgetScreen.PitArt', $true)
-$pitRaster = $app.GetType('WidgetScreen.PitRaster', $true)
-$pitState = $app.GetType('WidgetScreen.PitState', $true)
+# The types by name in either namespace (WidgetScreen until phase 4 renames it to ClaudeDashboard).
+function AppType([string]$name) {
+    $type = @($app.GetTypes() | Where-Object { $_.Name -eq $name -and ($_.Namespace -eq 'WidgetScreen' -or $_.Namespace -eq 'ClaudeDashboard') }) | Select-Object -First 1
+    if (-not $type) { throw "$name isn't in $appPath." }
+    $type
+}
+$pitArt = AppType 'PitArt'; $pitRaster = AppType 'PitRaster'; $pitState = AppType 'PitState'
 $sizes = 16, 20, 24, 32, 40, 48, 64, 128, 256
 
 function Brush([string]$hex) { $b = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($hex)); $b.Freeze(); $b }
