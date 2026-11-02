@@ -497,18 +497,14 @@ namespace WidgetScreen
         }
 
         public CardSizing.Design Current { get { return design; } }
-        // The heading's label strip (none on Small, which has no heading).
-        public LabelStrip Strip { get; private set; }
         public ClaudeView View { get { return view; } }
         public ClaudePeriod Period { get { return period; } }
         // Claude Dashboard's window (phase 4): the window's own header shows the summary, the flag and the period
-        // switch, so the card leaves out its heading (and its label strip; the window title names it), and the
-        // Needs-you and Your-turn edge goes on the border passed in as the card: the window's frame. Rendered tells the
-        // window's header to follow, after every fill.
-        public bool InWindow { get; set; }
+        // switch, so the card has no heading, and the Needs-you and Your-turn edge goes on the border passed in as the
+        // card: the window's frame. Rendered tells the window's header to follow, after every fill.
         public event Action Rendered;
-        // The edge the card asks for in a window: Warning while a session needs you, Turn while one waits for your
-        // reply, otherwise none.
+        // The edge the card asks for: Warning while a session needs you, Turn while one waits for your reply, otherwise
+        // none.
         public string Edge { get; private set; }
         // A new palette: the card's tints are worked out again.
         public void Restyle() { built = ""; Rebuild(); }
@@ -604,7 +600,7 @@ namespace WidgetScreen
         private void Build()
         {
             EndRoll(false);
-            host.Children.Clear(); names.Clear(); cars.Clear(); garages.Clear(); fills.Clear(); clock.Clear(); askStrip = null; ledgerScroll = null; Strip = null;
+            host.Children.Clear(); names.Clear(); cars.Clear(); garages.Clear(); fills.Clear(); clock.Clear(); askStrip = null; ledgerScroll = null;
             double width = Math.Max(1, bounds.Width - 48), height = Math.Max(1, bounds.Height - 48);
             design = CardSizing.Claude(bounds.Width, bounds.Height);
             FrameworkElement content;
@@ -690,56 +686,13 @@ namespace WidgetScreen
             dot.SetResourceReference(Shape.FillProperty, warn ? "Warning" : "Accent");
             return dot;
         }
-        // The heading row: the title, the live summary, the flag and (Large) the period switch.
-        private FrameworkElement Header(double width, bool large)
-        {
-            var row = new DockPanel { LastChildFill = true };
-            if (large) { var periods = Periods(); DockPanel.SetDock(periods, Dock.Right); row.Children.Add(periods); }
-            var flag = names.Add(Caption(""), "ClaudeFlag"); flag.VerticalAlignment = VerticalAlignment.Center; flag.Margin = new Thickness(12, 0, 12, 0);
-            DockPanel.SetDock(flag, Dock.Right); row.Children.Add(flag);
-            // The Sticker Sheet label strip, like every other card since v0.35.0 (review fix 9).
-            Strip = LabelStrip.Create("Claude"); Strip.Fit(bounds.Width, textScale);
-            var title = names.Add(Strip.Host, "ClaudeHeading"); title.Margin = new Thickness(0, 0, 14, 0);
-            DockPanel.SetDock(title, Dock.Left); row.Children.Add(title);
-            var live = new DockPanel { LastChildFill = true, VerticalAlignment = VerticalAlignment.Center };
-            var dot = (Ellipse)Dot(false); DockPanel.SetDock(dot, Dock.Left); live.Children.Add(dot);
-            var summary = names.Add(Trimmed(Text("", Scaled(14), "Text")), "ClaudeSummary"); summary.VerticalAlignment = VerticalAlignment.Center; live.Children.Add(summary);
-            row.Children.Add(live);
-            fills.Add(now => {
-                bool needs = view.NeedsYou > 0;
-                dot.SetResourceReference(Shape.FillProperty, needs ? "Warning" : view.Working > 0 ? "Accent" : "Muted");
-                summary.Text = ClaudeText.Summary(view, period, large);
-                summary.SetResourceReference(TextBlock.ForegroundProperty, needs ? "Warning" : "Text");
-                flag.Text = ClaudeText.Flag(view, now, use24, large);
-            });
-            return row;
-        }
-        private FrameworkElement Periods()
-        {
-            var periods = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            int index = 0;
-            foreach (ClaudePeriod choice in new[] { ClaudePeriod.FiveHour, ClaudePeriod.Today, ClaudePeriod.Week })
-            {
-                var button = new Button { Content = ClaudeText.PeriodName(choice), Padding = new Thickness(4), Margin = new Thickness(index == 0 ? 0 : 4, 0, 0, 0), MinWidth = 64, MinHeight = 48 };
-                button.SetResourceReference(Control.FontSizeProperty, "SmallSize");
-                bool selected = choice == period;
-                button.SetResourceReference(Control.BorderBrushProperty, selected ? "Accent" : "ControlBorder");
-                button.SetResourceReference(Control.BackgroundProperty, selected ? "Selected" : "Input");
-                button.BorderThickness = new Thickness(selected ? 2 : 1);
-                AutomationProperties.SetName(button, "Threads and usage for " + (choice == ClaudePeriod.FiveHour ? "the 5-hour window" : choice == ClaudePeriod.Today ? "today" : "the week") + (selected ? ", selected" : ""));
-                var picked = choice; button.Click += (sender, e) => ShowPeriod(picked);
-                periods.Children.Add(names.Add(button, "ClaudePeriod" + index)); index++;
-            }
-            return periods;
-        }
-
         // ----- Large -----
 
         private FrameworkElement BuildLarge(double width, double height)
         {
             bool asking = view.Sessions.Any(s => s.State == ClaudeState.NeedsYou);
-            var root = Rows(new GridLength(InWindow ? 0 : 48), new GridLength(InWindow ? 0 : 12), Auto, Auto, Auto, new GridLength(12), Star);
-            if (!InWindow) root.Children.Add(Header(width, true));
+            // Rows 0 and 1 were the heading, which the window's header took over (phase 4).
+            var root = Rows(new GridLength(0), new GridLength(0), Auto, Auto, Auto, new GridLength(12), Star);
             root.Children.Add(At(PlanRow(width), 2));
             // Package 2: more narrower weekly windows, extra usage and a gateway's spend limit, as chips. They step
             // aside while a session needs you, so the ask strip and the ledger keep their room.
@@ -1185,9 +1138,8 @@ namespace WidgetScreen
         // The two plan meters with pace, then the top garages with their cars inline (a waiting thread's first).
         private FrameworkElement BuildMedium(double width, double height)
         {
-            double head = InWindow ? 0 : Math.Max(Stickers.StripHeight, Math.Ceiling(15 * textScale * 1.34)), gap = InWindow ? 0 : 10;
-            var root = Rows(new GridLength(head), new GridLength(gap), Auto, Star);
-            if (!InWindow) root.Children.Add(Header(width, false));
+            // Rows 0 and 1 were the heading, which the window's header took over (phase 4).
+            var root = Rows(new GridLength(0), new GridLength(0), Auto, Star);
             var tiles = Columns(Star, new GridLength(10), Star); tiles.Height = CardSizing.ClaudeMiniHeight;
             if (view.Limits != null && view.Limits.Known)
             {
@@ -1201,7 +1153,7 @@ namespace WidgetScreen
             }
             root.Children.Add(At(tiles, 2));
             var groups = view.Groups(period);
-            double rowHeight = CardSizing.ClaudeMediumRow(textScale), room = height - head - gap - CardSizing.ClaudeMiniHeight - 6;
+            double rowHeight = CardSizing.ClaudeMediumRow(textScale), room = height - CardSizing.ClaudeMiniHeight - 6;
             int fit = Math.Max(1, (int)Math.Floor(room / rowHeight));
             var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
             if (groups.Count == 0) list.Children.Add(Empty(width));
@@ -1366,12 +1318,10 @@ namespace WidgetScreen
         {
             if (view == null || rolling != null) return;
             DateTime now = DateTime.UtcNow;
-            // The one state allowed to shout: an Amber border around the whole card. In a window the frame keeps its
-            // thickness, so nothing moves, and also turns Glacier while a session waits for your reply.
-            Edge = view.NeedsYou > 0 ? "Warning" : InWindow && view.Sessions.Any(s => s.Pit == PitState.Done) ? "Turn" : null;
-            if (InWindow) { if (Edge != null) card.SetResourceReference(Border.BorderBrushProperty, Edge); else card.BorderBrush = Brushes.Transparent; }
-            else if (view.NeedsYou > 0) { card.SetResourceReference(Border.BorderBrushProperty, "Warning"); card.BorderThickness = new Thickness(2); }
-            else { card.ClearValue(Border.BorderBrushProperty); card.ClearValue(Border.BorderThicknessProperty); }
+            // The one state allowed to shout: the window's frame turns Amber while a session needs you, and Glacier
+            // while one waits for your reply. The frame keeps its thickness, so nothing moves.
+            Edge = view.NeedsYou > 0 ? "Warning" : view.Sessions.Any(s => s.Pit == PitState.Done) ? "Turn" : null;
+            if (Edge != null) card.SetResourceReference(Border.BorderBrushProperty, Edge); else card.BorderBrush = Brushes.Transparent;
             foreach (var fill in fills) fill(now);
             var threads = view.Threads.ToDictionary(t => t.Id);
             // The fuel lamp follows the plan's tightest window: the 5-hour one, or the week when the plan has none.
@@ -1586,5 +1536,67 @@ namespace WidgetScreen
             else if (finished) Render();
         }
         private static void ShowGarage(GaragePart garage) { garage.Sprite.Visibility = Visibility.Visible; foreach (var c in garage.Cars) c.Sprite.Visibility = Visibility.Visible; }
+    }
+
+    // How the card follows its size: Small, Medium or Large, and which parts each one shows. Folded in from the widget
+    // app's CardSizing (phase 4); the class keeps its name so the checks read the same.
+    public static class CardSizing
+    {
+        public enum Design { Small, Medium, Large }
+        // Claude Code (docs/design/claude-watcher-v2.html; decision 017): the car that needs you over the 5-hour meter
+        // under 360 wide or 280 tall, the two plan meters over the top garages between, and the pit wall (plan row, pit
+        // stop strip, ledger, and from 1000 units of body the 5-hour lanes and facts) from 640 × 420. Heights that hold
+        // text follow the text size, so nothing leaves the card at 140%.
+        public static Design Claude(double width, double height) { return width < 360 || height < 280 ? Design.Small : width >= 640 && height >= 420 ? Design.Large : Design.Medium; }
+        // Large: the plan row's tiles, the rev counter from 860 units of body, the side panel from 1000, and the
+        // ledger's models and lines columns when the table is wide enough for them.
+        public const double ClaudePlanHeight = 124, ClaudeSideWidth = 300;
+        public static bool ClaudeRevs(double bodyWidth) { return bodyWidth >= 860; }
+        public static bool ClaudeSide(double bodyWidth) { return bodyWidth >= 1000; }
+        // The optional columns step aside as the text grows, so a thread's title keeps at least 240 units: the fixed
+        // columns are the car (52), tokens, cache reads and replies, each its scaled width plus a 10-unit gap.
+        public static double ClaudeFixedColumns(double textScale) { return 52 + Math.Round(72 * textScale) + 10 + Math.Round(80 * textScale) + 10 + Math.Round(64 * textScale) + 10; }
+        public static bool ClaudeModels(double tableWidth, double textScale) { return tableWidth >= ClaudeFixedColumns(textScale) + Math.Round(150 * textScale) + 10 + 240; }
+        public static bool ClaudeLines(double tableWidth, double textScale) { return ClaudeModels(tableWidth, textScale) && tableWidth >= ClaudeFixedColumns(textScale) + Math.Round(150 * textScale) + 10 + Math.Round(84 * textScale) + 10 + 240; }
+        // A thread row's title keeps room for about 14 characters (review fix 4): first the "Desktop · 2 min" beside it
+        // steps aside (it stays in the tooltip), then the Cache reads column. ClaudeChip and ClaudeWhere are the chip's
+        // and that text's usual widths with their gaps.
+        public const double ClaudeChip = 70, ClaudeWhereWidth = 103;
+        // The ledger shows whole rows only (review fix 7): the tallest run of rows from the top that fits, and always the
+        // first one; the rest scroll.
+        public static double ClaudeWholeRows(IEnumerable<double> heights, double room)
+        {
+            double used = 0; bool first = true;
+            foreach (double h in heights)
+            {
+                if (!first && used + h > room + 0.5) break;
+                used += h; first = false;
+            }
+            return Math.Min(used, Math.Max(room, 0)) == used ? used : Math.Max(0, room);
+        }
+        public static double ClaudeTitleMin(double textScale) { return Math.Round(110 * textScale); }
+        public static double ClaudeTitleRoom(double tableWidth, double textScale)
+        {
+            return tableWidth - ClaudeFixedColumns(textScale) - (ClaudeModels(tableWidth, textScale) ? Math.Round(150 * textScale) + 10 : 0) - (ClaudeLines(tableWidth, textScale) ? Math.Round(84 * textScale) + 10 : 0);
+        }
+        public static bool ClaudeWhere(double tableWidth, double textScale) { return ClaudeTitleRoom(tableWidth, textScale) - ClaudeChip - ClaudeWhereWidth >= ClaudeTitleMin(textScale); }
+        public static bool ClaudeCache(double tableWidth, double textScale) { return ClaudeTitleRoom(tableWidth, textScale) - ClaudeChip >= ClaudeTitleMin(textScale); }
+        // Medium: two mini plan tiles, then a 44-unit row per garage (taller with bigger text) with up to three cars
+        // beside the project's name when they leave it 110 units.
+        public const double ClaudeMiniHeight = 84;
+        public static double ClaudeMediumRow(double textScale) { return Math.Max(44, Math.Ceiling(Math.Round(15 * textScale) * 1.33 + 12 * 1.33 + 8)); }
+        public static int ClaudeInlineCars(double nameRoom, int threads)
+        {
+            int fit = (int)Math.Max(0, Math.Floor((nameRoom - 110) / 32));
+            if (threads <= Math.Min(3, fit)) return threads;
+            return (int)Clamp(Math.Min(3, fit - 1), 0, 3);
+        }
+        // Small: the 5-hour meter (its line and bar) only when the project, state, count and Sample flag still fit
+        // beside the car above it.
+        public const double ClaudeSmallMeterHeight = 52;
+        public static bool ClaudeSmallMeter(double bodyHeight, double textScale) { return bodyHeight >= ClaudeSmallMeterHeight + Math.Ceiling(Math.Round(17 * textScale) * 1.33) + 34 + 17; }
+        // The Small car: a third of the card's width, as long as the room above the meter allows.
+        public static double ClaudeSmallCar(double bodyWidth, double room) { return Clamp(Math.Floor(Math.Min(bodyWidth * 0.34, room * 140 / 60)), 48, 120); }
+        private static double Clamp(double value, double min, double max) { return Double.IsNaN(value) ? min : Math.Max(min, Math.Min(max, value)); }
     }
 }

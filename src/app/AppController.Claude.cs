@@ -40,7 +40,7 @@ namespace WidgetScreen
         private void InitializeClaude()
         {
             claude = new ClaudeService(SettingsStore.ClaudePath(settingsPath), ClaudeConnector.DefaultConfigFolder, SettingsStore.ClaudeSignInPath(settingsPath));
-            claudeCard = new ClaudeCard(window, Control<Grid>("ClaudeBody"), Control<Border>("WindowEdge"), id => FocusClaudeSession(id), SetClaudeCollapsed, ChooseClaudePeriod) { InWindow = true };
+            claudeCard = new ClaudeCard(window, Control<Grid>("ClaudeBody"), Control<Border>("WindowEdge"), id => FocusClaudeSession(id), SetClaudeCollapsed, ChooseClaudePeriod);
             claudeCard.Rendered += UpdateHeader;
             claude.PlanEvery = TimeSpan.FromSeconds(settings.ClaudePlanSeconds);
             // Minimising doesn't hide the card's elements, so the frame clock is told here.

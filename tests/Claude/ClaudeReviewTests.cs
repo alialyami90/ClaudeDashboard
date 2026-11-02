@@ -36,7 +36,7 @@ internal static class ClaudeReviewTests
         Directory.CreateDirectory(path);
         return path;
     }
-    private static Window NewWindow() { using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml")) return (Window)System.Windows.Markup.XamlReader.Load(stream); }
+    private static Window NewWindow() { return AppController.LoadWindow("ShellWindow"); }
     private static string Settings(string folder, string name, double width, double height, double scale)
     {
         string path = Path.Combine(folder, name + ".xml");
@@ -47,9 +47,9 @@ internal static class ClaudeReviewTests
     }
     // The card fills the window; the checks give it the size they look at.
     private static readonly Dictionary<string, Size> cardSizes = new Dictionary<string, Size>();
-    private static DashboardController Open(Window window, string path)
+    private static AppController Open(Window window, string path)
     {
-        var controller = new DashboardController(window, path);
+        var controller = new AppController(window, path);
         var card = (FrameworkElement)window.FindName("ClaudeCard"); card.Width = cardSizes[path].Width; card.Height = cardSizes[path].Height;
         return controller;
     }

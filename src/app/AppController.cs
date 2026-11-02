@@ -17,8 +17,7 @@ namespace WidgetScreen
     // Claude Dashboard's controller (phase 4 of the transformation plan): one ordinary window that is the pit wall, a
     // Settings window beside it, and one 1-second heartbeat. It owns the settings transaction (Settings previews the
     // palette and text size live; Save keeps them, Cancel puts the saved ones back), the palette, the header, the
-    // window's place and size, and Start with Windows. The Claude wiring lives in AppController.Claude.cs. Until the
-    // swap (wave 3) this runs beside the widget app's DashboardController, with ClaudeDashboard.exe --shell.
+    // window's place and size, and Start with Windows. The Claude wiring lives in AppController.Claude.cs.
     public sealed partial class AppController : IDisposable
     {
         private readonly Window window;

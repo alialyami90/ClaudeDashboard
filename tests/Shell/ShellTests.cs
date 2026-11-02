@@ -81,7 +81,7 @@ internal static class ShellTests
                         AppController.Render(window, new Size(size.W, size.H), size.Scale, Path.Combine(renders, size.Name + (needs ? "-needs" : "") + ".png"));
                         var card = controller.ClaudeCardView;
                         Assert(card.Current == size.Design, size.Name + " shows " + card.Current + ", not " + size.Design + ".");
-                        Assert(card.InWindow && card.Strip == null && window.FindName("ClaudeHeading") == null, size.Name + ": the card drew its own heading in the window.");
+                        Assert(window.FindName("ClaudeHeading") == null && window.FindName("ClaudePeriod0") == null, size.Name + ": the card drew its own heading in the window.");
                         var summary = (TextBlock)window.FindName("ClaudeSummary");
                         Assert(summary.Text.Length > 0 && summary.Text != "Reading Claude Code…", size.Name + ": the header has no summary.");
                         Assert(((TextBlock)window.FindName("ClaudeFlag")).Text.Contains("SAMPLE"), size.Name + ": the fixture doesn't say it's a sample.");

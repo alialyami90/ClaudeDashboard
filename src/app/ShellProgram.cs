@@ -5,9 +5,8 @@ using System.Windows.Threading;
 
 namespace WidgetScreen
 {
-    // Claude Dashboard's start (phase 4): one ordinary window and its controller. Until the swap (wave 3) it runs with
-    // ClaudeDashboard.exe --shell, beside the widget app. Renders draw the window at a size in pixels and a display
-    // scaling, and exit:
+    // Claude Dashboard's start (phase 4): one ordinary window and its controller. Renders draw the window at a size in
+    // pixels and a display scaling, and exit (--shell, from the weeks both windows were built, is still accepted):
     //   --render <png> [--render-size WxH] [--render-scale 1.5] [--render-claude-sample [--render-claude-needs]]
     //   [--render-settings [--render-tab Claude]]
     public static class ShellProgram
