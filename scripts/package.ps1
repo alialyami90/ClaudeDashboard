@@ -1,6 +1,5 @@
 param([string]$SourceDirectory = 'artifacts\app', [string]$OutputDirectory = 'artifacts\setup', [string]$Version, [switch]$Test)
-# Packs a built Claude Dashboard (ClaudeDashboard.exe, its .config, the ClaudeHook.exe bridge and, when the build has them, the
-# hardware-sensor files in sensors\ with their notice and licences) into one setup exe,
+# Packs a built Claude Dashboard (ClaudeDashboard.exe, its .config and the ClaudeHook.exe bridge) into one setup exe,
 # ClaudeDashboard-Setup-<version>.exe, built with the Framework's csc.exe like the app. See docs\design\setup.md.
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -22,18 +21,6 @@ $compiler = Join-Path $frameworkPath 'csc.exe'
 $generated = Join-Path $projectRoot 'artifacts\obj\setup'
 New-Item -ItemType Directory -Path $generated, $output -Force | Out-Null
 $info = Join-Path $generated 'SetupInfo.cs'
-# The optional hardware sensors (decision 016): every file under sensors\, packed as payload/sensors/...; setup installs
-# them only when Install hardware sensors is ticked.
-$sensorFolder = Join-Path $source 'sensors'
-$sensorResources = @()
-$sensorsVersion = ''
-if (Test-Path -LiteralPath (Join-Path $sensorFolder 'LibreHardwareMonitorLib.dll')) {
-    $sensorsVersion = '0.9.6'
-    foreach ($file in Get-ChildItem -LiteralPath $sensorFolder -Recurse -File) {
-        $relative = $file.FullName.Substring($sensorFolder.Length + 1).Replace('\', '/')
-        $sensorResources += ('/resource:' + $file.FullName + ',payload/sensors/' + $relative)
-    }
-}
 @(
     '[assembly: System.Reflection.AssemblyTitle("Claude Dashboard Setup")]'
     '[assembly: System.Reflection.AssemblyProduct("Claude Dashboard")]'
@@ -42,20 +29,19 @@ if (Test-Path -LiteralPath (Join-Path $sensorFolder 'LibreHardwareMonitorLib.dll
     '[assembly: System.Reflection.AssemblyVersion("' + $core + '.0")]'
     '[assembly: System.Reflection.AssemblyFileVersion("' + $core + '.0")]'
     '[assembly: System.Reflection.AssemblyInformationalVersion("' + $label.TrimStart('v') + '")]'
-    'namespace WidgetScreenSetup { static class SetupInfo { public const string Version = "' + $label.TrimStart('v') + '"; public const string SensorsVersion = "' + $sensorsVersion + '"; } }'
+    'namespace WidgetScreenSetup { static class SetupInfo { public const string Version = "' + $label.TrimStart('v') + '"; } }'
 ) | Set-Content -LiteralPath $info -Encoding utf8
 $setupPath = Join-Path $output "ClaudeDashboard-Setup-$label.exe"
 $references = @('System.dll', 'System.Core.dll', 'System.Xaml.dll', 'WPF\WindowsBase.dll', 'WPF\PresentationCore.dll', 'WPF\PresentationFramework.dll') | ForEach-Object { '/reference:' + (Join-Path $frameworkPath $_) }
 $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'installer') -Filter '*.cs' | Sort-Object FullName | Select-Object -ExpandProperty FullName) + $info
 $arguments = @('/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', "/out:$setupPath",
-    ('/win32manifest:' + (Join-Path $projectRoot 'installer\setup.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\WidgetScreen.ico')),
+    ('/win32manifest:' + (Join-Path $projectRoot 'installer\setup.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\ClaudeDashboard.ico')),
     ('/resource:' + (Join-Path $source 'ClaudeDashboard.exe') + ',payload/ClaudeDashboard.exe'),
     ('/resource:' + (Join-Path $source 'ClaudeDashboard.exe.config') + ',payload/ClaudeDashboard.exe.config'),
-    ('/resource:' + (Join-Path $source 'ClaudeHook.exe') + ',payload/ClaudeHook.exe')) + $sensorResources + $references + $sources
+    ('/resource:' + (Join-Path $source 'ClaudeHook.exe') + ',payload/ClaudeHook.exe')) + $references + $sources
 & $compiler $arguments
 if ($LASTEXITCODE -ne 0) { throw "Setup build failed (exit $LASTEXITCODE)." }
-$sensorNote = if ($sensorsVersion) { " (with hardware sensors $sensorsVersion)" } else { ' (without hardware sensors)' }
-Write-Output "Setup: $setupPath$sensorNote"
+Write-Output "Setup: $setupPath"
 if ($Test) {
     & (Join-Path $projectRoot 'tests\Installer\installer-checks.ps1') -Setup $setupPath -Source $source
     if ($LASTEXITCODE -ne 0) { throw 'Setup checks failed.' }

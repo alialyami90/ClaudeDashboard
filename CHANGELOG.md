@@ -16,6 +16,15 @@ Claude Dashboard, phase 4 of decision 026: the dashboard window.
 - **The Claude palette.** A light palette beside Midnight, Slate and Warm: warm paper, soft black text and terracotta, with Amber darkened so warnings read on paper. Picking it brings the terracotta accent along. Every palette's text, Amber and accent pass contrast checks.
 - **Under the hood.** One window and one controller (`AppController`); the widget app's window, controller, card sizing table and sticker parts are gone. Renders take `--render-size`, `--render-scale` and `--render-settings --render-tab`.
 
+## v0.44.1 (2 Nov 2026)
+
+Claude Dashboard: setup without the sensors, and a new icon.
+
+- **New icon.** A Lime race car, head-on with its headlights on, in front of a Glacier pit garage on a Midnight tile (`assets\ClaudeDashboard.ico`). `scripts\make-icon.ps1` draws it from the app's own pixel art (`PitArt`, `PitRaster`), so it matches the dashboard; build first, then run it with `-STA`.
+- **Setup without hardware sensors.** The "Install hardware sensors" checkbox, `--no-sensors` and the sensor files are gone with System stats. Updating removes the `sensors` folder an older install added. Uninstalling still removes an old "Widget Screen full sensors" task, which needs administrator rights if one exists.
+- **Uninstall wording.** "Also delete my settings, Claude sign-in and Claude Code connection files", with a note to disconnect Claude Code first so its hooks don't point at a deleted file.
+- **Scripts.** `run.ps1` loses `-Windowed`; the build, release script and workflows lose their sensor steps.
+
 ## v0.44.0 (2 Nov 2026)
 
 Claude Dashboard, phases 2 and 3 of decision 026: everything but the Claude Code watcher goes. v0.43.0 is skipped on purpose; both phases ship together in this release.

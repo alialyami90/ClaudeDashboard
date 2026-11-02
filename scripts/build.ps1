@@ -33,7 +33,7 @@ $versionSource = Join-Path $generatedPath 'BuildVersion.cs'
 $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Recurse -Filter '*.cs' | Sort-Object FullName | Select-Object -ExpandProperty FullName) + $versionSource
 # Every XAML file under src\ is embedded as WidgetScreen.<FileName> (MainWindow.xaml keeps its exact resource name).
 $xamlResources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Recurse -Filter '*.xaml' | Sort-Object FullName | ForEach-Object { '/resource:' + $_.FullName + ',WidgetScreen.' + $_.Name })
-$arguments = @('/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeDashboard.exe')), ('/win32manifest:' + (Join-Path $projectRoot 'src\app\app.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\WidgetScreen.ico'))) + $xamlResources + $references + $sources
+$arguments = @('/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeDashboard.exe')), ('/win32manifest:' + (Join-Path $projectRoot 'src\app\app.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\ClaudeDashboard.ico'))) + $xamlResources + $references + $sources
 & $compilerPath $arguments
 if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)." }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'src\app\App.config') -Destination (Join-Path $outputPath 'ClaudeDashboard.exe.config') -Force
@@ -41,35 +41,11 @@ Write-Output "Built: $outputPath\ClaudeDashboard.exe ($informationalVersion)"
 # ClaudeHook.exe, the Claude Code bridge (decision 014): a console exe from hook\ and the shared Claude files in src\.
 $claudeShared = @('ClaudeJson.cs', 'ClaudeBridge.cs', 'ClaudeProcesses.cs') | ForEach-Object { Join-Path $projectRoot "src\integrations\Claude\$_" }
 $hookSources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'hook') -Filter '*.cs' | Sort-Object FullName | Select-Object -ExpandProperty FullName) + $claudeShared + $versionSource
-$hookArguments = @('/nologo', '/target:exe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeHook.exe')), ('/win32icon:' + (Join-Path $projectRoot 'assets\WidgetScreen.ico')),
+$hookArguments = @('/nologo', '/target:exe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeHook.exe')), ('/win32icon:' + (Join-Path $projectRoot 'assets\ClaudeDashboard.ico')),
     ('/reference:' + (Join-Path $frameworkPath 'System.dll')), ('/reference:' + (Join-Path $frameworkPath 'System.Core.dll'))) + $hookSources
 & $compilerPath $hookArguments
 if ($LASTEXITCODE -ne 0) { throw "ClaudeHook build failed (exit $LASTEXITCODE)." }
 Write-Output "Built: $outputPath\ClaudeHook.exe"
-# Hardware sensors (decision 016): the pinned LibreHardwareMonitor files go in sensors\ when scripts\get-sensors.ps1 has
-# fetched them, each checked against SHA256SUMS.txt, with the third-party notice and licences. Without them the app
-# builds and runs as before, and says the sensors aren't installed. A tree without third-party\ (Claude Dashboard drops
-# the sensors with System stats) builds without them too.
-$sensorSource = Join-Path $projectRoot 'third-party\LibreHardwareMonitor'
-$sensorTarget = Join-Path $outputPath 'sensors'
-$sensorSums = @{}
-$sensorPins = Join-Path $sensorSource 'SHA256SUMS.txt'
-if (Test-Path -LiteralPath $sensorPins) { foreach ($line in Get-Content -LiteralPath $sensorPins) { if ($line -match '^([0-9a-f]{64})\s+(\S+\.dll)$') { $sensorSums[$Matches[2]] = $Matches[1] } } }
-$sensorFiles = @($sensorSums.Keys | ForEach-Object { Join-Path $sensorSource "bin\$_" })
-$sensorsReady = $sensorSums.Count -gt 0 -and ($sensorFiles | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -eq 0
-if ($sensorsReady) {
-    foreach ($name in $sensorSums.Keys) {
-        if ((Get-FileHash -LiteralPath (Join-Path $sensorSource "bin\$name") -Algorithm SHA256).Hash.ToLowerInvariant() -ne $sensorSums[$name]) { throw "third-party\LibreHardwareMonitor\bin\$name doesn't match its pinned SHA-256. Run scripts\get-sensors.ps1 again." }
-    }
-    New-Item -ItemType Directory -Path (Join-Path $sensorTarget 'licenses') -Force | Out-Null
-    foreach ($file in $sensorFiles) { Copy-Item -LiteralPath $file -Destination $sensorTarget -Force }
-    Copy-Item -LiteralPath (Join-Path $sensorSource 'THIRD-PARTY-NOTICES.txt') -Destination $sensorTarget -Force
-    Copy-Item -Path (Join-Path $sensorSource 'licenses\*.txt') -Destination (Join-Path $sensorTarget 'licenses') -Force
-    Write-Output "Sensors: $sensorTarget (LibreHardwareMonitor 0.9.6, $($sensorSums.Count) files checked)"
-} else {
-    if (Test-Path -LiteralPath $sensorTarget) { Remove-Item -LiteralPath $sensorTarget -Recurse -Force }
-    Write-Output 'Sensors: not included (run scripts\get-sensors.ps1 to add LibreHardwareMonitor)'
-}
 if ($Test) {
     $testOutput = Join-Path $projectRoot 'artifacts\tests'
     New-Item -ItemType Directory -Path $testOutput -Force | Out-Null
