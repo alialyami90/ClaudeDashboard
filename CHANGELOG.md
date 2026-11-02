@@ -6,6 +6,16 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.45.0 (unreleased)
+
+Claude Dashboard, phase 4 of decision 026: the dashboard window.
+
+- **The window is the dashboard.** A resizable window (360 × 300 at the smallest) with a header: the app name, the live summary, 5 h / Today / Week, Quiet and Settings. The words fold away as the window gets narrower. The card fills the rest and picks Small, Medium or Large from its size; it has no heading of its own any more. The window's frame turns Amber while a session needs you and Glacier while one waits for your reply, and the title says "Claude needs you".
+- **Its place.** The window opens where it was closed, at its last size and maximised if it was, unless that place is off every screen now. Settings → Window can start it with Windows (a Startup shortcut), start it minimised and stop it remembering its place. Minimised, it still watches the sessions and notifies, but doesn't read logs or move the cars.
+- **Settings is its own window.** Three tabs: Theme (palette, accent, text size, clock, Quiet), Claude (as before) and Window. Changes show on the dashboard as you make them; Cancel or closing the window puts the saved ones back.
+- **The Claude palette.** A light palette beside Midnight, Slate and Warm: warm paper, soft black text and terracotta, with Amber darkened so warnings read on paper. Picking it brings the terracotta accent along. Every palette's text, Amber and accent pass contrast checks.
+- **Under the hood.** One window and one controller (`AppController`); the widget app's window, controller, card sizing table and sticker parts are gone. Renders take `--render-size`, `--render-scale` and `--render-settings --render-tab`.
+
 ## v0.44.0 (2 Nov 2026)
 
 Claude Dashboard, phases 2 and 3 of decision 026: everything but the Claude Code watcher goes. v0.43.0 is skipped on purpose; both phases ship together in this release.
