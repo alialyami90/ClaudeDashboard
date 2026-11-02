@@ -39,13 +39,13 @@ internal static class ShellTests
             {
                 var colors = Palettes.Colors(theme);
                 Assert(colors.Length == Palettes.Keys.Length, theme + " sets " + colors.Length + " colours for " + Palettes.Keys.Length + " keys.");
-                string page = colors[0], surface = colors[1], muted = colors[7], text = colors[8], warning = colors[12], turn = colors[13], onAccent = colors[14], onWarning = colors[16];
+                string page = colors[0], surface = colors[1], muted = colors[7], text = colors[8], amber = colors[12], turn = colors[13], onAccent = colors[14], onWarning = colors[16];
                 bool light = Palettes.Luminance(page) > Palettes.Luminance(text);
                 Assert(light == Palettes.Light(theme), theme + " is " + (light ? "light" : "dark") + " but says otherwise.");
                 Assert(Palettes.Contrast(text, surface) >= 7, theme + ": text on the surface is too faint.");
                 Assert(Palettes.Contrast(muted, surface) >= 4.5, theme + ": muted text on the surface is too faint.");
-                Assert(Palettes.Contrast(warning, surface) >= 4.5, theme + ": Amber words on the surface are too faint.");
-                Assert(Palettes.Contrast(onWarning, warning) >= 4.5, theme + ": words on an Amber fill are too faint.");
+                Assert(Palettes.Contrast(amber, surface) >= 4.5, theme + ": Amber words on the surface are too faint.");
+                Assert(Palettes.Contrast(onWarning, amber) >= 4.5, theme + ": words on an Amber fill are too faint.");
                 Assert(Palettes.Contrast(turn, surface) >= 3, theme + ": the Your-turn edge is too faint.");
                 foreach (string accent in Palettes.Accents)
                 {
