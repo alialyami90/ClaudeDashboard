@@ -30,7 +30,9 @@ $versionSource = Join-Path $generatedPath 'BuildVersion.cs'
     '[assembly: System.Reflection.AssemblyInformationalVersion("' + $informationalVersion + '")]'
 ) | Set-Content -LiteralPath $versionSource -Encoding utf8
 $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Recurse -Filter '*.cs' | Sort-Object FullName | Select-Object -ExpandProperty FullName) + $versionSource
-$arguments = @('/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeDashboard.exe')), ('/win32manifest:' + (Join-Path $projectRoot 'src\app\app.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\WidgetScreen.ico')), ('/resource:' + (Join-Path $projectRoot 'src\app\MainWindow.xaml') + ',WidgetScreen.MainWindow.xaml')) + $references + $sources
+# Every XAML file under src\ is embedded as WidgetScreen.<FileName> (MainWindow.xaml keeps its exact resource name).
+$xamlResources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Recurse -Filter '*.xaml' | Sort-Object FullName | ForEach-Object { '/resource:' + $_.FullName + ',WidgetScreen.' + $_.Name })
+$arguments = @('/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeDashboard.exe')), ('/win32manifest:' + (Join-Path $projectRoot 'src\app\app.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\WidgetScreen.ico'))) + $xamlResources + $references + $sources
 & $compilerPath $arguments
 if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)." }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'src\app\App.config') -Destination (Join-Path $outputPath 'ClaudeDashboard.exe.config') -Force

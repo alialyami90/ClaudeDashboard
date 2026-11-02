@@ -64,3 +64,4 @@ jobs:
             artifacts/app/ClaudeDashboard.exe.config
             artifacts/app/ClaudeHook.exe
             artifacts/setup/*.exe
+            artifacts/renders/*.png
