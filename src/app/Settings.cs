@@ -29,10 +29,6 @@ namespace WidgetScreen
         // A Windows notification when a session needs you, gets stuck or finishes a turn of 10 minutes or more (package 3;
         // on by default, silent in Quiet mode).
         public bool ClaudeToast { get; set; }
-        // Package 4 (decision 027): Allow once and Deny for a permission dialog from the dashboard (off by default), and
-        // how long Claude Code waits for that answer before showing its own dialog (10–120 s, default 30).
-        public bool ClaudeAnswer { get; set; }
-        public int ClaudeAnswerWait { get; set; }
         // Package 4: a small summary file per day, kept 8 weeks, for the plan row's sparkline and Settings → Claude →
         // History (on by default; turning it off deletes the files).
         public bool ClaudeHistory { get; set; }
@@ -71,7 +67,7 @@ namespace WidgetScreen
             Use24HourClock = false;
             ClaudeShowNewProjects = true;
             ClaudeToast = true;
-            ClaudeAnswerWait = ClaudeBridge.DefaultWait; ClaudeHistory = true;
+            ClaudeHistory = true;
             ClaudeCardSeconds = ClaudeIntervals.CardDefault; ClaudePlanSeconds = ClaudeIntervals.PlanDefault;
             ClaudePeriod = "Today";
         }
@@ -94,7 +90,6 @@ namespace WidgetScreen
             if (Accent != "Lime" && Accent != "Glacier" && Accent != "Lavender" && Accent != "Amber") Accent = "Lime";
             if (Theme != "Midnight" && Theme != "Slate" && Theme != "Warm") Theme = "Midnight";
             CornerRadius = Clamp(CornerRadius, 0, 24, 20);
-            ClaudeAnswerWait = ClaudeAnswerWait == 0 ? ClaudeBridge.DefaultWait : ClaudeBridge.ClampWait(ClaudeAnswerWait);
             ClaudeCardSeconds = ClaudeCardSeconds == 0 ? ClaudeIntervals.CardDefault : ClaudeIntervals.Card(ClaudeCardSeconds);
             ClaudePlanSeconds = ClaudePlanSeconds == 0 ? ClaudeIntervals.PlanDefault : ClaudeIntervals.Plan(ClaudePlanSeconds);
             ClaudeCollapsed = (ClaudeCollapsed ?? new string[0]).Select(ClaudeUsage.Key).Where(f => f.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();

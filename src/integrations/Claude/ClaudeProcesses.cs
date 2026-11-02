@@ -109,23 +109,6 @@ namespace WidgetScreen
             catch (Exception) { return true; }
         }
 
-        // Whether the window is the one in front now (package 4): the user is looking at that session, so its own
-        // permission dialog shows at once rather than waiting for the dashboard.
-        public static bool InFront(long window)
-        {
-            if (window == 0) return false;
-            try { return GetForegroundWindow() == new IntPtr(window); } catch (Exception) { return false; }
-        }
-
-        // When a process started, as Unix milliseconds (0 when it isn't running or can't be asked), so a recorded id can
-        // be told apart from a later process that reused it.
-        public static long Started(int pid)
-        {
-            if (pid <= 0) return 0;
-            try { using (var process = Process.GetProcessById(pid)) return process.HasExited ? 0 : ClaudeBridge.Epoch(process.StartTime.ToUniversalTime()); }
-            catch (Exception) { return 0; }
-        }
-
         // The session's window, if it is still there: the recorded one, or any main window of the recorded process.
         public static IntPtr Window(long window, int windowPid)
         {

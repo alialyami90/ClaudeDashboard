@@ -1,25 +1,33 @@
-# 027: The dashboard may answer a permission prompt the user clicks
+# 027: The dashboard doesn't answer permission prompts
 
-Status: proposed, waiting on Ali's choice (2 Nov 2026). Package 4 of the Watcher action plan, phase 6 of the Claude Dashboard transformation. Windows only.
+Status: decided (Ali, 2 Nov 2026): **no**. Package 4.1 of the Watcher action plan is dropped. Windows only.
 
 ## Context
 
-Until now the watcher only showed what Claude Code did. The action plan's package 4 adds the one thing that acts on a session: Allow or Deny a permission dialog from the dashboard, without switching to the terminal or the Claude app. The Windows notification from package 3 is a notification-area balloon, which can't carry buttons.
+The Watcher action plan's package 4 proposed one feature that acts on a session: Allow or Deny a Claude Code permission dialog from the dashboard, without switching to the terminal or the Claude app.
 
-Claude Code's `PermissionRequest` hook runs when Claude Code is about to ask for permission. An ordinary (not async) command hook can print `hookSpecificOutput.decision` with `behavior` `allow` or `deny`. If it prints nothing, the dialog shows as usual. Claude Code waits for the hook up to its `timeout`. The dialog appears where the hook would have answered, so while the hook waits, the dialog waits too.
+Claude Code's `PermissionRequest` hook could do it. An ordinary (not async) command hook may print `hookSpecificOutput.decision` with `behavior` `allow` or `deny`, and Claude Code waits for the hook up to its timeout before showing its own dialog. The design that was built and tested on the Watcher branch had these parts:
+
+- an extra `ClaudeHook.exe ask` hook;
+- a listener file and ask and answer files in the bridge folder;
+- a topmost toast window that never takes the keyboard, with Allow once, Deny and Open;
+- an opt-in setting with a 10–120 s wait.
 
 ## Decision
 
-1. **An ask hook beside the recording hook.** Connect adds one more `PermissionRequest` entry, `ClaudeHook.exe ask`, as an ordinary hook with a 135-second timeout. The existing async entry still records Needs you. Older connections offer Update connection.
-2. **It waits only when it can help.** The hook answers only when the dashboard is running and listening. The dashboard writes `claude\asks\listener.json` with its process id, its start time and the wait. The hook also skips the wait when Quiet mode is on or the session's own window is in front. In any of those cases it ends at once and prints nothing.
-3. **Through the bridge folder, not a pipe.** The hook writes `asks\<id>.ask.json`: the session, tool, project folder, a one-line description and the wait's end. It then polls for `asks\<id>.answer.json` every 150 ms. The folder already belongs to the user, the dashboard already watches it, and the checks can drive both sides with a stand-in clock. Both files are deleted when the hook ends.
-4. **Allow once, never always.** Allow prints `{"behavior":"allow"}` with no `updatedPermissions` and no `updatedInput`, so no rule is saved and the mode doesn't change. Deny adds a message telling Claude the user said no. Claude Code's own deny rules still apply. Open prints nothing and brings the session's window forward.
-5. **Opt-in.** Settings → Claude → Answer permission prompts from Claude Dashboard is off by default. When it's on, Claude Code waits up to 10–120 s (default 30) for the click.
-6. **Our own toast window.** It is a small topmost window that never takes the keyboard (`WS_EX_NOACTIVATE`). It shows the project, the thread, the tool and the one-line description, with a countdown to Claude Code's own dialog. Up to four show at once.
+Ali chose "No, the notification only opens it".
 
-## Tradeoffs
+- The dashboard never answers a permission dialog, and Connect adds no hook that can.
+- `ClaudeHook.exe` keeps only its `hook` and `statusline` modes. Every Claude Code hook it runs stays async or returns at once, so it never holds a dialog back.
+- A Needs-you notification or car brings the session's own window forward. The user answers there.
+- The ask-mode code (`ClaudeAsks`, `ClaudePermissions`, `ClaudeAskToast` and the bridge's ask section) was removed before merging and stays in the history of the Watcher branch (PR #3).
 
-- While a toast waits, the terminal's dialog is held back for up to the wait. Opt-in, the in-front check and the Open button keep that cost to the people who want the feature.
-- The description of what's being allowed (a command, a path, an address) is written to a file in the user's own folder for the length of the wait. Telemetry never carries tool details, but an informed Allow needs them. The file never leaves the PC and is deleted when the hook ends.
-- Any process running as the user could write an answer file. That process could equally edit Claude Code's settings, so this adds no new reach.
-- The phone (action plan 4.2) can't answer. The phone link goes in phase 3, so phone answers move to the Android companion on the roadmap.
+## Why
+
+- Holding Claude Code's own dialog back while a toast waits costs time on every prompt.
+- Writing the command or path being approved to a file, even briefly, is more than the dashboard needs.
+- Watching stays read-only. The dashboard shows what Claude Code does and takes you to it, but doesn't act for you.
+
+## Still in package 4
+
+The cloud garage (4.3), history (4.4), export (4.5) and plain mode (4.6). The phone (4.2) moves to the Android companion on the roadmap.

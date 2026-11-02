@@ -31,8 +31,6 @@ namespace WidgetScreen
         // the card was last worked out.
         private readonly ClaudeAlerts claudeAlerts = new ClaudeAlerts();
         private ClaudeToast claudeToast;
-        // Package 4: Allow once and Deny for permission dialogs (ClaudePermissions keeps it out of this file).
-        private ClaudePermissions claudePermissions;
         // Package 4: the daily summary files (Settings → Claude → History).
         private ClaudeHistory claudeHistory;
         private bool claudeHistoryCleared;
@@ -65,9 +63,6 @@ namespace WidgetScreen
             Button("ClaudePlanSecondsMore", () => StepClaudeSeconds("ClaudePlanSecondsBox", 10, ClaudeIntervals.Plan, settings.ClaudePlanSeconds));
             Control<TextBox>("ClaudePlanSecondsBox").TextChanged += (sender, e) => UpdateClaudePlanNote();
             claudeToast = new ClaudeToast(id => { if (!disposed) FocusClaudeSession(id); });
-            claudePermissions = new ClaudePermissions(() => claude.BridgeFolder, id => { if (!disposed) FocusClaudeSession(id); }, ClaudeThreadTitle, key => window.TryFindResource(key));
-            // Closing the dashboard takes the listener away, so a waiting hook lets Claude Code ask in its own window.
-            window.Closed += (sender, e) => claudePermissions.Dispose();
             claudeHistory = new ClaudeHistory(claude.BridgeFolder);
             if (Program.Rendering) return;
             // A watched folder changed or telemetry arrived (package 3): the card looks at once, on its own thread.
@@ -114,8 +109,6 @@ namespace WidgetScreen
             if (claudeSample) return;
             // Renders never read this PC's sessions or logs, or ask for the plan's usage; they use the labelled sample.
             if (Program.Rendering) return;
-            // Permission dialogs are answered from the heartbeat too (package 4).
-            claudePermissions.Tick(settings.ClaudeAnswer, settings.ClaudeAnswerWait, claude.Connected, settings.QuietMode, DateTime.UtcNow);
             DateTime now = DateTime.UtcNow;
             bool changed = false;
             // The folders are watched while the card is shown (package 3); folders that appear later join within 10 s.
@@ -177,8 +170,6 @@ namespace WidgetScreen
         {
             if (disposed || claudeSample || Program.Rendering) return;
             var kinds = claude.Watch.Take();
-            // A new ask shows at once rather than on the next heartbeat (package 4).
-            if ((kinds & ClaudeWatch.Kinds.Sessions) != 0 && claudePermissions.Listening) claudePermissions.Sync(DateTime.UtcNow);
             if (kinds == ClaudeWatch.Kinds.None) return;
             DateTime now = DateTime.UtcNow;
             bool changed = false;
@@ -234,8 +225,6 @@ namespace WidgetScreen
             if (claudeView == null || claudeToast == null) return;
             if (claudeView.NeedsYou == 0 && claudeView.Stuck == 0) claudeToast.Clear();
             if (fresh.Count == 0 || !settings.ClaudeToast || settings.QuietMode || Program.Rendering) return;
-            // A permission dialog with its own Allow/Deny toast needs no second notification (package 4).
-            if (claudePermissions.Listening) { claudePermissions.Sync(DateTime.UtcNow); fresh = fresh.Where(x => x.Kind != "need" || !claudePermissions.Asking(x.Session)).ToList(); if (fresh.Count == 0) return; }
             var a = fresh.OrderBy(x => x.Kind == "need" ? 0 : x.Kind == "stuck" ? 1 : 2).First();
             string title = (a.Kind == "need" ? "Claude needs you" : a.Kind == "stuck" ? "Claude is stuck" : "Claude finished") + " · " + a.Project;
             string what = a.Kind == "need" ? ClaudeText.Ask(a.Text) : a.Text;
@@ -264,13 +253,6 @@ namespace WidgetScreen
             return claudeView != null && claudeView.Known.TryGetValue(folder, out known) ? known.Key : "";
         }
 
-        // A session's thread name for the permission toast, or "" when the card doesn't know it.
-        private string ClaudeThreadTitle(string id)
-        {
-            var session = claudeView == null ? null : claudeView.Sessions.FirstOrDefault(x => x.Id == id);
-            return session == null ? "" : session.Title ?? "";
-        }
-
         // Brings a session's terminal or editor forward (the one place the dashboard activates another window, because
         // the user tapped for it). Returns null when it worked, or what went wrong.
         private string FocusClaudeSession(string id)
@@ -292,7 +274,7 @@ namespace WidgetScreen
             claude.CheckConnected();
             bool update = claude.Connector.NeedsUpdate();
             string portWarning = claude.TelemetryWarning();
-            Text("ClaudeConnectionStatus", !claude.Connected ? "Not connected" : update ? "Connected by an earlier version. Update the connection to add the latest hooks (permission answers, API errors, subagents, tasks, model switches, usage-limit waits) and telemetry."
+            Text("ClaudeConnectionStatus", !claude.Connected ? "Not connected" : update ? "Connected by an earlier version. Update the connection to add the latest hooks (API errors, subagents, tasks, model switches, usage-limit waits) and telemetry."
                 : portWarning.Length > 0 ? portWarning + ". Update the connection to send telemetry to a free port." : "Connected. Every Claude Code session on this PC shows on the card.");
             update |= claude.Connected && portWarning.Length > 0;
             Text("ClaudeFolderText", "Claude Code folder: " + claude.ConfigFolder);
