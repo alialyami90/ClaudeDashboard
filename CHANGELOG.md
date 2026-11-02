@@ -6,7 +6,7 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
-## v0.46.0 (unreleased)
+## v0.46.0 (2 Nov 2026)
 
 Claude Dashboard, phase 5 of decision 026: its own settings folder.
 
