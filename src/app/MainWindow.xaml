@@ -3,8 +3,7 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         Title="Claude Dashboard" Width="1536" Height="640" MinWidth="960" MinHeight="400"
         Background="{DynamicResource Page}" Foreground="{DynamicResource Text}" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen"
-        UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display"
-        Stylus.IsPressAndHoldEnabled="False" Stylus.IsFlicksEnabled="False">
+        UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display">
   <Window.Resources>
 <SolidColorBrush x:Key="Page" Color="#0C0E13"/>
 <SolidColorBrush x:Key="Surface" Color="#161A22"/>
@@ -105,91 +104,7 @@
       <Setter Property="FontSize" Value="22"/>
       <Setter Property="Padding" Value="10"/>
     </Style>
-    <!-- Quick Launch keycaps (docs/design/sticker-sheet.md, phase 2): the cap sits on a 4-unit darker skirt and drops 2 units while pressed; an LED dot in the widget's ink lights for a button that's on (Tag = True). -->
-    <Style x:Key="Keycap" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Template">
-        <Setter.Value><ControlTemplate TargetType="Button">
-          <Grid>
-            <Border x:Name="Skirt" Background="{DynamicResource Input}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="12" Margin="0,4,0,0"/>
-            <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12" Padding="{TemplateBinding Padding}" Margin="0,0,0,4">
-              <Grid>
-                <Border x:Name="Hover" Background="White" Opacity="0" CornerRadius="8" IsHitTestVisible="False"/>
-                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
-                <Ellipse x:Name="Led" Width="8" Height="8" Fill="{DynamicResource InkOfShortcuts}" Stroke="{DynamicResource Page}" StrokeThickness="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-2,0" Visibility="Collapsed" IsHitTestVisible="False"/>
-              </Grid>
-            </Border>
-          </Grid>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.06"/></Trigger>
-            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/><Setter TargetName="Chrome" Property="Margin" Value="0,2,0,2"/></Trigger>
-            <Trigger Property="Tag"><Trigger.Value><sys:Boolean>True</sys:Boolean></Trigger.Value><Setter TargetName="Led" Property="Visibility" Value="Visible"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Text}"/><Setter TargetName="Chrome" Property="BorderThickness" Value="2"/></Trigger>
-            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.35"/><Setter TargetName="Skirt" Property="Opacity" Value="0.35"/></Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate></Setter.Value>
-      </Setter>
-    </Style>
-    <!-- Soundboard sampler pads (docs/design/sticker-sheet.md, phase 5): a rubber pad edged in the card's ink on a solid
-         lift. It lights in the ink, with dark text, while pressed and for 150 ms after a tap (Tag = true). -->
-    <Style x:Key="Pad" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-      <Setter Property="Template">
-        <Setter.Value><ControlTemplate TargetType="Button">
-          <Grid>
-            <Border x:Name="Lift" Background="{DynamicResource Page}" CornerRadius="14" Margin="0,3,0,0"/>
-            <Border x:Name="Face" Background="{DynamicResource Raised}" BorderBrush="{DynamicResource InkOfSoundboard}" BorderThickness="2" CornerRadius="14" Margin="0,0,0,3">
-              <Grid>
-                <Border x:Name="Lit" Background="{DynamicResource InkOfSoundboard}" CornerRadius="12" Opacity="0.1" IsHitTestVisible="False"/>
-                <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
-              </Grid>
-            </Border>
-          </Grid>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Lit" Property="Opacity" Value="0.2"/></Trigger>
-            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Lit" Property="Opacity" Value="1"/><Setter Property="Foreground" Value="{DynamicResource InkText}"/><Setter TargetName="Face" Property="Margin" Value="0,2,0,1"/></Trigger>
-            <Trigger Property="Tag"><Trigger.Value><sys:Boolean>True</sys:Boolean></Trigger.Value><Setter TargetName="Lit" Property="Opacity" Value="1"/><Setter Property="Foreground" Value="{DynamicResource InkText}"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource Text}"/></Trigger>
-            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Face" Property="Opacity" Value="0.4"/><Setter TargetName="Lift" Property="Opacity" Value="0.4"/></Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate></Setter.Value>
-      </Setter>
-    </Style>
-    <!-- The mixer's channel strips (docs/design/sticker-sheet.md, phase 2): the same slider standing up, filling from the bottom, with the 48 × 48 thumb. -->
-    <Style x:Key="VerticalSlider" TargetType="Slider">
-      <Setter Property="Orientation" Value="Vertical"/>
-      <Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/>
-      <Setter Property="MinWidth" Value="48"/><Setter Property="IsMoveToPointEnabled" Value="True"/>
-      <Setter Property="SmallChange" Value="1"/><Setter Property="LargeChange" Value="5"/>
-      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider">
-        <Border x:Name="SliderChrome" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="10" Padding="0,2"><Track x:Name="PART_Track" HorizontalAlignment="Center">
-          <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False"><RepeatButton.Template><ControlTemplate><Border Width="6" CornerRadius="3" Background="{DynamicResource Accent}"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseRepeatButton>
-          <Track.Thumb><Thumb Width="48" Height="48"><Thumb.Template><ControlTemplate><Grid Background="Transparent"><Border Width="30" Height="30" Background="{DynamicResource Accent}" BorderBrush="{DynamicResource Surface}" BorderThickness="3" CornerRadius="15"/></Grid></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
-          <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False"><RepeatButton.Template><ControlTemplate><Border Width="6" CornerRadius="3" Background="{DynamicResource Track}"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseRepeatButton>
-        </Track></Border>
-        <ControlTemplate.Triggers>
-          <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="SliderChrome" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
-          <Trigger Property="IsEnabled" Value="False"><Setter TargetName="SliderChrome" Property="Opacity" Value="0.3"/></Trigger>
-        </ControlTemplate.Triggers>
-      </ControlTemplate></Setter.Value></Setter>
-    </Style>    <!-- Spotify's crate tabs (docs/design/sticker-sheet.md, phase 2): dividers with rounded tops; the chosen one is filled with the widget's ink over an ink line. -->
-    <Style x:Key="CrateTab" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Template">
-        <Setter.Value><ControlTemplate TargetType="Button">
-          <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12,12,0,0" Padding="{TemplateBinding Padding}">
-            <Grid>
-              <Border x:Name="Hover" Background="White" Opacity="0" CornerRadius="8,8,0,0" IsHitTestVisible="False"/>
-              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
-            </Grid>
-          </Border>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.06"/></Trigger>
-            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.13"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Text}"/><Setter TargetName="Chrome" Property="BorderThickness" Value="2"/></Trigger>
-            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.35"/></Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate></Setter.Value>
-      </Setter>
-    </Style>    <Style TargetType="Slider">
+    <Style TargetType="Slider">
       <Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/>
       <Setter Property="MinHeight" Value="48"/><Setter Property="IsMoveToPointEnabled" Value="True"/>
       <Setter Property="SmallChange" Value="1"/><Setter Property="LargeChange" Value="5"/>
@@ -276,14 +191,13 @@
     <Style TargetType="ProgressBar"><Setter Property="Foreground" Value="{DynamicResource Accent}"/><Setter Property="Background" Value="{DynamicResource Track}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Height" Value="5"/></Style>
   </Window.Resources>
 
-  <!-- The dashboard is designed at the 1920 × 720 scale; DashboardController.Screen.cs gives this grid a logical size shaped like the screen. -->
-  <Viewbox Stretch="Uniform">
-    <Grid x:Name="Dashboard" Width="1920" Height="720" Background="{DynamicResource Page}">
+  <!-- One ordinary window: the Claude card fills it under the header. -->
+    <Grid x:Name="Dashboard" Background="{DynamicResource Page}">
       <Grid x:Name="DashboardContent" Margin="32,20,32,16">
         <Grid.RowDefinitions><RowDefinition Height="72"/><RowDefinition Height="*"/><RowDefinition Height="36"/></Grid.RowDefinitions>
         <Grid>
           <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
-          <!-- The clock lives in the header so time and date stay visible in every layout, including while editing. -->
+          <!-- The clock lives in the header so time and date stay visible. -->
           <StackPanel x:Name="HeaderClock" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,-8,32,0" AutomationProperties.Name="Local time and date">
             <TextBlock x:Name="ClockTime" Text="00:00" FontSize="{DynamicResource HeaderClockSize}" FontWeight="Light" FontFamily="Segoe UI Light" Typography.NumeralAlignment="Tabular" VerticalAlignment="Center"/>
             <TextBlock x:Name="ClockPeriod" Text="AM" FontSize="{DynamicResource BodySize}" Foreground="{DynamicResource ClockMuted}" VerticalAlignment="Bottom" Margin="8,0,0,14"/>
@@ -293,336 +207,25 @@
               <TextBlock x:Name="ClockDate" Text="October 8" FontSize="{DynamicResource TitleSize}" Margin="0,1,0,0"/>
             </StackPanel>
           </StackPanel>
-          <!-- Layout pages: shown when there is more than one. Swiping the dashboard sideways also switches pages. -->
-          <StackPanel x:Name="PageSwitcher" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" AutomationProperties.Name="Layout pages">
-            <Button x:Name="PreviousPageButton" Content="&#xE76B;" Style="{StaticResource IconButton}" ToolTip="Previous page" AutomationProperties.Name="Previous page"/>
-            <StackPanel VerticalAlignment="Center" Margin="14,0" MinWidth="120" MaxWidth="260">
-              <TextBlock x:Name="PageNameText" Text="Main" HorizontalAlignment="Center"/>
-              <TextBlock x:Name="PageCountText" Text="1 of 1" Style="{StaticResource Caption}" HorizontalAlignment="Center"/>
-            </StackPanel>
-            <Button x:Name="NextPageButton" Content="&#xE76C;" Style="{StaticResource IconButton}" ToolTip="Next page" AutomationProperties.Name="Next page"/>
-            <!-- Shown while a Claude Code session needs you and the Claude card is on another page; a tap shows that page. -->
-            <Button x:Name="ClaudePill" Visibility="Collapsed" Margin="20,0,0,0" Padding="10,4,16,4" BorderBrush="{DynamicResource Warning}" BorderThickness="2" ToolTip="A Claude Code session needs you. Tap to show its page." AutomationProperties.Name="Claude needs you. Show the Claude page.">
-              <StackPanel Orientation="Horizontal"><Grid x:Name="ClaudePillCar" Width="40" Height="32" VerticalAlignment="Center"/><TextBlock Text="Claude needs you" Foreground="{DynamicResource Warning}" FontSize="{DynamicResource SmallSize}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0"/></StackPanel>
-            </Button>
-          </StackPanel>
-          <!-- A one-time hint for what the dashboard doesn't show by itself; Got it puts it away for good. -->
-          <StackPanel x:Name="HintRow" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" AutomationProperties.Name="Tips">
-            <TextBlock x:Name="HintText" Text="Swipe sideways to switch pages  ·  Settings → Phone pairs your phone" Style="{StaticResource Small}" VerticalAlignment="Center" MaxWidth="560" TextTrimming="CharacterEllipsis"/>
-            <Button x:Name="HintDismiss" Content="Got it" FontSize="{DynamicResource SmallSize}" Padding="12,4" Margin="14,0,0,0" AutomationProperties.Name="Dismiss tips"/>
-          </StackPanel>
           <StackPanel x:Name="MainActions" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-            <Button x:Name="EditLayoutButton" Content="Edit layout" Margin="0,0,10,0" ToolTip="Move and resize widgets directly on the dashboard."/>
             <Button x:Name="QuietButton" Content="Quiet mode" Margin="0,0,10,0" ToolTip="Pause output levels and slow down updates, for example while gaming." AutomationProperties.Name="Quiet mode, off"/>
-            <Button x:Name="FullscreenButton" Content="Second screen" Margin="0,0,10,0" ToolTip="Show the dashboard fullscreen on your second display. F11 switches; Escape returns to a window."/>
-            <Button x:Name="TrayButton" Content="Hide to tray" Margin="0,0,10,0" ToolTip="Hide Widget Screen from the taskbar. Its icon stays in the notification area; click it to bring the dashboard back."/>
             <Button x:Name="SettingsButton" Margin="0,0,24,0" ToolTip="Settings" AutomationProperties.Name="Settings"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0"/><TextBlock Text="Settings" VerticalAlignment="Center"/></StackPanel></Button>
             <Button x:Name="CloseButton" Content="&#xE8BB;" Style="{StaticResource IconButton}" Background="Transparent" BorderBrush="{DynamicResource Raised}" ToolTip="Close Widget Screen" AutomationProperties.Name="Close Widget Screen"/>
           </StackPanel>
-          <Grid x:Name="EditToolbar" Grid.Column="1" Visibility="Collapsed" VerticalAlignment="Top">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="225"/><ColumnDefinition/><ColumnDefinition Width="260"/></Grid.ColumnDefinitions>
-            <StackPanel><TextBlock Text="Edit layout" FontSize="25" FontWeight="SemiBold"/><TextBlock Text="Drag to move or resize" Style="{StaticResource Small}" Margin="0,2,0,0"/></StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-              <Button x:Name="UndoLayoutButton" Content="Undo" Margin="0,0,8,0" ToolTip="Undo the last layout change (Ctrl+Z)."/>
-              <Button x:Name="RedoLayoutButton" Content="Redo" Margin="0,0,8,0" ToolTip="Redo a layout change (Ctrl+Y)."/>
-              <Button x:Name="ResetLayoutButton" Content="Reset layout" Margin="0,0,8,0" ToolTip="Return every widget to the default arrangement. You can undo this."/>
-              <Button x:Name="ArrangeLayoutButton" Content="Arrange" Margin="0,0,18,0" ToolTip="Line up the shown widgets neatly in their current order, filling the screen without gaps or overlaps. You can undo this." AutomationProperties.Name="Arrange widgets"/>
-              <CheckBox x:Name="SnapLayoutChoice" Content="Snap" Margin="0,0,18,0" ToolTip="Snap to an 8 pixel grid and to other widgets' edges, with guide lines while you drag."/>
-              <Button x:Name="EditWidgetsButton" Content="Widgets" ToolTip="Show or hide widgets, and add, rename, order or delete pages." AutomationProperties.Name="Widgets and pages"/>
-            </StackPanel>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-              <Button x:Name="CancelLayoutButton" Content="Cancel" Margin="0,0,8,0"/>
-              <Button x:Name="SaveLayoutButton" Content="Save layout" Style="{StaticResource AccentButton}"/>
-            </StackPanel>
-          </Grid>
         </Grid>
 
-        <Grid x:Name="WidgetColumns" Grid.Row="1">
-          <Grid.ColumnDefinitions><ColumnDefinition Width="312"/><ColumnDefinition Width="568"/><ColumnDefinition Width="520"/><ColumnDefinition Width="456"/></Grid.ColumnDefinitions>
-
-          <Grid x:Name="FocusColumn" Margin="0,0,16,0">
-            <Border x:Name="FocusCard" Style="{StaticResource Card}">
-              <Grid>
-                <!-- A finished session tints the whole card until it's tapped or a minute passes. -->
-                <Border x:Name="FocusFinished" Background="{DynamicResource Accent}" Opacity="0.15" Margin="-24" CornerRadius="{DynamicResource CardRadius}" Visibility="Collapsed" IsHitTestVisible="False"/>
-                <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                  <!-- Label strips: DashboardController.Stickers fills each in the widget's ink (docs/design/sticker-sheet.md). -->
-                  <DockPanel><Border x:Name="FocusStrip"/><TextBlock x:Name="FocusState" Text="" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"/></DockPanel>
-                  <!-- A large card draws the progress as a ring around the countdown (FocusDial, CardSizing.Focus). --><Grid x:Name="FocusDial" Grid.Row="1"><StackPanel x:Name="FocusMiddle" VerticalAlignment="Center"><TextBlock x:Name="FocusTime" Text="25:00" FontSize="54" FontWeight="Light" TextOptions.TextFormattingMode="Ideal" HorizontalAlignment="Center" Typography.NumeralAlignment="Tabular"/><TextBlock x:Name="FocusStatus" Text="" Style="{StaticResource Small}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,12"/><ProgressBar x:Name="FocusProgress" Maximum="1" AutomationProperties.Name="Focus session progress"/><TextBlock x:Name="FocusSessions" Text="" Style="{StaticResource Caption}" TextAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,10,0,0"/></StackPanel></Grid>
-                  <!-- Today's sessions as tomato pips, and the Today and Next break chips (docs/design/sticker-sheet.md, phase 2). FocusCard fills them. -->
-                  <StackPanel x:Name="FocusFacts" Grid.Row="2" Margin="0,0,0,12"><Border x:Name="FocusPipHost" Height="24"/><Grid x:Name="FocusChips" Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions></Grid></StackPanel>
-                  <Grid x:Name="FocusPresets" Grid.Row="3" Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                    <Button x:Name="Focus25" Content="25m" Padding="5" Margin="0,0,6,0" FontSize="16" AutomationProperties.Name="25 minutes"/><Button x:Name="Focus50" Grid.Column="1" Content="50m" Padding="5" Margin="0,0,6,0" FontSize="16" AutomationProperties.Name="50 minutes"/><Button x:Name="Focus5" Grid.Column="2" Content="5m" Padding="5" Margin="0,0,6,0" FontSize="16" AutomationProperties.Name="5 minutes"/><Button x:Name="FocusCustom" Grid.Column="3" Content="…" Padding="5" FontSize="16" ToolTip="Choose another length" AutomationProperties.Name="Choose another length"/>
-                  </Grid>
-                  <!-- On a short card the presets fold into FocusLength, which steps through them (CardSizing.FocusShort). -->
-                  <Grid Grid.Row="4"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="60"/></Grid.ColumnDefinitions><Button x:Name="FocusLength" Content="25m" Width="64" Padding="4" Margin="0,0,8,0" FontSize="16" Visibility="Collapsed" ToolTip="Tap for the next length" AutomationProperties.Name="Session length"/><Button x:Name="FocusStart" Grid.Column="1" Content="Start focus" Style="{StaticResource AccentButton}" Margin="0,0,8,0"/><Button x:Name="FocusReset" Grid.Column="2" Content="&#xE777;" Style="{StaticResource IconButton}" ToolTip="Reset timer" AutomationProperties.Name="Reset timer"/></Grid>
-                </Grid>
-                <!-- The fourth preset's length, picked inside the card (5 to 180 minutes). -->
-                <Border x:Name="FocusPicker" Background="{DynamicResource Surface}" Visibility="Collapsed" Margin="-8,0,-8,0" Padding="8,0">
-                  <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <DockPanel><Button x:Name="FocusPickerClose" DockPanel.Dock="Right" Content="&#xE8BB;" Style="{StaticResource IconButton}" Background="Transparent" BorderThickness="0" ToolTip="Close" AutomationProperties.Name="Close session length"/><TextBlock Text="SESSION LENGTH" Style="{StaticResource Label}" VerticalAlignment="Center"/></DockPanel>
-                    <StackPanel Grid.Row="1" VerticalAlignment="Center"><TextBlock x:Name="FocusLengthLabel" Text="45 min" FontSize="40" FontWeight="Light" HorizontalAlignment="Center" Typography.NumeralAlignment="Tabular"/><Slider x:Name="FocusLengthChoice" Minimum="5" Maximum="180" TickFrequency="5" IsSnapToTickEnabled="True" Margin="0,12,0,0" AutomationProperties.Name="Session length in minutes"/><TextBlock Text="5 to 180 minutes. The length stays as your fourth preset." Style="{StaticResource Small}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0"/></StackPanel>
-                    <Button x:Name="FocusLengthUse" Grid.Row="2" Content="Start with this length" Style="{StaticResource AccentButton}"/>
-                  </Grid>
-                </Border>
-              </Grid>
-            </Border>
-          </Grid>
-
-          <Grid Grid.Column="1" Margin="0,0,16,0">
-            <Grid.RowDefinitions><RowDefinition Height="326"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-            <Border x:Name="MediaCard" Style="{StaticResource Card}" Margin="0,0,0,16">
-              <!-- A short card folds the seek row and the hint row away (CardSizing.MediaShort). -->
-              <Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition x:Name="MediaMainRow" Height="*" MinHeight="86"/><RowDefinition x:Name="MediaSeekRow" Height="48"/><RowDefinition Height="54"/><RowDefinition x:Name="MediaHintRow" Height="26"/></Grid.RowDefinitions>
-                <DockPanel><Border x:Name="MediaStrip"/><TextBlock x:Name="MediaSource" Text="" Style="{StaticResource Small}" HorizontalAlignment="Right" MaxWidth="220" TextTrimming="CharacterEllipsis" Margin="12,0,0,0"/></DockPanel>
-                <Grid x:Name="MediaMain" Grid.Row="1" Margin="0,12,0,4"><Grid.ColumnDefinitions><ColumnDefinition x:Name="MediaArtColumn" Width="116"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <!-- The sleeve: a record peeks out of it while something plays; nothing playing leaves an empty dashed sleeve (docs/design/sticker-sheet.md, phase 2). --><Grid x:Name="MediaDiscHost" IsHitTestVisible="False"/><Border x:Name="MediaArtBox" Background="{DynamicResource ClockSurface}" BorderBrush="{DynamicResource Text}" CornerRadius="14" Margin="0,0,12,0" MaxHeight="104" ClipToBounds="True"><Grid><Rectangle x:Name="MediaEmptySleeve" Stroke="{DynamicResource Muted}" StrokeThickness="1.5" StrokeDashArray="3 2" RadiusX="12" RadiusY="12" Visibility="Collapsed"/><TextBlock Text="&#xE93C;" FontFamily="Segoe MDL2 Assets" FontSize="46" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image x:Name="AlbumArt" Stretch="Uniform"/></Grid></Border>
-                  <StackPanel x:Name="MediaText" Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"><TextBlock x:Name="TrackTitle" Text="Nothing playing" FontSize="{DynamicResource TitleSize}" FontWeight="SemiBold" TextWrapping="NoWrap" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/><TextBlock x:Name="TrackArtist" Text="Start music or a video in any app." FontSize="{DynamicResource SmallSize}" Foreground="{DynamicResource Muted}" Margin="0,8,0,0" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/><TextBlock x:Name="TrackAlbum" Text="" Style="{StaticResource Small}" Margin="0,2,0,0" Visibility="Collapsed" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/><Grid x:Name="MediaChips" Margin="0,10,0,0" Visibility="Collapsed"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions></Grid></StackPanel>
-                </Grid>
-                <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="52"/><ColumnDefinition/><ColumnDefinition Width="60"/></Grid.ColumnDefinitions><TextBlock x:Name="MediaPosition" Text="—:—" Style="{StaticResource Small}" VerticalAlignment="Center" Typography.NumeralAlignment="Tabular"/><Slider x:Name="MediaProgress" Grid.Column="1" VerticalAlignment="Center" Maximum="1" IsEnabled="False" AutomationProperties.Name="Seek current Windows media" ToolTip="Drag or tap to seek when your media app supports it."/><TextBlock x:Name="MediaDuration" Text="—:—" Grid.Column="2" Style="{StaticResource Small}" VerticalAlignment="Center" HorizontalAlignment="Right" Typography.NumeralAlignment="Tabular"/></Grid>
-                <!-- Centred on the card, clear of the volume button; a narrow card draws the buttons closer (CardSizing.MediaNarrow). -->
-                <StackPanel x:Name="MediaTransport" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="50,0">
-                  <Button x:Name="PreviousButton" Content="&#xE892;" Style="{StaticResource IconButton}" Background="Transparent" BorderThickness="0" Margin="0,0,14,0" AutomationProperties.Name="Previous track" IsEnabled="False"/>
-                  <Button x:Name="PlayButton" Content="&#xE768;" Style="{StaticResource AccentButton}" FontFamily="Segoe MDL2 Assets" FontSize="23" Width="76" AutomationProperties.Name="Play or pause" IsEnabled="False"/>
-                  <Button x:Name="NextButton" Content="&#xE893;" Style="{StaticResource IconButton}" Background="Transparent" BorderThickness="0" Margin="14,0,0,0" AutomationProperties.Name="Next track" IsEnabled="False"/>
-                </StackPanel>
-                <!-- The playing app's volume, one tap away: opens a small panel with that app's mixer slider. -->
-                <Button x:Name="MediaVolumeButton" Grid.Row="3" Content="&#xE767;" Style="{StaticResource IconButton}" Background="Transparent" BorderThickness="0" HorizontalAlignment="Right" VerticalAlignment="Center" ToolTip="Volume of the playing app" AutomationProperties.Name="Volume of the playing app" IsEnabled="False"/>
-                <TextBlock x:Name="MediaHint" Grid.Row="4" Text="" Style="{StaticResource Small}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-                <Border x:Name="MediaVolumePanel" Grid.Row="1" Grid.RowSpan="4" Background="{DynamicResource Surface}" Visibility="Collapsed" Margin="-8,0,-8,0" Padding="8,0">
-                  <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <DockPanel><Button x:Name="MediaVolumeClose" DockPanel.Dock="Right" Content="&#xE8BB;" Style="{StaticResource IconButton}" Background="Transparent" BorderThickness="0" ToolTip="Close" AutomationProperties.Name="Close volume"/><StackPanel VerticalAlignment="Center"><TextBlock Text="VOLUME" Style="{StaticResource Label}"/><TextBlock x:Name="MediaVolumeSubject" FontSize="{DynamicResource TitleSize}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/></StackPanel></DockPanel>
-                    <Grid Grid.Row="1" VerticalAlignment="Center"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="72"/></Grid.ColumnDefinitions><Slider x:Name="MediaVolumeChoice" AutomationProperties.Name="Volume of the playing app"/><TextBlock x:Name="MediaVolumePercent" Grid.Column="1" Text="—" FontSize="{DynamicResource TitleSize}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
-                    <TextBlock x:Name="MediaVolumeNote" Grid.Row="2" Style="{StaticResource Small}" TextWrapping="Wrap" MaxHeight="40" Margin="0,0,0,6"/>
-                  </Grid>
-                </Border>
-              </Grid>
-            </Border>
-            <Border x:Name="ShortcutsCard" Grid.Row="1" Style="{StaticResource Card}" Padding="20">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel LastChildFill="True">
-                  <Button x:Name="EditDeck" DockPanel.Dock="Right" Content="Edit" FontSize="14" Padding="10,4" Margin="6,0,0,0" AutomationProperties.Name="Customize Quick Launch"/>
-                  <StackPanel x:Name="DeckPages" DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button x:Name="DeckPrevious" Content="&#xE76B;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" AutomationProperties.Name="Previous button page"/>
-                    <TextBlock x:Name="DeckPageLabel" Width="46" TextAlignment="Center" VerticalAlignment="Center" Style="{StaticResource Caption}"/>
-                    <Button x:Name="DeckNext" Content="&#xE76C;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" AutomationProperties.Name="Next button page"/>
-                  </StackPanel>
-                  <Border x:Name="DeckHeading" Margin="4,0,4,0"/>
-                </DockPanel>
-                <UniformGrid x:Name="ShortcutGrid" Grid.Row="1" Columns="3" Rows="2"/>
-                <Button x:Name="EmptyDeck" Grid.Row="1" Content="Add a button" Visibility="Collapsed" Margin="4" FontSize="16"/>
-              </Grid>
-            </Border>
-          </Grid>
-
-          <Border x:Name="SpotifyCard" Style="{StaticResource Card}">
-            <Grid>
-              <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition x:Name="SpotifyStatusRow" Height="36"/></Grid.RowDefinitions>
-              <!-- A large card moves the now-playing strip into this column as a panel with a big cover (CardSizing.Spotify). -->
-              <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition x:Name="SpotifySideColumn" Width="0"/></Grid.ColumnDefinitions>
-              <DockPanel Grid.ColumnSpan="2" LastChildFill="True"><Button x:Name="SpotifyAccount" DockPanel.Dock="Right" Content="Account" Padding="12,4" FontSize="{DynamicResource SmallSize}" ToolTip="Spotify account and setup in Settings"/><Border x:Name="SpotifyStrip"/></DockPanel>
-              <Border x:Name="SpotifyCrateLine" Grid.Row="1" Height="2" VerticalAlignment="Bottom" Margin="0,0,0,2" Background="{DynamicResource InkOfSpotify}"/>
-              <UniformGrid x:Name="SpotifyTabs" Grid.Row="1" Columns="3" Margin="0,4,0,4">
-                <Button x:Name="SpotifyAlbums" Style="{StaticResource CrateTab}" Content="Albums" Padding="4" FontSize="{DynamicResource SmallSize}" Margin="0,0,4,0"/>
-                <Button x:Name="SpotifyPlaylists" Style="{StaticResource CrateTab}" Content="Playlists" Padding="4" FontSize="{DynamicResource SmallSize}" Margin="0,0,4,0"/>
-                <Button x:Name="SpotifySearch" Style="{StaticResource CrateTab}" Content="Search" Padding="4" FontSize="{DynamicResource SmallSize}"/>
-              </UniformGrid>
-              <Grid x:Name="SpotifyLibraryView" Grid.Row="2" Margin="0,8,0,4">
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <DockPanel x:Name="SpotifySearchRow" Visibility="Collapsed" Margin="0,0,0,6"><Button x:Name="SpotifyFind" DockPanel.Dock="Right" Content="Find" Margin="8,0,0,0"/><TextBox x:Name="SpotifyQuery" MaxLength="200" AutomationProperties.Name="Song or artist to search"/></DockPanel>
-                <DockPanel x:Name="SpotifyCollectionRow" Grid.Row="1" Visibility="Collapsed" Margin="0,0,0,6"><Button x:Name="SpotifyBack" DockPanel.Dock="Left" Content="Back" Margin="0,0,8,0"/><Button x:Name="SpotifyOpenCollection" DockPanel.Dock="Right" Content="Open Spotify" FontSize="{DynamicResource SmallSize}" Padding="8,4"/><TextBlock x:Name="SpotifyCollectionTitle" TextTrimming="CharacterEllipsis" Style="{StaticResource Small}" VerticalAlignment="Center" Margin="4,0"/></DockPanel>
-                <ScrollViewer x:Name="SpotifyResultsScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><UniformGrid x:Name="SpotifyResults" Columns="1" VerticalAlignment="Top" Margin="-3,0,-3,0"/></ScrollViewer>
-                <DockPanel x:Name="SpotifyPaging" Grid.Row="3" Margin="0,6,0,0" Visibility="Collapsed"><Button x:Name="SpotifyPageNext" DockPanel.Dock="Right" Content="Next" IsEnabled="False"/><Button x:Name="SpotifyPagePrevious" DockPanel.Dock="Left" Content="Previous" IsEnabled="False"/><TextBlock x:Name="SpotifyPageLabel" Style="{StaticResource Small}" TextAlignment="Center" VerticalAlignment="Center"/></DockPanel>
-              </Grid>
-              <Border x:Name="SpotifyNowStrip" Grid.Row="3" Background="{DynamicResource Raised}" CornerRadius="14" Padding="8" Margin="0,4,0,0">
-                <Grid x:Name="SpotifyNowGrid"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                  <Border x:Name="SpotifyArtBox" Background="{DynamicResource ClockSurface}" CornerRadius="10" Width="64" Height="64" ClipToBounds="True"><Grid><TextBlock Text="&#xE93C;" FontFamily="Segoe MDL2 Assets" FontSize="26" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" HorizontalAlignment="Center"/><Image x:Name="SpotifyArt" Stretch="UniformToFill" AutomationProperties.Name="Current song cover"/></Grid></Border>
-                  <StackPanel x:Name="SpotifyNowText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0"><TextBlock x:Name="SpotifyTitle" Text="Your music, here" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/><TextBlock x:Name="SpotifyArtist" Text="Connect in Settings &#x2192; Spotify." Style="{StaticResource Small}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/></StackPanel>
-                  <Button x:Name="SpotifyLike" Grid.Column="2" Content="&#x2661; Like" IsEnabled="False" Padding="12,4" FontSize="{DynamicResource SmallSize}" VerticalAlignment="Center"/>
-                </Grid>
-              </Border>
-              <TextBlock x:Name="SpotifyStatus" Grid.Row="4" Grid.ColumnSpan="2" Text="" Style="{StaticResource Small}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-              <!-- Shown instead of the tabs, list and now-playing strip until an account is connected. -->
-              <StackPanel x:Name="SpotifyEmpty" Grid.Row="1" Grid.RowSpan="4" Grid.ColumnSpan="2" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="360" Visibility="Collapsed">
-                <Border x:Name="SpotifyEmptyIcon" Width="88" Height="88" CornerRadius="20" Background="{DynamicResource ClockSurface}" HorizontalAlignment="Center" Margin="0,0,0,20"><TextBlock Text="&#xE93C;" FontFamily="Segoe MDL2 Assets" FontSize="38" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-                <TextBlock x:Name="SpotifyEmptyTitle" Text="Connect Spotify" FontSize="{DynamicResource TitleSize}" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                <TextBlock x:Name="SpotifyEmptyText" Text="Browse your recent albums and playlists, and like the song that's playing." Style="{StaticResource Small}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,22"/>
-                <Button x:Name="SpotifySetup" Content="Set up Spotify" Style="{StaticResource AccentButton}" HorizontalAlignment="Center" MinWidth="200"/>
-              </StackPanel>
-            </Grid>
+        <Grid x:Name="CardArea" Grid.Row="1">
+          <!-- Claude Code sessions, plan limits and usage. ClaudeCard builds the Small, Medium or Large design in ClaudeBody (docs/design/claude-watcher.md). -->
+          <Border x:Name="ClaudeCard" Style="{StaticResource Card}" AutomationProperties.Name="Claude Code">
+            <Grid x:Name="ClaudeBody"/>
           </Border>
-
-          <Border x:Name="SoundboardCard" Style="{StaticResource Card}" Padding="20">
-            <Grid><Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-              <DockPanel LastChildFill="True">
-                <Button x:Name="SoundboardRefresh" DockPanel.Dock="Right" Content="&#xE72C;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" Margin="6,0,0,0" ToolTip="Reload sounds from Discord" AutomationProperties.Name="Reload Discord sounds"/>
-                <StackPanel x:Name="SoundboardPages" DockPanel.Dock="Right" Orientation="Horizontal" Visibility="Collapsed">
-                  <Button x:Name="SoundboardPrevious" Content="&#xE76B;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" AutomationProperties.Name="Previous sound page"/>
-                  <TextBlock x:Name="SoundboardPageLabel" Width="46" TextAlignment="Center" VerticalAlignment="Center" Style="{StaticResource Caption}"/>
-                  <Button x:Name="SoundboardNext" Content="&#xE76C;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" AutomationProperties.Name="Next sound page"/>
-                </StackPanel>
-                <Border x:Name="SoundboardHeading" Margin="4,0,12,0"/>
-                <TextBlock x:Name="SoundboardChannel" Text="" Style="{StaticResource Small}" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis"/>
-              </DockPanel>
-              <UniformGrid x:Name="SoundboardGrid" Grid.Row="1" Margin="-4,0,-4,0"/>
-              <TextBlock x:Name="SoundboardStatus" Grid.Row="2" Text="" Style="{StaticResource Small}" Margin="4,6,4,0" Visibility="Collapsed" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-              <!-- Discord not running, or no sounds yet: the reason in a dashed outline in place of the pads. -->
-              <Grid x:Name="SoundboardProblem" Grid.Row="1" VerticalAlignment="Center" Margin="4,0" MinHeight="48" Visibility="Collapsed">
-                <Rectangle RadiusX="12" RadiusY="12" StrokeThickness="1.5" StrokeDashArray="3 2" Stroke="{DynamicResource Muted}"/>
-                <TextBlock x:Name="SoundboardProblemText" FontSize="15" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Margin="14,10"/>
-              </Grid>
-              <!-- Shown instead of the sounds until Discord is connected: not set up, so a dashed outline around it. -->
-              <Rectangle x:Name="SoundboardEmptyOutline" Grid.Row="1" Grid.RowSpan="2" RadiusX="12" RadiusY="12" StrokeThickness="1.5" StrokeDashArray="3 2" Stroke="{DynamicResource Muted}" Visibility="{Binding Visibility, ElementName=SoundboardEmpty}" Margin="4,0,4,4"/>
-              <StackPanel x:Name="SoundboardEmpty" Grid.Row="1" Grid.RowSpan="2" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="380" Margin="16,12" Visibility="Collapsed">
-                <TextBlock x:Name="SoundboardEmptyTitle" Text="Connect Discord" FontSize="{DynamicResource TitleSize}" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,14"/>
-                <TextBlock x:Name="SoundboardEmptyText" Text="Play soundboard sounds in the voice channel you're in." Style="{StaticResource Small}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,-8,0,14"/>
-                <Button x:Name="SoundboardSetup" Content="Set up Discord" Style="{StaticResource AccentButton}" HorizontalAlignment="Center" MinWidth="200"/>
-              </StackPanel>
-            </Grid>
-          </Border>
-
-          <Border x:Name="MixerCard" Grid.Column="2" Style="{StaticResource Card}" Margin="0,0,16,0" VerticalAlignment="Top" Height="576">
-            <!-- Full, Compact and Master arrangements (CardSizing.Mixer): rows fold away as the card gets shorter. -->
-            <Grid><Grid.RowDefinitions><RowDefinition x:Name="MixerHeaderRow" Height="34"/><RowDefinition x:Name="MixerMasterRow" Height="66"/><RowDefinition x:Name="MixerSliderRow" Height="52"/><RowDefinition x:Name="LevelRow" Height="28"/><RowDefinition x:Name="MixerAppsHeaderRow" Height="42"/><RowDefinition x:Name="MixerAppsRow" Height="*"/><RowDefinition x:Name="MixerMicrophoneRow" Height="56"/></Grid.RowDefinitions>
-              <!-- On a Master card the app list is one tap away: MixerApps swaps the master rows for the list and back. -->
-              <DockPanel><Button x:Name="MixerApps" DockPanel.Dock="Right" Content="Apps" FontSize="14" Padding="12,4" Margin="8,0,0,0" Visibility="Collapsed" AutomationProperties.Name="Show app volumes"/><Border x:Name="MixerStrip"/><TextBlock x:Name="MicState" Text="" Style="{StaticResource Caption}" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0"/><TextBlock x:Name="AudioStatus" Text="" Style="{StaticResource Caption}" Foreground="{DynamicResource Warning}" HorizontalAlignment="Right" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/></DockPanel>
-              <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="80"/></Grid.ColumnDefinitions><Button x:Name="OutputDeviceButton" Background="Transparent" BorderThickness="0" Padding="8,0" Margin="-8,0,8,0" HorizontalContentAlignment="Left" ToolTip="Choose the output device" AutomationProperties.Name="Choose output device"><StackPanel HorizontalAlignment="Left"><TextBlock Text="Master volume" FontSize="{DynamicResource TitleSize}"/><StackPanel Orientation="Horizontal" Margin="0,5,0,0"><TextBlock x:Name="AudioDevice" Text="Connecting to audio…" Style="{StaticResource Small}" MaxWidth="300"/><TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="{DynamicResource Muted}" Margin="8,2,0,0" VerticalAlignment="Center"/></StackPanel></StackPanel></Button><TextBlock x:Name="MasterPercent" Grid.Column="1" Text="—" FontSize="36" FontWeight="Light" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
-              <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="58"/><ColumnDefinition/><ColumnDefinition x:Name="MicrophoneCompactColumn" Width="0"/><ColumnDefinition x:Name="SoundSettingsColumn" Width="60"/></Grid.ColumnDefinitions><Button x:Name="MuteButton" Content="&#xE767;" Style="{StaticResource IconButton}" Background="Transparent" BorderThickness="0" ToolTip="Mute output" AutomationProperties.Name="Mute output"/><Slider x:Name="MasterSlider" Grid.Column="1" Margin="8,0" AutomationProperties.Name="Master volume"/><Button x:Name="MicrophoneCompact" Grid.Column="2" Content="&#xE720;" Style="{StaticResource IconButton}" Background="Transparent" BorderThickness="0" HorizontalAlignment="Right" Visibility="Collapsed" AutomationProperties.Name="Microphone"/><Button x:Name="SoundSettingsButton" Grid.Column="3" Content="&#xE713;" Style="{StaticResource IconButton}" Background="Transparent" BorderThickness="0" ToolTip="Open Windows sound settings" AutomationProperties.Name="Open Windows sound settings"/></Grid>
-              <!-- Live output levels sit under the master slider, where the sound is; the row collapses when they're off or paused. -->
-              <Grid Grid.Row="3"><Border x:Name="LevelHost" Height="20" VerticalAlignment="Center" Margin="66,0,68,0"/><TextBlock x:Name="LevelStatus" Text="" Style="{StaticResource Caption}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
-              <DockPanel x:Name="MixerAppsHeader" Grid.Row="4" Margin="0,14,0,0"><TextBlock Text="APPS" Style="{StaticResource Label}"/><TextBlock x:Name="SessionCount" Text="" Style="{StaticResource Small}" HorizontalAlignment="Right"/></DockPanel>
-              <Grid Grid.Row="5"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><UniformGrid x:Name="SessionPanel" Columns="1" VerticalAlignment="Top"/></ScrollViewer><TextBlock x:Name="NoSessions" Text="Apps appear here when they use audio." Style="{StaticResource Small}" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="12"/></Grid>
-              <Button x:Name="MicrophoneButton" Grid.Row="6" FontSize="16" HorizontalContentAlignment="Left" MinHeight="48" VerticalAlignment="Bottom" AutomationProperties.Name="Microphone"><StackPanel Orientation="Horizontal"><TextBlock x:Name="MicrophoneGlyph" Text="&#xE720;" FontFamily="Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBlock x:Name="MicrophoneLabel" Text="Checking microphone…" FontSize="16" VerticalAlignment="Center"/></StackPanel></Button>
-              <!-- Large cards: channel strips over the master and app rows, master first; Apps opens the list (DashboardController.Mixer). --><Grid x:Name="MixerStrips" Grid.Row="1" Grid.RowSpan="5" Margin="0,8,0,10" Visibility="Collapsed"/>
-              <Border x:Name="OutputPicker" Grid.Row="1" Grid.RowSpan="6" Margin="-8,0,-8,0" Padding="8,0" Background="{DynamicResource Surface}" Visibility="Collapsed">
-                <DockPanel>
-                  <Grid DockPanel.Dock="Top"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center"><TextBlock x:Name="OutputPickerTitle" Text="OUTPUT DEVICE" Style="{StaticResource Label}"/><TextBlock x:Name="OutputPickerSubject" FontSize="{DynamicResource TitleSize}" Margin="0,4,0,0"/></StackPanel>
-                    <Button x:Name="OutputPickerClose" Grid.Column="1" Content="&#xE8BB;" Style="{StaticResource IconButton}" Background="Transparent" BorderThickness="0" ToolTip="Close" AutomationProperties.Name="Close output devices"/>
-                  </Grid>
-                  <TextBlock x:Name="OutputPickerNote" DockPanel.Dock="Bottom" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,10,0,0"/>
-                  <ScrollViewer x:Name="OutputOptionsScroll" Margin="0,14,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel x:Name="OutputOptions"/></ScrollViewer>
-                </DockPanel>
-              </Border>
-            </Grid>
-          </Border>
-
-          <Grid x:Name="InfoColumn" Grid.Column="3">
-            <Grid.RowDefinitions><RowDefinition Height="326"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-
-            <Border x:Name="SystemCard" Style="{StaticResource Card}" Margin="0,0,0,16">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel><Border x:Name="SystemStrip"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"><TextBlock x:Name="SystemPeak" Text="" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock x:Name="SystemUptime" Text="" Style="{StaticResource Caption}" VerticalAlignment="Center" Visibility="Collapsed"/><TextBlock x:Name="SystemStatus" Text="" Style="{StaticResource Caption}" Foreground="{DynamicResource Warning}" VerticalAlignment="Center" Margin="12,0,0,0"/></StackPanel></DockPanel>
-                <!-- SystemStatsCard builds the Small, Medium or Large design here for the card's size (docs/design/widget-size-views.md). -->
-                <Grid x:Name="SystemBody" Grid.Row="1" Margin="0,8,0,0"/>
-              </Grid>
-            </Border>
-            <!-- The whole card is the refresh tap (or opens Settings → Weather while there is no city). WeatherCard builds the Small, Medium or Large design inside. -->
-            <Border x:Name="WeatherCard" Grid.Row="1" Style="{StaticResource Card}" Cursor="Hand" ToolTip="Tap to update the weather" AutomationProperties.Name="Weather. Tap to update.">
-              <Grid x:Name="WeatherBody"/>
-            </Border>
-            <!-- Free space on the fixed drives. StorageCard builds the Small, Medium or Large design in StorageBody (docs/design/storage.md). -->
-            <Border x:Name="StorageCard" Grid.Row="1" Style="{StaticResource Card}" AutomationProperties.Name="Storage">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel><Border x:Name="StorageStrip"/><TextBlock x:Name="StorageStatus" Text="" Style="{StaticResource Caption}" Foreground="{DynamicResource Warning}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"/></DockPanel>
-                <Grid x:Name="StorageBody" Grid.Row="1" Margin="0,8,0,0"/>
-              </Grid>
-            </Border>
-            <!-- Prayer times worked out on this PC. PrayerCard builds the Small, Medium or Large design in PrayerBody (docs/design/prayer-times.md). -->
-            <Border x:Name="PrayerCard" Grid.Row="1" Style="{StaticResource Card}" AutomationProperties.Name="Prayer times">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel><Border x:Name="PrayerStrip"/><TextBlock x:Name="PrayerStatus" Text="" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"/></DockPanel>
-                <Grid x:Name="PrayerBody" Grid.Row="1" Margin="0,8,0,0"/>
-                <!-- Shown while the alert plays. -->
-                <Button x:Name="PrayerStop" Grid.Row="1" Content="Stop" Style="{StaticResource AccentButton}" MinWidth="120" HorizontalAlignment="Right" VerticalAlignment="Bottom" Visibility="Collapsed" AutomationProperties.Name="Stop the prayer alert"/>
-              </Grid>
-            </Border>
-            <!-- A scratchpad and a to-do list kept on this PC. NotesCard builds the Small, Medium or Large design in NotesBody (docs/design/notes.md). -->
-            <Border x:Name="NotesCard" Grid.Row="1" Style="{StaticResource Card}" AutomationProperties.Name="Notes and to-do">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel><Border x:Name="NotesStrip"/><TextBlock x:Name="NotesStatus" Text="" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"/></DockPanel>
-                <Grid x:Name="NotesBody" Grid.Row="1" Margin="0,8,0,0"/>
-              </Grid>
-            </Border>
-            <!-- The last texts copied on this PC; a tap pastes one again. ClipboardCard builds the Small, Medium or Large design in ClipBody (docs/design/clipboard-history.md). -->
-            <Border x:Name="ClipboardCard" Grid.Row="1" Style="{StaticResource Card}" AutomationProperties.Name="Clipboard history">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel><Border x:Name="ClipboardStrip"/><TextBlock x:Name="ClipStatus" Text="" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"/></DockPanel>
-                <Grid x:Name="ClipBody" Grid.Row="1" Margin="0,8,0,0"/>
-              </Grid>
-            </Border>
-            <!-- Macros: six buttons a page, each running a chain of steps (docs/design/macros.md). DashboardController.Macros builds the buttons. -->
-            <Border x:Name="MacrosCard" Grid.Row="1" Style="{StaticResource Card}" Padding="20" AutomationProperties.Name="Macros">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel LastChildFill="True">
-                  <Button x:Name="EditMacros" DockPanel.Dock="Right" Content="Edit" FontSize="14" Padding="10,4" Margin="6,0,0,0" AutomationProperties.Name="Edit macros"/>
-                  <StackPanel x:Name="MacroPages" DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button x:Name="MacroPrevious" Content="&#xE76B;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" AutomationProperties.Name="Previous macro page"/>
-                    <TextBlock x:Name="MacroPageLabel" Width="46" TextAlignment="Center" VerticalAlignment="Center" Style="{StaticResource Caption}"/>
-                    <Button x:Name="MacroNext" Content="&#xE76C;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" AutomationProperties.Name="Next macro page"/>
-                  </StackPanel>
-                  <Border x:Name="MacroHeading" Margin="4,0,4,0"/>
-                </DockPanel>
-                <UniformGrid x:Name="MacroGrid" Grid.Row="1" Columns="3" Rows="2"/>
-                <Button x:Name="EmptyMacros" Grid.Row="1" Content="Add a macro" Visibility="Collapsed" Margin="4" FontSize="16"/>
-              </Grid>
-            </Border>
-            <!-- Calendar and agenda from read-only ICS feeds. CalendarCard builds the Small, Medium or Large design in CalendarBody (docs/design/calendar.md). The whole card is the refresh tap. -->
-            <Border x:Name="CalendarCard" Grid.Row="1" Style="{StaticResource Card}" Cursor="Hand" ToolTip="Tap to update the calendars" AutomationProperties.Name="Calendar. Tap to update.">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel><Border x:Name="CalendarStrip"/><TextBlock x:Name="CalendarStatus" Text="" Style="{StaticResource Caption}" Foreground="{DynamicResource Warning}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"/></DockPanel>
-                <Grid x:Name="CalendarBody" Grid.Row="1" Margin="0,8,0,0"/>
-              </Grid>
-            </Border>
-            <!-- Games: installed games from Steam, Epic and the Xbox app, six a page (docs/design/games.md). DashboardController.Games builds the buttons. -->
-            <Border x:Name="GamesCard" Grid.Row="1" Style="{StaticResource Card}" Padding="20" AutomationProperties.Name="Games">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel LastChildFill="True">
-                  <Button x:Name="GamesRefresh" DockPanel.Dock="Right" Content="&#xE72C;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" Margin="6,0,0,0" ToolTip="Look for games again" AutomationProperties.Name="Look for games again"/>
-                  <StackPanel x:Name="GamesPages" DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button x:Name="GamesPrevious" Content="&#xE76B;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" AutomationProperties.Name="Previous games page"/>
-                    <TextBlock x:Name="GamesPageLabel" Width="46" TextAlignment="Center" VerticalAlignment="Center" Style="{StaticResource Caption}"/>
-                    <Button x:Name="GamesNext" Content="&#xE76C;" Style="{StaticResource IconButton}" FontSize="16" Padding="6" AutomationProperties.Name="Next games page"/>
-                  </StackPanel>
-                  <Border x:Name="GamesHeading" Margin="4,0,4,0"/>
-                </DockPanel>
-                <UniformGrid x:Name="GamesGrid" Grid.Row="1" Columns="3" Rows="2"/>
-                <TextBlock x:Name="GamesEmpty" Grid.Row="1" Text="" Style="{StaticResource Caption}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="4"/>
-              </Grid>
-            </Border>
-            <!-- Smart home: the Home Assistant devices chosen in Settings → Home. HomeCard builds the Small, Medium or Large design in HomeBody (docs/design/smart-home.md). -->
-            <Border x:Name="HomeCard" Grid.Row="1" Style="{StaticResource Card}" AutomationProperties.Name="Smart home">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel><Border x:Name="HomeStrip"/><TextBlock x:Name="HomeStatus" Text="" Style="{StaticResource Caption}" Foreground="{DynamicResource Warning}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"/></DockPanel>
-                <Grid x:Name="HomeBody" Grid.Row="1" Margin="-4,4,-4,-4"/>
-              </Grid>
-            </Border>
-            <!-- World clocks: up to three time zones. WorldClocksCard builds the Small, Medium or Large design in ClocksBody (docs/design/world-clocks.md). -->
-            <Border x:Name="ClocksCard" Grid.Row="1" Style="{StaticResource Card}" AutomationProperties.Name="World clocks">
-              <Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition/></Grid.RowDefinitions>
-                <DockPanel><Border x:Name="ClocksStrip"/><TextBlock x:Name="ClocksStatus" Text="" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"/></DockPanel>
-                <Grid x:Name="ClocksBody" Grid.Row="1" Margin="0,8,0,0"/>
-              </Grid>
-            </Border>
-            <!-- Claude Code sessions, plan limits and usage. ClaudeCard builds the Small, Medium or Large design in ClaudeBody (docs/design/claude-watcher.md). -->
-            <Border x:Name="ClaudeCard" Grid.Row="1" Style="{StaticResource Card}" AutomationProperties.Name="Claude Code">
-              <Grid x:Name="ClaudeBody"/>
-            </Border>
-          </Grid>
         </Grid>
 
-        <DockPanel Grid.Row="2" VerticalAlignment="Bottom"><TextBlock x:Name="StatusMessage" Text="" Style="{StaticResource Small}" MaxWidth="1380"/><TextBlock x:Name="DisplayStatus" Text="" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel>
-      </Grid>
-
-      <!-- Edit layout's list, the same as the phone's: a check mark per widget and the layout pages. Tapping outside closes it. -->
-      <Grid x:Name="EditPanelLayer" Visibility="Collapsed" Background="Transparent">
-        <Border x:Name="EditPanel" Background="{DynamicResource Raised}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="16" Width="460" Padding="16,12" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,92,332,52">
-          <ScrollViewer VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly"><StackPanel x:Name="EditPanelContent"/></ScrollViewer>
-        </Border>
+        <DockPanel Grid.Row="2" VerticalAlignment="Bottom"><TextBlock x:Name="StatusMessage" Text="" Style="{StaticResource Small}" MaxWidth="1380"/></DockPanel>
       </Grid>
 
       <Grid x:Name="SettingsOverlay" Visibility="Collapsed" Background="#E80C0E13" KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle">
-        <Border x:Name="SettingsCard" Style="{StaticResource Card}" Width="1440" Height="672" Padding="28" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="{DynamicResource ControlBorder}">
+        <Border x:Name="SettingsCard" Style="{StaticResource Card}" MaxWidth="1440" MaxHeight="672" Margin="16" Padding="28" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="{DynamicResource ControlBorder}">
           <Border.Resources>
             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="MinHeight" Value="52"/></Style>
             <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="MinHeight" Value="52"/></Style>
@@ -646,8 +249,6 @@
               <ComboBox x:Name="ThemeChoice" AutomationProperties.Name="Theme"/>
               <TextBlock Text="Accent color" Style="{StaticResource Small}" Margin="0,10,0,6"/>
               <ComboBox x:Name="AccentChoice" AutomationProperties.Name="Accent color"/>
-              <TextBlock Text="Widget colours" Style="{StaticResource Small}" Margin="0,10,0,6"/>
-              <ComboBox x:Name="InkModeChoice" AutomationProperties.Name="Widget colours" ToolTip="Each its own: every widget wears its ink (change one in Edit layout). Accent only: every widget wears the accent colour."/>
               <DockPanel Margin="0,14,0,0">
               <TextBlock Text="Widget corners" Style="{StaticResource Small}"/>
               <TextBlock x:Name="CornersLabel" Style="{StaticResource Small}" HorizontalAlignment="Right"/>
@@ -662,336 +263,10 @@
               <TextBlock x:Name="ScaleLabel" Style="{StaticResource Small}" HorizontalAlignment="Right"/>
               </DockPanel>
               <Slider x:Name="ScaleChoice" Minimum="90" Maximum="140" TickFrequency="5" IsSnapToTickEnabled="True" AutomationProperties.Name="Text size"/>
-              <TextBlock Text="Above 115% some cards show less at once; give them more room in Edit layout." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,4,0,8"/>
+              <TextBlock Text="Above 115% the card shows less at once; a bigger window gives it more room." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,4,0,8"/>
               <CheckBox x:Name="ClockChoice" Content="Use a 24-hour clock"/>
-              <CheckBox x:Name="LevelsChoice" Content="Show live output levels"/>
-              <TextBlock Text="The moving bars under the sound mixer. Quiet mode pauses them too." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="38,0,0,16"/>
-              <CheckBox x:Name="FocusChimeChoice" Content="Play a chime when a focus session ends"/>
-              <TextBlock Text="The card lights up either way. Quiet mode keeps the chime off." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="38,0,0,16"/>
               </StackPanel>
               </Grid>
-              </TabItem>
-              <TabItem Header="Display">
-              <StackPanel MaxWidth="780" HorizontalAlignment="Left">
-              <TextBlock Text="Display" FontSize="24" Margin="0,0,0,10"/>
-              <TextBlock Text="Choose the monitor the dashboard fills in fullscreen." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <TextBlock Text="Secondary display" Style="{StaticResource Small}" Margin="0,10,0,6"/>
-              <ComboBox x:Name="MonitorChoice" AutomationProperties.Name="Secondary display"/>
-              <CheckBox x:Name="StartFullscreenChoice" Content="Open fullscreen on this display at launch" Margin="0,10,0,0"/>
-              <TextBlock Text="If this display is unplugged, another secondary display is used. With none connected, the dashboard opens in a window on your main screen." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,8,0,12"/>
-              <TextBlock Text="F11 switches between fullscreen and a window. Escape leaves fullscreen." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <CheckBox x:Name="KeepFocusChoice" Content="Keep the focus on the game or app I'm using"/>
-              <TextBlock Text="Tapping the dashboard won't take the keyboard away from your main screen. Tapping a text box still does, so you can type. F11 and Escape only work after that." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="38,0,0,16"/>
-              </StackPanel>
-              </TabItem>
-              <TabItem Header="Widgets">
-              <Grid>
-              <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="740"/>
-              <ColumnDefinition Width="32"/>
-              <ColumnDefinition/>
-              </Grid.ColumnDefinitions>
-              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
-              <StackPanel Margin="0,0,12,0">
-              <TextBlock Text="Layout" FontSize="24" Margin="0,0,0,10"/>
-              <TextBlock Text="Arrange widgets right on the dashboard: drag to move, stretch a corner to resize, and show or hide each one. Undo, snapping to other widgets, Arrange and Reset are in the editor." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <Button x:Name="OpenLayoutEditor" Content="Edit layout" HorizontalAlignment="Left" MinWidth="200" Margin="0,0,0,12"/>
-              <TextBlock Text="Opening the editor closes Settings without saving other changes here." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <TextBlock Text="World clocks" FontSize="24" Margin="0,8,0,10"/>
-              <TextBlock Text="Up to three time zones for the World clocks widget, each with the city name it shows. Times come from Windows, so nothing is looked up online." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-              <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition Width="220"/></Grid.ColumnDefinitions>
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <TextBlock Text="Time zone" Style="{StaticResource Small}" Margin="0,0,0,6"/>
-                <TextBlock Grid.Column="2" Text="City name" Style="{StaticResource Small}" Margin="0,0,0,6"/>
-                <ComboBox x:Name="ClockZone0" Grid.Row="1" Margin="0,0,0,8" AutomationProperties.Name="Time zone 1"/>
-                <TextBox x:Name="ClockName0" Grid.Row="1" Grid.Column="2" MaxLength="24" Margin="0,0,0,8" AutomationProperties.Name="City name 1" ToolTip="The name the card shows"/>
-                <ComboBox x:Name="ClockZone1" Grid.Row="2" Margin="0,0,0,8" AutomationProperties.Name="Time zone 2"/>
-                <TextBox x:Name="ClockName1" Grid.Row="2" Grid.Column="2" MaxLength="24" Margin="0,0,0,8" AutomationProperties.Name="City name 2" ToolTip="The name the card shows"/>
-                <ComboBox x:Name="ClockZone2" Grid.Row="3" Margin="0,0,0,8" AutomationProperties.Name="Time zone 3"/>
-                <TextBox x:Name="ClockName2" Grid.Row="3" Grid.Column="2" MaxLength="24" Margin="0,0,0,8" AutomationProperties.Name="City name 3" ToolTip="The name the card shows"/>
-              </Grid>
-              <TextBlock Text="Choose None to remove a clock. An empty name uses the zone's first city." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <TextBlock Text="Clipboard history" FontSize="24" Margin="0,8,0,10"/>
-              <TextBlock Text="The Clipboard widget keeps the last texts you copy on this PC, only while it's on a page. Tap one to paste it into the app you're using. Text that password managers mark as private is never kept." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-              <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
-                <Slider x:Name="ClipSizeChoice" Minimum="5" Maximum="50" SmallChange="1" LargeChange="5" IsSnapToTickEnabled="True" TickFrequency="1" AutomationProperties.Name="Texts to keep"/>
-                <TextBlock x:Name="ClipSizeLabel" Grid.Column="1" Text="10 texts" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-              </Grid>
-              <CheckBox x:Name="ClipKeepChoice" Content="Keep the history when Widget Screen closes" Margin="0,8,0,0"/>
-              <TextBlock Text="Off, the history is only in memory and is gone when the app closes. On, it's saved encrypted for your Windows account." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="38,0,0,16"/>
-              </StackPanel>
-              </ScrollViewer>
-              <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
-              <StackPanel Margin="0,0,12,0">
-              <TextBlock Text="Games" FontSize="24" Margin="0,0,0,10"/>
-              <TextBlock Text="The Games widget lists the games installed from these stores, recently played first, and a tap starts one. Playtime shows where the store keeps it on this PC (Steam); Epic and the Xbox app keep it online, so their games show none." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-              <CheckBox x:Name="SteamGamesChoice" Content="Steam"/>
-              <CheckBox x:Name="EpicGamesChoice" Content="Epic Games"/>
-              <CheckBox x:Name="XboxGamesChoice" Content="Xbox app and Microsoft Store"/>
-              <TextBlock Text="Storage" FontSize="24" Margin="0,24,0,10"/>
-              <TextBlock Text="The Storage widget shows free space on this PC's drives. A drive with less free space than this turns to the warning colour." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-              <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
-                <Slider x:Name="StorageLowChoice" Minimum="1" Maximum="50" SmallChange="1" LargeChange="5" IsSnapToTickEnabled="True" TickFrequency="1" AutomationProperties.Name="Low space warning"/>
-                <TextBlock x:Name="StorageLowLabel" Grid.Column="1" Text="10% free" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-              </Grid>
-              <TextBlock Text="Drives are read once a minute while the widget is shown (every two minutes in Quiet mode). Network and removable drives aren't listed." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,8,0,16"/>
-              </StackPanel>
-              </ScrollViewer>
-              </Grid>
-              </TabItem>
-              <TabItem Header="Stats">
-              <Grid>
-              <Grid.ColumnDefinitions><ColumnDefinition Width="640"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
-              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
-              <StackPanel Margin="0,0,12,0">
-              <TextBlock Text="System stats" FontSize="24" Margin="0,0,0,10"/>
-              <TextBlock Text="Choose the readings the System stats widget shows, and how each one is drawn: a history line, bars, a sparkline, a ring or a gauge. Auto uses rings and gauges on medium cards and history lines on large ones." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,14"/>
-                <Grid Margin="0,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="CpuChoice" Content="CPU usage" Margin="0,0,12,8"/><ComboBox x:Name="CpuStyle" Grid.Column="1" Width="190" Margin="0,0,0,8" AutomationProperties.Name="CPU usage graph" ToolTip="How the card draws it: Auto picks rings and gauges on medium cards and history lines on large ones"/></Grid>
-                <Grid Margin="0,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="CpuTempChoice" Content="CPU temperature" Margin="0,0,12,8"/><ComboBox x:Name="CpuTempStyle" Grid.Column="1" Width="190" Margin="0,0,0,8" AutomationProperties.Name="CPU temperature graph" ToolTip="How the card draws it: Auto picks rings and gauges on medium cards and history lines on large ones"/></Grid>
-                <Grid Margin="0,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="GpuChoice" Content="GPU usage" Margin="0,0,12,8"/><ComboBox x:Name="GpuStyle" Grid.Column="1" Width="190" Margin="0,0,0,8" AutomationProperties.Name="GPU usage graph" ToolTip="How the card draws it: Auto picks rings and gauges on medium cards and history lines on large ones"/></Grid>
-                <Grid Margin="0,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="GpuTempChoice" Content="GPU temperature" Margin="0,0,12,8"/><ComboBox x:Name="GpuTempStyle" Grid.Column="1" Width="190" Margin="0,0,0,8" AutomationProperties.Name="GPU temperature graph" ToolTip="How the card draws it: Auto picks rings and gauges on medium cards and history lines on large ones"/></Grid>
-                <Grid Margin="0,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="VramChoice" Content="Video memory (VRAM)" Margin="0,0,12,8"/><ComboBox x:Name="VramStyle" Grid.Column="1" Width="190" Margin="0,0,0,8" AutomationProperties.Name="Video memory (VRAM) graph" ToolTip="How the card draws it: Auto picks rings and gauges on medium cards and history lines on large ones"/></Grid>
-                <Grid Margin="0,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="RamChoice" Content="Memory (RAM) usage" Margin="0,0,12,8"/><ComboBox x:Name="RamStyle" Grid.Column="1" Width="190" Margin="0,0,0,8" AutomationProperties.Name="Memory (RAM) usage graph" ToolTip="How the card draws it: Auto picks rings and gauges on medium cards and history lines on large ones"/></Grid>
-                <Grid Margin="0,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="FpsChoice" Content="Frame rate (FPS) of the game in front" Margin="0,0,12,8"/><ComboBox x:Name="FpsStyle" Grid.Column="1" Width="190" Margin="0,0,0,8" AutomationProperties.Name="Frame rate (FPS) of the game in front graph" ToolTip="How the card draws it: Auto picks rings and gauges on medium cards and history lines on large ones"/></Grid>
-                <Grid Margin="0,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="NetworkChoice" Content="Network speed" Margin="0,0,12,8"/><ComboBox x:Name="NetworkStyle" Grid.Column="1" Width="190" Margin="0,0,0,8" AutomationProperties.Name="Network speed graph" ToolTip="How the card draws it: Auto picks rings and gauges on medium cards and history lines on large ones"/></Grid>
-                <Grid Margin="0,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="UptimeChoice" Content="Time since restart" Margin="0,0,12,8"/></Grid>
-              <TextBlock Text="Hidden readings stop updating. Turn them all off to hide the widget. Temperatures use the units in Settings → Weather. A reading this PC can't give says why instead of showing a number." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,6,0,16"/>
-              </StackPanel>
-              </ScrollViewer>
-              <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
-              <StackPanel Margin="0,0,12,0">
-              <TextBlock Text="Hardware sensors" FontSize="24" Margin="0,0,0,10"/>
-              <TextBlock x:Name="SensorPackageStatus" Text="" TextWrapping="Wrap" FontSize="{DynamicResource BodySize}" Margin="0,0,0,8"/>
-              <TextBlock Text="GPU usage, temperature and video memory come from Windows and work without anything else. CPU temperatures come from LibreHardwareMonitor, which setup installs when you tick Install hardware sensors." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <TextBlock Text="Full-sensors mode" FontSize="20" Margin="0,0,0,8"/>
-              <TextBlock x:Name="FullSensorsStatus" Text="Off." TextWrapping="Wrap" FontSize="{DynamicResource BodySize}" Margin="0,0,0,8"/>
-              <TextBlock Text="CPU temperatures and frame counting need administrator rights. Full-sensors mode starts Widget Screen with them through a Windows task you approve once (Windows asks when you turn it on and off). Apps you start from Quick Launch, macros and Games still start without administrator rights." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-              <WrapPanel><Button x:Name="FullSensorsOn" Content="Turn on full-sensors mode" Style="{StaticResource AccentButton}" MinHeight="52" Margin="0,0,8,8"/><Button x:Name="FullSensorsOff" Content="Turn off" MinHeight="52" Margin="0,0,8,8"/><Button x:Name="FullSensorsRestart" Content="Restart now" MinHeight="52" Margin="0,0,8,8"/></WrapPanel>
-              <TextBlock Text="PawnIO driver" FontSize="20" Margin="0,8,0,8"/>
-              <TextBlock x:Name="PawnIOStatus" Text="" TextWrapping="Wrap" FontSize="{DynamicResource BodySize}" Margin="0,0,0,8"/>
-              <TextBlock Text="LibreHardwareMonitor reads CPU temperatures through the PawnIO driver. Widget Screen and its setup never install drivers: get PawnIO from its own site if you want CPU temperatures." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-              <Button x:Name="PawnIOLink" Content="Open pawnio.eu" HorizontalAlignment="Left" MinHeight="52" Margin="0,0,0,16" ToolTip="https://pawnio.eu opens in your browser"/>
-              <TextBlock Text="Frame rate" FontSize="20" Margin="0,0,0,8"/>
-              <TextBlock x:Name="FpsStatus" Text="" TextWrapping="Wrap" Style="{StaticResource Small}" Margin="0,0,0,16"/>
-              </StackPanel>
-              </ScrollViewer>
-              </Grid>
-              </TabItem>
-              <TabItem Header="Weather">
-              <StackPanel MaxWidth="780" HorizontalAlignment="Left">
-              <TextBlock Text="Weather" FontSize="24" Margin="0,0,0,10"/>
-              <TextBlock Text="Show current conditions for one city. The Weather widget starts hidden; turn it on in Edit layout." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              <TextBlock Text="City" Style="{StaticResource Small}" Margin="0,0,0,6"/>
-              <Grid>
-              <Grid.ColumnDefinitions>
-              <ColumnDefinition/>
-              <ColumnDefinition Width="130"/>
-              </Grid.ColumnDefinitions>
-              <TextBox x:Name="CitySearch" AutomationProperties.Name="Search city" ToolTip="City name"/>
-              <Button x:Name="SearchCityButton" Grid.Column="1" Content="Search" Margin="10,0,0,0" FontSize="16"/>
-              </Grid>
-              <ComboBox x:Name="CityResults" Margin="0,12,0,0" AutomationProperties.Name="City results" Visibility="Collapsed"/>
-              <TextBlock Text="Units" Style="{StaticResource Small}" Margin="0,14,0,6"/>
-              <ComboBox x:Name="WeatherUnitsChoice" AutomationProperties.Name="Weather units"/>
-              <Button x:Name="ClearCityButton" Content="Turn weather off" Margin="0,14,0,16" HorizontalAlignment="Left" FontSize="15"/>
-              <TextBlock Text="Search sends the city name to Open-Meteo. No account is needed. Once saved, weather updates every 15 minutes, and a tap on the card updates it now." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-              </StackPanel>
-              </TabItem>
-              <TabItem Header="Prayer">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="740"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Prayer times" FontSize="24" Margin="0,0,0,10"/>
-                    <TextBlock Text="Today's five prayers for one city, worked out on this PC from the sun's position. The Prayer times widget starts hidden; turn it on in Edit layout." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-                    <TextBlock Text="City" Style="{StaticResource Small}" Margin="0,0,0,6"/>
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="130"/></Grid.ColumnDefinitions>
-                      <TextBox x:Name="PrayerCitySearch" AutomationProperties.Name="Search prayer city" ToolTip="City name"/>
-                      <Button x:Name="PrayerSearchButton" Grid.Column="1" Content="Search" Margin="10,0,0,0" FontSize="16"/>
-                    </Grid>
-                    <ComboBox x:Name="PrayerCityResults" Margin="0,12,0,0" AutomationProperties.Name="Prayer city results" Visibility="Collapsed"/>
-                    <TextBlock x:Name="PrayerCityNote" Text="" TextWrapping="Wrap" Margin="0,12,0,8"/>
-                    <Button x:Name="PrayerUseWeather" Content="Use the weather city" HorizontalAlignment="Left" FontSize="15" Margin="0,0,0,16"/>
-                    <TextBlock Text="Calculation method" Style="{StaticResource Small}" Margin="0,0,0,6"/>
-                    <ComboBox x:Name="PrayerMethodChoice" AutomationProperties.Name="Prayer calculation method"/>
-                    <TextBlock Text="Asr" Style="{StaticResource Small}" Margin="0,14,0,6"/>
-                    <ComboBox x:Name="PrayerAsrChoice" AutomationProperties.Name="Asr school"/>
-                    <TextBlock Text="Search sends the city name to Open-Meteo, like the weather city. The times themselves are worked out here, with no account and no internet." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,16,0,16"/>
-                  </StackPanel></ScrollViewer>
-                  <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Alert" FontSize="24" Margin="0,0,0,10"/>
-                    <CheckBox x:Name="PrayerAlertChoice" Content="Play a sound on this PC at each prayer time"/>
-                    <TextBlock Text="Quiet mode keeps it silent. A Stop button shows on the card while it plays, and on your phone." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="38,0,0,16"/>
-                    <TextBlock Text="Sound" Style="{StaticResource Small}" Margin="0,0,0,6"/>
-                    <TextBox x:Name="PrayerSoundPath" IsReadOnly="True" AutomationProperties.Name="Prayer alert sound file"/>
-                    <WrapPanel Margin="0,10,0,0"><Button x:Name="PrayerSoundBrowse" Content="Choose a file…" Margin="0,0,8,8"/><Button x:Name="PrayerSoundDefault" Content="Use the chime" Margin="0,0,8,8"/><Button x:Name="PrayerSoundTest" Content="Play" Margin="0,0,8,8"/></WrapPanel>
-                    <TextBlock Text="An MP3, WAV, WMA, M4A or AAC file of your choice, such as an adhan recording. With none, a short chime plays." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,4,0,16"/>
-                    <TextBlock Text="Calculated times can differ by a minute or two from your mosque's timetable." Style="{StaticResource Small}" TextWrapping="Wrap"/>
-                  </StackPanel></ScrollViewer>
-                </Grid>
-              </TabItem>
-              <TabItem Header="Calendar">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="740"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Calendars" FontSize="24" Margin="0,0,0,10"/>
-                    <TextBlock Text="The Calendar widget shows what's next from up to eight read-only calendar feeds (.ics addresses). It starts hidden; turn it on in Edit layout." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <StackPanel x:Name="CalendarFeedList" Margin="0,0,0,8"/>
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="12"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                      <StackPanel><TextBlock Text="Name" Style="{StaticResource Small}" Margin="0,0,0,6"/><TextBox x:Name="CalendarFeedName" MaxLength="30" AutomationProperties.Name="Calendar name"/></StackPanel>
-                      <StackPanel Grid.Column="2"><TextBlock Text="iCal address" Style="{StaticResource Small}" Margin="0,0,0,6"/><TextBox x:Name="CalendarFeedUrl" MaxLength="2048" FontSize="16" AutomationProperties.Name="Calendar iCal address"/></StackPanel>
-                      <Button x:Name="CalendarFeedAdd" Grid.Column="3" Content="Add" VerticalAlignment="Bottom" Margin="10,0,0,0" MinWidth="90"/>
-                    </Grid>
-                    <TextBlock Text="Addresses are kept encrypted for your Windows account and shown shortened. Calendars update every 15 minutes while the widget is shown (30 in Quiet mode); a tap on the card updates them now." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,12,0,16"/>
-                  </StackPanel></ScrollViewer>
-                  <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Where to find the address" FontSize="24" Margin="0,0,0,12"/>
-                    <TextBlock Text="Google Calendar: on the web, open Settings, choose the calendar under Settings for my calendars, and copy &quot;Secret address in iCal format&quot;." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="Outlook: on the web, open Settings → Calendar → Shared calendars, publish a calendar, and copy its ICS link." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="Anyone with the address can read that calendar, so treat it like a password. The widget only reads; it can't change your calendar. Signing in with a Google or Microsoft account instead would need an app registered with them." Style="{StaticResource Small}" TextWrapping="Wrap"/>
-                  </StackPanel></ScrollViewer>
-                </Grid>
-              </TabItem>
-              <TabItem Header="Home">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="640"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Home Assistant" FontSize="24" Margin="0,0,0,10"/>
-                    <TextBlock Text="The Smart home widget turns your Home Assistant lights, switches and plugs on and off, dims lights and sets thermostats. It starts hidden; turn it on in Edit layout." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <TextBlock x:Name="HomeConnectionStatus" Text="Not connected." TextWrapping="Wrap" Margin="0,0,0,12" FontSize="{DynamicResource BodySize}"/>
-                    <TextBlock Text="Address" Style="{StaticResource Small}" Margin="0,0,0,6"/>
-                    <TextBox x:Name="HomeAddress" MaxLength="200" AutomationProperties.Name="Home Assistant address" ToolTip="For example http://homeassistant.local:8123"/>
-                    <TextBlock Text="Long-lived access token" Style="{StaticResource Small}" Margin="0,12,0,6"/>
-                    <PasswordBox x:Name="HomeToken" MaxLength="1000" AutomationProperties.Name="Home Assistant long-lived access token"/>
-                    <WrapPanel Margin="0,12,0,0"><Button x:Name="HomeConnect" Content="Connect" Style="{StaticResource AccentButton}" MinHeight="52" MinWidth="140" Margin="0,0,8,8"/><Button x:Name="HomeDisconnect" Content="Disconnect" Margin="0,0,8,8"/></WrapPanel>
-                    <TextBlock Text="Connecting takes effect right away. Make the token in Home Assistant under your profile → Security → Long-lived access tokens. It's kept encrypted for your Windows account and only sent to Home Assistant on your home network; addresses on the internet are refused." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,4,0,12"/>
-                  </StackPanel></ScrollViewer>
-                  <Grid Grid.Column="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/></Grid.RowDefinitions>
-                    <StackPanel><TextBlock Text="Devices on the card" FontSize="24" Margin="0,0,0,8"/><TextBlock Text="Tick up to 24 lights, switches (plugs are switches) and thermostats. Saved with Save changes." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,8"/></StackPanel>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel x:Name="HomeChoices" Margin="0,0,12,0"/></ScrollViewer>
-                  </Grid>
-                </Grid>
-              </TabItem>
-                            <TabItem Header="Spotify">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="740"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Connection" FontSize="24" Margin="0,0,0,12"/>
-                    <TextBlock x:Name="SpotifyConnectionStatus" Text="Not connected" TextWrapping="Wrap" Margin="0,0,0,12" FontSize="{DynamicResource BodySize}"/>
-                    <TextBlock Text="Client ID from your Spotify developer app" Style="{StaticResource Small}"/>
-                    <TextBox x:Name="SpotifyClientId" MaxLength="32" Margin="0,8,0,12" AutomationProperties.Name="Spotify Developer app Client ID"/>
-                    <WrapPanel><Button x:Name="SpotifySaveId" Content="Save Client ID" Margin="0,0,8,8"/><Button x:Name="SpotifyConnectButton" Content="Connect Spotify" Style="{StaticResource AccentButton}" MinHeight="52" Margin="0,0,8,8"/><Button x:Name="SpotifyDisconnect" Content="Disconnect" Margin="0,0,8,8"/><Button x:Name="SpotifyCancelConnect" Content="Cancel sign-in" Visibility="Collapsed" Margin="0,0,8,8"/></WrapPanel>
-                    <TextBlock Text="Account changes take effect right away; you don't need to save. Disconnecting keeps your Client ID. Your sign-in is encrypted for your Windows account." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,8,0,12"/>
-                  </StackPanel></ScrollViewer>
-                  <StackPanel Grid.Column="2">
-                    <TextBlock Text="First-time setup" FontSize="24" Margin="0,0,0,12"/>
-                    <TextBlock Text="1.  Create a Web API app in Spotify for Developers and add your Spotify account to its users." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <Button x:Name="SpotifyDeveloper" Content="Open Developer Dashboard" HorizontalAlignment="Left" Margin="0,0,0,16"/>
-                    <TextBlock Text="2.  Add this exact redirect address to the app:" Style="{StaticResource Small}"/>
-                    <TextBox Text="http://127.0.0.1:43827/callback" IsReadOnly="True" Margin="0,8,0,16" AutomationProperties.Name="Spotify redirect address"/>
-                    <TextBlock Text="3.  Paste the app's Client ID on the left and tap Connect Spotify. No client secret is needed." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-                    <TextBlock Text="Your browser asks you to allow access to your current song, recent albums, playlists, likes and playback. Playing songs from the widget needs Spotify Premium." Style="{StaticResource Small}" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Grid>
-              </TabItem>
-              <TabItem Header="Quick Launch">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="320"/><ColumnDefinition Width="24"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <DockPanel Margin="0,0,0,10"><Button x:Name="DeckAdd" DockPanel.Dock="Right" Content="+ Add" FontSize="16"/><TextBlock x:Name="DeckCount" Text="Your buttons" FontSize="22" VerticalAlignment="Center"/></DockPanel>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel x:Name="DeckButtonList" Margin="0,0,8,0"/></ScrollViewer>
-                    <Grid Grid.Row="2" Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                      <Button x:Name="DeckMoveUp" Content="&#xE70E;" Style="{StaticResource IconButton}" Margin="0,0,8,0" AutomationProperties.Name="Move button earlier"/>
-                      <Button x:Name="DeckMoveDown" Grid.Column="1" Content="&#xE70D;" Style="{StaticResource IconButton}" Margin="0,0,8,0" AutomationProperties.Name="Move button later"/>
-                      <Button x:Name="DeckRemove" Grid.Column="2" Content="Remove" FontSize="15" Padding="8"/>
-                    </Grid>
-                  </Grid>
-                  <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
-                    <StackPanel Margin="0,0,12,0">
-                      <TextBlock x:Name="DeckEditorEmpty" Text="Tap + Add, then choose what the new button does. Drag a button up or down the list to reorder it." TextWrapping="Wrap" Margin="0,12"/>
-                      <StackPanel x:Name="DeckFields">
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition Width="200"/><ColumnDefinition Width="16"/><ColumnDefinition Width="190"/></Grid.ColumnDefinitions>
-                          <StackPanel><TextBlock Text="Button name" Style="{StaticResource Small}"/><TextBox x:Name="DeckName" MaxLength="40" Margin="0,6,0,10" AutomationProperties.Name="Button name"/></StackPanel>
-                          <StackPanel Grid.Column="2"><TextBlock Text="Icon" Style="{StaticResource Small}"/><ComboBox x:Name="DeckIcon" Margin="0,6,0,10" AutomationProperties.Name="Button icon"/></StackPanel>
-                          <StackPanel Grid.Column="4"><TextBlock Text="Icon color" Style="{StaticResource Small}"/><ComboBox x:Name="DeckColor" Margin="0,6,0,10" AutomationProperties.Name="Button icon color"/></StackPanel>
-                        </Grid>
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                          <StackPanel><TextBlock Text="Action" Style="{StaticResource Small}"/><ComboBox x:Name="DeckAction" Margin="0,6,0,10" AutomationProperties.Name="Button action type"/></StackPanel>
-                          <StackPanel Grid.Column="2"><TextBlock Text="Or use a preset" Style="{StaticResource Small}"/><ComboBox x:Name="DeckPreset" Margin="0,6,0,10" AutomationProperties.Name="Button preset"/></StackPanel>
-                        </Grid>
-                        <StackPanel x:Name="DeckTargetFields">
-                          <TextBlock x:Name="DeckTargetLabel" Text="Target" Style="{StaticResource Small}"/>
-                          <Grid Margin="0,6,0,10"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
-                            <TextBox x:Name="DeckTarget" MaxLength="2048" FontSize="16" AutomationProperties.Name="Button target"/>
-                            <Button x:Name="DeckBrowse" Grid.Column="1" Content="Browse…" Margin="10,0,0,0" FontSize="15" Padding="8"/>
-                          </Grid>
-                        </StackPanel>
-                        <StackPanel x:Name="DeckAppFields">
-                          <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Text="Start menu app" Style="{StaticResource Small}" Margin="0,0,0,6"/>
-                            <TextBlock Grid.Column="2" Text="Filter the list by name" Style="{StaticResource Small}" Margin="0,0,0,6"/>
-                            <ComboBox x:Name="DeckApps" Grid.Row="1" AutomationProperties.Name="Start menu apps" ToolTip="Choose an app from your Start menu"/>
-                            <TextBox x:Name="DeckAppSearch" Grid.Row="1" Grid.Column="2" AutomationProperties.Name="Filter Start menu apps" ToolTip="Filter Start menu apps" FontSize="16"/>
-                          </Grid>
-                          <Expander Header="Launch arguments (optional)" Margin="0,0,0,8" Foreground="{DynamicResource Text}" FontSize="15"><StackPanel><TextBox x:Name="DeckArguments" MaxLength="2048" Margin="0,8,0,6" AutomationProperties.Name="Application arguments"/><TextBlock Text="Passed to the app as typed. You'll be asked to confirm each time the button runs." Style="{StaticResource Small}" TextWrapping="Wrap"/></StackPanel></Expander>
-                        </StackPanel>
-                        <ComboBox x:Name="DeckControl" Margin="0,0,0,10" AutomationProperties.Name="Dashboard or media control"/>
-                        <TextBlock x:Name="DeckHelp" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                        <CheckBox x:Name="DeckConfirm" Content="Ask before running this button"/>
-                        <TextBlock Text="Extra buttons continue on more pages in the widget. Drag a button up or down the list to reorder it." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,6,0,0"/>
-                      </StackPanel>
-                    </StackPanel>
-                  </ScrollViewer>
-                </Grid>
-              </TabItem>
-              <TabItem Header="Macros">
-                <!-- MacroEditor builds the list of macros and the step editor here. -->
-                <Grid x:Name="MacroEditorHost"/>
-              </TabItem>
-              <TabItem Header="Phone">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="740"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Phone remote" FontSize="24" Margin="0,0,0,12"/>
-                    <TextBlock Text="Use the Widget Screen app on your Android phone to see this dashboard and control this PC over your home Wi-Fi." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <CheckBox x:Name="RemoteEnabledChoice" Content="Let my phone control this PC"/>
-                    <CheckBox x:Name="RemoteTrayChoice" Content="Move to the tray while my phone shows the dashboard" ToolTip="Hides Widget Screen from the taskbar while a paired phone is connected, and brings it back a minute after the phone stops."/>
-                    <TextBlock x:Name="RemoteStatus" Text="" TextWrapping="Wrap" Margin="0,8,0,12" FontSize="{DynamicResource BodySize}"/>
-                    <WrapPanel><Button x:Name="RemotePairButton" Content="Pair a phone" Style="{StaticResource AccentButton}" MinHeight="52" Margin="0,0,8,8"/><Button x:Name="RemoteForgetButton" Content="Forget all phones" Margin="0,0,8,8"/></WrapPanel>
-                    <TextBlock x:Name="RemoteDevicesText" Text="" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,4,0,12"/>
-                    <!-- One row per paired phone: name, when it paired and was last seen, and its own Forget button. -->
-                    <StackPanel x:Name="RemoteDevices" Margin="0,0,0,12"/>
-                    <TextBlock Text="Changes here take effect right away. Only phones on your local network can connect, and only after pairing with a code from this screen. The connection isn't encrypted, so use it on a Wi-Fi you trust." Style="{StaticResource Small}" TextWrapping="Wrap"/>
-                  </StackPanel></ScrollViewer>
-                  <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Pairing" FontSize="24" Margin="0,0,0,12"/>
-                    <TextBlock Text="1.  Install Widget Screen on your phone and join the same Wi-Fi as this PC." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="2.  Tap Pair a phone. On the phone, pick this PC (or type the address below) and enter the code." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="PC address" Style="{StaticResource Small}"/>
-                    <TextBox x:Name="RemoteAddress" IsReadOnly="True" Margin="0,8,0,12" AutomationProperties.Name="PC address for the phone"/>
-                    <TextBlock Text="Pairing code" Style="{StaticResource Small}"/>
-                    <TextBlock x:Name="RemoteCode" Text="—" FontSize="54" FontWeight="Light" FontFamily="Segoe UI Light" Typography.NumeralAlignment="Tabular" AutomationProperties.Name="Pairing code"/>
-                    <TextBlock x:Name="RemoteCodeHint" Text="" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <TextBlock Text="3.  If Windows asks whether Widget Screen may use private networks, allow it. Otherwise the phone can't reach this PC." Style="{StaticResource Small}" TextWrapping="Wrap"/>
-                  </StackPanel></ScrollViewer>
-                </Grid>
-              </TabItem>
-              <TabItem Header="Discord">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="740"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Connection" FontSize="24" Margin="0,0,0,12"/>
-                    <TextBlock x:Name="DiscordConnectionStatus" Text="Not connected" TextWrapping="Wrap" Margin="0,0,0,12" FontSize="{DynamicResource BodySize}"/>
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                      <StackPanel><TextBlock Text="Client ID (Application ID)" Style="{StaticResource Small}"/><TextBox x:Name="DiscordClientId" MaxLength="20" Margin="0,8,0,12" AutomationProperties.Name="Discord app Client ID"/></StackPanel>
-                      <StackPanel Grid.Column="2"><TextBlock x:Name="DiscordSecretHint" Text="Client Secret" Style="{StaticResource Small}" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/><PasswordBox x:Name="DiscordClientSecret" MaxLength="128" Margin="0,8,0,12" AutomationProperties.Name="Discord app Client Secret"/></StackPanel>
-                    </Grid>
-                    <WrapPanel><Button x:Name="DiscordSaveApp" Content="Save app details" Margin="0,0,8,8"/><Button x:Name="DiscordConnectButton" Content="Connect Discord" Style="{StaticResource AccentButton}" MinHeight="52" Margin="0,0,8,8"/><Button x:Name="DiscordDisconnect" Content="Disconnect" Margin="0,0,8,8"/><Button x:Name="DiscordCancelConnect" Content="Cancel sign-in" Visibility="Collapsed" Margin="0,0,8,8"/></WrapPanel>
-                    <TextBlock Text="Account changes take effect right away. Your app details and sign-in are encrypted for your Windows account, and the secret is never shown again." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,8,0,12"/>
-                    <TextBlock Text="Sounds play as you, in the voice channel you're in, through the Discord app on this PC. Only the app's owner can use a personal app like this. Sounds from other servers need Nitro." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                  </StackPanel></ScrollViewer>
-                  <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"><StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="First-time setup" FontSize="24" Margin="0,0,0,12"/>
-                    <TextBlock Text="1.  In the Discord Developer Portal, create a New Application. Any name works." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <Button x:Name="DiscordDeveloper" Content="Open Developer Portal" HorizontalAlignment="Left" Margin="0,0,0,16"/>
-                    <TextBlock Text="2.  On its OAuth2 page, add this redirect, then copy the Client ID and Client Secret:" Style="{StaticResource Small}" TextWrapping="Wrap"/>
-                    <TextBox Text="http://127.0.0.1" IsReadOnly="True" Margin="0,8,0,16" AutomationProperties.Name="Discord redirect address"/>
-                    <TextBlock Text="3.  Paste both on the left and tap Connect Discord. Discord asks you once to authorize the app." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="4.  Turn on the Soundboard widget in Edit layout." Style="{StaticResource Small}" TextWrapping="Wrap"/>
-                  </StackPanel></ScrollViewer>
-                </Grid>
               </TabItem>
               <TabItem Header="Claude">
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="740"/><ColumnDefinition Width="32"/><ColumnDefinition/></Grid.ColumnDefinitions>
@@ -1058,7 +333,6 @@
                     <TextBlock Text="Your own hooks stay as they are. If you had a status line, it keeps showing: Claude Dashboard runs it and passes on what it prints." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <TextBlock Text="A backup is saved next to it as settings.json.widgetscreen-backup. Disconnect takes out exactly what Connect added and puts your earlier status line back." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <TextBlock Text="Sessions in the Claude app's Code tab, a terminal or an editor all show, including ones started before you connected. Usage per project is counted from Claude Code's logs and telemetry on this PC, with what it would cost at API prices (your plan doesn't pay those). Tap a session on the card to bring its window to the front." Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <TextBlock Text="Turn on the Claude Code widget in Edit layout." Style="{StaticResource Small}" TextWrapping="Wrap"/>
                   </StackPanel></ScrollViewer>
                 </Grid>
               </TabItem>
@@ -1083,5 +357,4 @@
         </Border>
       </Grid>
     </Grid>
-  </Viewbox>
 </Window>
