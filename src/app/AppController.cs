@@ -65,7 +65,7 @@ namespace WidgetScreen
         public AppController(Window window, string settingsPath)
         {
             this.window = window; this.settingsPath = settingsPath;
-            string warning; settings = SettingsStore.Load(settingsPath, out warning); pendingMessage = warning;
+            string warning; settings = SettingsStore.Load(settingsPath, out warning); pendingMessage = warning ?? moveMessage; moveMessage = null;
             windowConfirm = new ConfirmSheet(window);
             InitializeClaude();
             Button("SettingsButton", OpenSettings);
@@ -80,6 +80,8 @@ namespace WidgetScreen
             heartbeat.Tick += Tick;
             ApplySettings();
             PlaceWindow();
+            // The first run's question (OfferMove) showed the window already, so Loaded has been and gone.
+            if (window.IsLoaded) Loaded(window, new RoutedEventArgs());
         }
 
         // ----- Small helpers, the same as the widget app's -----

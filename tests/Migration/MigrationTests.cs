@@ -152,6 +152,15 @@ internal static class MigrationTests
             Assert(!Migration.ShouldOffer(old, newSettings), "The offer would come back after declining.");
         });
 
+        check("The first run's question says what comes over and what Start fresh leaves", () => {
+            var all = new Migration.Found { Settings = true, SignIn = true, Bridge = true, Connected = true };
+            string text = AppController.MoveDetail(all, @"C:\Users\ali\AppData\Local\WidgetScreen");
+            Assert(text.StartsWith("Copies your Claude settings and theme, your Claude sign-in and Claude Code's sessions from C:\\Users\\ali\\AppData\\Local\\WidgetScreen.", StringComparison.Ordinal), "The list is wrong: " + text);
+            Assert(text.Contains("backed up first") && text.Contains("uninstall Widget Screen") && text.EndsWith("until you connect it here.", StringComparison.Ordinal), "The connection or Start fresh isn't explained: " + text);
+            string signIn = AppController.MoveDetail(new Migration.Found { SignIn = true }, "old");
+            Assert(signIn.StartsWith("Copies your Claude sign-in from old.", StringComparison.Ordinal) && !signIn.Contains("backed up") && signIn.EndsWith("copies nothing.", StringComparison.Ordinal), "The sign-in-only words are wrong: " + signIn);
+        });
+
         check("Settings live in %LOCALAPPDATA%\\ClaudeDashboard", () => {
             string expected = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudeDashboard", "settings.xml");
             Assert(String.Equals(SettingsStore.DefaultPath, expected, StringComparison.OrdinalIgnoreCase), "Settings path is " + SettingsStore.DefaultPath);

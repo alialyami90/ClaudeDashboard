@@ -30,6 +30,9 @@ namespace WidgetScreen
                 string renderPath = Argument(args, "--render");
                 Program.Rendering = renderPath != null;
                 var window = AppController.LoadWindow("ShellWindow");
+                // Phase 5: the first run offers to bring Widget Screen's Claude setup over (never for renders or a
+                // --settings file, which keep away from the PC's real folders).
+                if (renderPath == null && Argument(args, "--settings") == null && !AppController.OfferMove(window, settingsPath)) return 0;
                 using (var controller = new AppController(window, settingsPath))
                 {
                     running = controller;
