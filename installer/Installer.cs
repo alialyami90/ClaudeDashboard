@@ -58,20 +58,8 @@ namespace WidgetScreenSetup
 
         public bool StartsWithWindows() { return File.Exists(StartupShortcut); }
 
-        // The optional hardware sensors (decision 016): LibreHardwareMonitor and the libraries it loads, with their notice
-        // and licences, packed as payload/sensors/... and installed in the sensors folder only when chosen.
-        public const string SensorsPrefix = "payload/sensors/";
-        public string SensorsDir { get { return Path.Combine(InstallDir, "sensors"); } }
-        public static bool HasSensors { get { return Assembly.GetExecutingAssembly().GetManifestResourceNames().Any(n => n.StartsWith(SensorsPrefix, StringComparison.Ordinal)); } }
-        public bool SensorsInstalled() { return File.Exists(Path.Combine(SensorsDir, "LibreHardwareMonitorLib.dll")); }
-        public static long SensorBytes()
-        {
-            var assembly = Assembly.GetExecutingAssembly(); long total = 0;
-            foreach (var name in assembly.GetManifestResourceNames().Where(n => n.StartsWith(SensorsPrefix, StringComparison.Ordinal) && n.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)))
-                using (var stream = assembly.GetManifestResourceStream(name)) total += stream.Length;
-            return total;
-        }
-        public static int SensorLibraries() { return Assembly.GetExecutingAssembly().GetManifestResourceNames().Count(n => n.StartsWith(SensorsPrefix, StringComparison.Ordinal) && n.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)); }
+        // The hardware sensors that installs before v0.44 could add (decision 016) lived here; an update removes them.
+        public string OldSensorsDir { get { return Path.Combine(InstallDir, "sensors"); } }
 
         // Copies of Claude Dashboard started from the install folder (other builds are left alone).
         public Process[] RunningCopies()
@@ -103,8 +91,7 @@ namespace WidgetScreenSetup
             return found.ToArray();
         }
 
-        public void Install(bool startWithWindows, Action<string> progress) { Install(startWithWindows, true, progress); }
-        public void Install(bool startWithWindows, bool sensors, Action<string> progress)
+        public void Install(bool startWithWindows, Action<string> progress)
         {
             Report(progress, "Closing Claude Dashboard…");
             CloseRunningCopies();
@@ -112,11 +99,9 @@ namespace WidgetScreenSetup
             Directory.CreateDirectory(InstallDir);
             var assembly = Assembly.GetExecutingAssembly();
             long bytes = 0;
-            // Leaving the sensors out (or taking them out on an update) removes the whole folder.
-            if (!sensors && Directory.Exists(SensorsDir)) Retry(() => Directory.Delete(SensorsDir, true));
+            if (Directory.Exists(OldSensorsDir)) Retry(() => Directory.Delete(OldSensorsDir, true));
             foreach (var name in assembly.GetManifestResourceNames().Where(n => n.StartsWith("payload/", StringComparison.Ordinal)))
             {
-                if (!sensors && name.StartsWith(SensorsPrefix, StringComparison.Ordinal)) continue;
                 string target = Path.Combine(InstallDir, name.Substring("payload/".Length).Replace('/', '\\'));
                 Directory.CreateDirectory(Path.GetDirectoryName(target));
                 Retry(() =>
@@ -154,8 +139,8 @@ namespace WidgetScreenSetup
             }
         }
 
-        // Removes the app, its shortcuts and its Installed apps entry. Settings, sign-ins and paired phones
-        // stay unless removeSettings. When this runs from the install folder, the folder goes a moment later.
+        // Removes the app, its shortcuts and its Installed apps entry. Settings, the Claude sign-in and the Claude Code
+        // connection files stay unless removeSettings. When this runs from the install folder, the folder goes a moment later.
         public void Uninstall(bool removeSettings, Action<string> progress)
         {
             Environment.CurrentDirectory = Path.GetTempPath();
@@ -183,7 +168,7 @@ namespace WidgetScreenSetup
             if (removeSettings && Directory.Exists(SettingsDir)) Retry(() => Directory.Delete(SettingsDir, true));
         }
 
-        // Full-sensors mode's Task Scheduler task (decision 016, still named after Widget Screen), if the app made one: removing it needs administrator
+        // Full-sensors mode's Task Scheduler task (decision 016), if an older version (Widget Screen, or Claude Dashboard before v0.44) made one: removing it needs administrator
         // rights, so Windows asks. Never in the automated checks (a sandbox root).
         public const string FullSensorsTask = "Widget Screen full sensors";
         void RemoveFullSensorsTask(Action<string> progress)

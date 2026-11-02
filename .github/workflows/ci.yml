@@ -39,12 +39,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # The pinned, hash-checked LibreHardwareMonitor files (decision 016), while the System stats widget still exists.
-      # Optional: without them (or without the script) the app builds and says the sensors aren't installed.
-      - name: Hardware sensor files
-        continue-on-error: true
-        run: if (Test-Path .\scripts\get-sensors.ps1) { .\scripts\get-sensors.ps1 }
-
       - name: App and checks
         run: .\scripts\build.ps1 -Test
 
