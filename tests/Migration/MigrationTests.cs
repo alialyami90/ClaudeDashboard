@@ -156,7 +156,7 @@ internal static class MigrationTests
             var all = new Migration.Found { Settings = true, SignIn = true, Bridge = true, Connected = true };
             string text = AppController.MoveDetail(all, @"C:\Users\ali\AppData\Local\WidgetScreen");
             Assert(text.StartsWith("Copies your Claude settings and theme, your Claude sign-in and Claude Code's sessions from C:\\Users\\ali\\AppData\\Local\\WidgetScreen.", StringComparison.Ordinal), "The list is wrong: " + text);
-            Assert(text.Contains("backed up first") && text.Contains("uninstall Widget Screen") && text.EndsWith("until you connect it here.", StringComparison.Ordinal), "The connection or Start fresh isn't explained: " + text);
+            Assert(text.Contains("backed up first") && text.Contains("quit Widget Screen, then uninstall it from Installed apps and keep its settings when asked") && text.EndsWith("until you connect it here.", StringComparison.Ordinal), "The connection or Start fresh isn't explained: " + text);
             string signIn = AppController.MoveDetail(new Migration.Found { SignIn = true }, "old");
             Assert(signIn.StartsWith("Copies your Claude sign-in from old.", StringComparison.Ordinal) && !signIn.Contains("backed up") && signIn.EndsWith("copies nothing.", StringComparison.Ordinal), "The sign-in-only words are wrong: " + signIn);
         });
