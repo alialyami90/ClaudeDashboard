@@ -149,6 +149,80 @@ internal static class ClaudeCockpitTests
             Assert(!connector.HasAskHook() && !connector.IsConnected(), "Disconnect left the ask hook.");
         });
 
+        check("Claude history rolls replies into local days with hours, garages and needs", () => {
+            var zone = TimeZoneInfo.CreateCustomTimeZone("Plus3", TimeSpan.FromHours(3), "Plus3", "Plus3");
+            var history = new ClaudeHistory(Fresh(directory, "history-roll"), zone);
+            Func<DateTime, string, string, long, bool, ClaudeUsageEntry> reply = (at, session, folder, tokens, priced) =>
+                new ClaudeUsageEntry { At = at, Session = session, Folder = folder, Model = "claude-opus-5-5", Tokens = tokens, CacheRead = tokens * 10, Cost = tokens / 1000.0, Priced = priced };
+            var replies = new List<ClaudeUsageEntry> {
+                reply(Now, "a", "C:/Code/api", 1000, true),                  // 15:00 local, 2 Nov
+                reply(Now.AddMinutes(30), "a", "C:\\Code\\api", 500, true),   // same garage, written the other way
+                reply(Now.AddMinutes(40), "b", "C:/Code/web", 2000, false),
+                reply(Now.AddHours(-14), "c", "C:/Code/api", 300, true) };   // 01:00 local, still 2 Nov
+            history.Note(new[] { new ClaudeSession { Id = "a", Running = true, State = ClaudeState.NeedsYou } }, Now);
+            history.Note(new[] { new ClaudeSession { Id = "a", Running = true, State = ClaudeState.NeedsYou } }, Now.AddSeconds(50));
+            history.Note(new ClaudeSession[0], Now.AddSeconds(95));
+            history.Note(new[] { new ClaudeSession { Id = "b", Running = true, State = ClaudeState.NeedsYou } }, Now.AddMinutes(5));
+            var days = history.Roll(replies, f => f.EndsWith("api") ? "API server" : "");
+            Assert(days.Count == 1, "Replies landed on " + days.Count + " days, not one local day.");
+            var day = days[0];
+            Assert(day.Date == new DateTime(2026, 11, 2) && day.Tokens == 3800 && day.CacheRead == 38000 && day.Replies == 4 && day.Threads == 3, "The day's totals are wrong.");
+            Assert(Math.Abs(day.Cost - 1.8) < 1e-9 && day.Unpriced == 1, "The priced cost or the unpriced count is wrong: " + day.Cost);
+            Assert(day.Hours[15] == 3500 && day.Hours[1] == 300 && day.TokensBy(TimeSpan.FromHours(15.5)) == 300 + 1750, "The hours are wrong.");
+            Assert(day.Needs == 2 && day.LongestWait == 95, "Needs or the longest wait are wrong: " + day.Needs + ", " + day.LongestWait);
+            Assert(day.Garages.Count == 2 && day.Garages[0].Name == "web" && day.Garages[0].Tokens == 2000 && day.Garages[1].Name == "API server" && day.Garages[1].Tokens == 1800 && day.Garages[1].Threads == 2,
+                "The garages aren't counted by folder: " + String.Join(",", day.Garages.Select(g => g.Name + "=" + g.Tokens)));
+            var back = ClaudeDay.FromJson(ClaudeJson.Obj(ClaudeJson.Parse(ClaudeJson.Compact(day.ToJson()))));
+            Assert(ClaudeJson.Compact(back.ToJson()) == ClaudeJson.Compact(day.ToJson()), "A day doesn't read back as written.");
+            Assert(!ClaudeJson.Compact(day.ToJson()).Contains("\"session\""), "A day file names a session.");
+        });
+
+        check("Claude history keeps 8 weeks, never shrinks a day, and clears when turned off", () => {
+            string bridge = Fresh(directory, "history-files");
+            var history = new ClaudeHistory(bridge, TimeZoneInfo.Utc);
+            var big = new List<ClaudeUsageEntry> { new ClaudeUsageEntry { At = Now.AddDays(-1), Session = "a", Folder = "C:/Code/api", Tokens = 900, Priced = true },
+                new ClaudeUsageEntry { At = Now.AddDays(-1).AddHours(1), Session = "a", Folder = "C:/Code/api", Tokens = 100, Priced = true },
+                new ClaudeUsageEntry { At = Now, Session = "b", Folder = "C:/Code/api", Tokens = 50, Priced = true } };
+            Assert(history.Save(big, null, Now, true) && history.Read(Now.Date.AddDays(-1)).Tokens == 1000 && history.Read(Now.Date).Tokens == 50, "The days weren't written.");
+            Assert(!history.Due(Now.AddSeconds(30)) && history.Due(Now.AddMinutes(1)) && !history.Save(big, null, Now.AddSeconds(30)), "Saving isn't once a minute.");
+            // A week on, the scan has lost yesterday's first reply: the stored day stays whole.
+            Assert(!history.Save(big.Skip(1).ToList(), null, Now.AddMinutes(2), true) && history.Read(Now.Date.AddDays(-1)).Tokens == 1000, "A day shrank as its replies fell out of the scan.");
+            // Old and stray files go; the sparkline is 7 days with today's live count.
+            string folder = ClaudeHistory.Folder(bridge);
+            File.WriteAllText(Path.Combine(folder, Now.Date.AddDays(-56).ToString("yyyy-MM-dd") + ".json"), "{\"date\":\"" + Now.Date.AddDays(-56).ToString("yyyy-MM-dd") + "\"}");
+            File.WriteAllText(Path.Combine(folder, Now.Date.AddDays(-55).ToString("yyyy-MM-dd") + ".json"), "{\"date\":\"" + Now.Date.AddDays(-55).ToString("yyyy-MM-dd") + "\"}");
+            File.WriteAllText(Path.Combine(folder, "notes.json"), "{}");
+            history.Prune(Now);
+            Assert(!File.Exists(Path.Combine(folder, Now.Date.AddDays(-56).ToString("yyyy-MM-dd") + ".json")) && File.Exists(Path.Combine(folder, Now.Date.AddDays(-55).ToString("yyyy-MM-dd") + ".json")) && !File.Exists(Path.Combine(folder, "notes.json")), "Pruning kept the wrong files.");
+            var spark = history.Spark(Now, new ClaudeDay { Date = Now.Date, Tokens = 75 });
+            Assert(spark.Length == 7 && spark[5] == 1000 && spark[6] == 75 && spark.Take(5).All(t => t == 0), "The sparkline is wrong: " + String.Join(",", spark));
+            Assert(history.SameTimeLastWeek(Now) == null, "A missing day gave a last-week tick.");
+            var lastWeek = new ClaudeDay { Date = Now.Date.AddDays(-7) }; lastWeek.Hours[11] = 600; lastWeek.Hours[12] = 400; lastWeek.Tokens = 1000;
+            ClaudeBridge.WriteAtomic(Path.Combine(folder, lastWeek.Name + ".json"), ClaudeJson.Compact(lastWeek.ToJson()));
+            Assert(history.SameTimeLastWeek(Now.AddMinutes(30)) == 800, "Same time last week isn't counted by the hour: " + history.SameTimeLastWeek(Now.AddMinutes(30)));
+            history.Clear();
+            Assert(!Directory.Exists(folder), "Turning History off left the files.");
+        });
+
+        check("Claude export writes a safe CSV of the last 7 days and a Markdown summary", () => {
+            Assert(ClaudeExport.Field("plain") == "plain" && ClaudeExport.Field("a,b") == "\"a,b\"" && ClaudeExport.Field("say \"hi\"") == "\"say \"\"hi\"\"\"", "Quoting is wrong.");
+            Assert(ClaudeExport.Field("=HYPERLINK(1)") == "'=HYPERLINK(1)" && ClaudeExport.Field("@cmd") == "'@cmd" && ClaudeExport.Field("-12.5") == "-12.5", "A formula isn't defused, or a number was.");
+            var replies = new List<ClaudeUsageEntry> {
+                new ClaudeUsageEntry { At = Now, Session = "s1", Folder = "C:/Code/api", Model = "claude-opus-5-5", Tokens = 1200, CacheRead = 5000, Cost = 0.5, Priced = true },
+                new ClaudeUsageEntry { At = Now.AddMinutes(1), Session = "s1", Folder = "C:/Code/api", Model = "claude-sonnet-5-5", Tokens = 300, Cost = 0.25, Priced = true },
+                new ClaudeUsageEntry { At = Now.AddDays(-1), Session = "s2", Folder = "C:/Code/web", Model = "mystery", Tokens = 10, Priced = false },
+                new ClaudeUsageEntry { At = Now.AddDays(-8), Session = "s3", Folder = "C:/Code/old", Tokens = 99, Priced = true } };
+            string csv = ClaudeExport.Csv(replies, id => id == "s1" ? "=Fix, the \"login\"" : "", f => "", Now, TimeZoneInfo.Utc);
+            var lines = csv.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+            Assert(lines.Length == 3 && lines[0] == String.Join(",", ClaudeExport.Columns.Select(ClaudeExport.Field)), "The CSV has the wrong rows: " + csv);
+            Assert(lines[1] == "2026-11-02,api,\"'=Fix, the \"\"login\"\"\",s1,Opus 5.5 Sonnet 5.5,2,1500,5000,0.7500", "The first row is wrong: " + lines[1]);
+            Assert(lines[2].StartsWith("2026-11-01,web,") && lines[2].EndsWith(",1,10,0,"), "An unpriced row isn't blank in the API value: " + lines[2]);
+            var days = new List<ClaudeDay> { new ClaudeDay { Date = Now.Date, Tokens = 1500, Replies = 2, Threads = 1, Needs = 1, LongestWait = 125,
+                Garages = new List<ClaudeDayGarage> { new ClaudeDayGarage { Folder = "C:\\Code\\api", Name = "api_server*", Tokens = 1500, Replies = 2 } } } };
+            string md = ClaudeExport.Summary(days, Now);
+            Assert(md.StartsWith("## Claude Code, last 7 days") && md.Contains("| Mon 2 Nov |") && md.Contains("| 2 min |") && md.Contains("api\\_server\\*") && !md.Contains("s1"), "The summary is wrong: " + md);
+        });
+
         check("Claude answering is off by default with a 30 s wait, kept to 10-120 s", () => {
             var fresh = new AppSettings();
             Assert(!fresh.ClaudeAnswer && fresh.ClaudeAnswerWait == 30 && fresh.ClaudeHistory, "The defaults are wrong.");

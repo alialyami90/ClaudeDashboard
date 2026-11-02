@@ -34,6 +34,9 @@ namespace WidgetScreen
         private ClaudeToast claudeToast;
         // Package 4: Allow once and Deny for permission dialogs (ClaudePermissions keeps it out of this file).
         private ClaudePermissions claudePermissions;
+        // Package 4: the daily summary files (Settings → Claude → History).
+        private ClaudeHistory claudeHistory;
+        private bool claudeHistoryCleared;
         private DateTime lastClaudeRefresh = DateTime.MinValue;
         private readonly HashSet<string> claudeNeeding = new HashSet<string>();
         private string claudePagesKey; private int claudeFirstPage = -1;
@@ -72,6 +75,7 @@ namespace WidgetScreen
             claudePermissions = new ClaudePermissions(() => claude.BridgeFolder, id => { if (!disposed) FocusClaudeSession(id); }, ClaudeThreadTitle, key => window.TryFindResource(key));
             // Closing the dashboard takes the listener away, so a waiting hook lets Claude Code ask in its own window.
             window.Closed += (sender, e) => claudePermissions.Dispose();
+            claudeHistory = new ClaudeHistory(claude.BridgeFolder);
             if (Program.Rendering) return;
             // A watched folder changed or telemetry arrived (package 3): the card looks at once, on its own thread.
             claude.Changed = () => { try { window.Dispatcher.BeginInvoke(new Action(ClaudeWatchFired)); } catch (Exception) { } };
@@ -247,6 +251,7 @@ namespace WidgetScreen
             ClaudeChoices(claudeView);
             claudeCard.Update(claudeView);
             NotifyClaude(claudeAlerts.Update(claudeView.Sessions, DateTime.UtcNow));
+            KeepClaudeHistory(DateTime.UtcNow);
             // A chime for each session that newly needs you, if Settings → Claude asks for one.
             var needing = claudeView.Sessions.Where(s => s.State == ClaudeState.NeedsYou).Select(s => s.Id).ToList();
             bool fresh = needing.Any(id => !claudeNeeding.Contains(id));
@@ -271,6 +276,26 @@ namespace WidgetScreen
             if (what.Length == 0) what = a.Kind == "need" ? "Waiting for you" : a.Kind == "stuck" ? "Stopped on an error" : "Done";
             if (fresh.Count > 1) what += " (and " + (fresh.Count - 1) + " more)";
             claudeToast.Show(title, a.Title + ": " + what, a.Session, a.Kind != "done");
+        }
+
+        // Package 4: today's needs and waits are followed and the day files written once a minute, from the replies the
+        // card already read; turning History off deletes them.
+        private void KeepClaudeHistory(DateTime now)
+        {
+            if (claudeHistory == null || claudeView == null || claudeView.Sample) return;
+            if (!settings.ClaudeHistory)
+            {
+                if (!claudeHistoryCleared) { claudeHistory.Clear(); claudeHistoryCleared = true; }
+                return;
+            }
+            claudeHistoryCleared = false;
+            claudeHistory.Note(claudeView.Sessions, now);
+            if (claude.Usage.Scanned && claudeHistory.Due(now)) claudeHistory.Save(claude.Usage.Entries, ClaudeProjectName, now);
+        }
+        private string ClaudeProjectName(string folder)
+        {
+            KeyValuePair<string, DateTime> known;
+            return claudeView != null && claudeView.Known.TryGetValue(folder, out known) ? known.Key : "";
         }
 
         // A session's thread name for the permission toast, or "" when the card doesn't know it.
