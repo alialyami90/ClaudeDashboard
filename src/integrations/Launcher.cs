@@ -1,25 +1,24 @@
 using System;
 using System.Diagnostics;
-using System.IO;
 
 namespace WidgetScreen
 {
+    // Opens a web page in the default browser: Sign in with Claude and the links in Settings → Claude.
     public static class Launcher
     {
         public static bool IsAllowed(string target)
         {
             if (String.IsNullOrWhiteSpace(target)) return false;
-            target = Environment.ExpandEnvironmentVariables(target.Trim());
             Uri uri;
-            if (Uri.TryCreate(target, UriKind.Absolute, out uri) && (uri.Scheme == "https" || uri.Scheme == "http")) return !String.IsNullOrEmpty(uri.Host);
-            if (target.Equals("spotify:", StringComparison.OrdinalIgnoreCase) || target.Equals("ms-settings:sound", StringComparison.OrdinalIgnoreCase)) return true;
-            return Path.IsPathRooted(target) && target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(target);
+            return Uri.TryCreate(target.Trim(), UriKind.Absolute, out uri) && (uri.Scheme == "https" || uri.Scheme == "http") && !String.IsNullOrEmpty(uri.Host);
         }
 
         public static void Open(string target)
         {
-            if (!IsAllowed(target)) throw new InvalidOperationException("Choose an existing .exe file, an http(s) website, spotify:, or ms-settings:sound.");
-            ProcessLauncher.Start(Environment.ExpandEnvironmentVariables(target.Trim()), "", null);
+            if (!IsAllowed(target)) throw new InvalidOperationException("Only http(s) websites can be opened.");
+            // Null when the shell handed it to a browser that was already running.
+            var started = Process.Start(new ProcessStartInfo(target.Trim()) { UseShellExecute = true });
+            if (started != null) started.Dispose();
         }
     }
 }

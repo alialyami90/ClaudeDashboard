@@ -40,10 +40,18 @@ internal static class ClaudeReviewTests
     private static string Settings(string folder, string name, double width, double height, double scale)
     {
         string path = Path.Combine(folder, name + ".xml");
-        var settings = new AppSettings { TextScale = scale, ClaudePeriod = "Week", HintDismissed = true };
-        settings.WidgetLayout = WidgetLayout.SpotifyDefault(settings).Select(p => { p.Visible = p.Id == "Claude"; if (p.Visible) { p.X = 0; p.Y = 0; p.Width = width; p.Height = height; } return p; }).ToArray();
+        var settings = new AppSettings { TextScale = scale, ClaudePeriod = "Week" };
         SettingsStore.Save(path, settings);
+        cardSizes[path] = new Size(width, height);
         return path;
+    }
+    // The card fills the window; the checks give it the size they look at.
+    private static readonly Dictionary<string, Size> cardSizes = new Dictionary<string, Size>();
+    private static DashboardController Open(Window window, string path)
+    {
+        var controller = new DashboardController(window, path);
+        var card = (FrameworkElement)window.FindName("ClaudeCard"); card.Width = cardSizes[path].Width; card.Height = cardSizes[path].Height;
+        return controller;
     }
     private static void Lay(Window window)
     {
@@ -80,7 +88,7 @@ internal static class ClaudeReviewTests
                 var window = NewWindow();
                 try
                 {
-                    using (var controller = new DashboardController(window, Settings(folder, "medium-" + needs, 472, 310, 1), true))
+                    using (var controller = Open(window, Settings(folder, "medium-" + needs, 472, 310, 1)))
                     {
                         controller.UseClaudeSample(needs); Lay(window);
                         var card = (FrameworkElement)window.FindName("ClaudeCard");
@@ -105,7 +113,7 @@ internal static class ClaudeReviewTests
                 var window = NewWindow();
                 try
                 {
-                    using (var controller = new DashboardController(window, Settings(folder, "large-" + size.Width, size.Width, size.Height, 1.4), true))
+                    using (var controller = Open(window, Settings(folder, "large-" + size.Width, size.Width, size.Height, 1.4)))
                     {
                         controller.UseClaudeSample(false); Lay(window);
                         var titles = Enumerable.Range(0, 4).SelectMany(i => Enumerable.Range(0, 4).Select(j => window.FindName("ClaudeThreadTitle" + i + "_" + j) as TextBlock)).Where(t => t != null && t.ActualWidth > 0).ToList();
@@ -126,7 +134,7 @@ internal static class ClaudeReviewTests
             var window = NewWindow();
             try
             {
-                using (var controller = new DashboardController(window, Settings(folder, "min", 1216, 576, 1), true))
+                using (var controller = Open(window, Settings(folder, "min", 1216, 576, 1)))
                 {
                     controller.UseClaudeSample(false);
                     window.ShowActivated = false; window.WindowStartupLocation = WindowStartupLocation.Manual; window.Left = -5000; window.Top = 0; window.Width = 1920; window.Height = 720;
@@ -191,7 +199,7 @@ internal static class ClaudeReviewTests
                     var window = NewWindow();
                     try
                     {
-                        using (var controller = new DashboardController(window, Settings(folder, "rows-" + size.Width + needs, size.Width, size.Height, 1), true))
+                        using (var controller = Open(window, Settings(folder, "rows-" + size.Width + needs, size.Width, size.Height, 1)))
                         {
                             controller.UseClaudeSample(needs); Lay(window);
                             var scroll = (ScrollViewer)window.FindName("ClaudeLedger");

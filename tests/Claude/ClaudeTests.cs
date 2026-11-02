@@ -278,7 +278,6 @@ internal static class ClaudeTests
             Assert(CardSizing.ClaudeRevs(860) && !CardSizing.ClaudeRevs(859) && CardSizing.ClaudeSide(1000) && !CardSizing.ClaudeSide(999) && CardSizing.ClaudeModels(698, 1) && !CardSizing.ClaudeModels(697, 1) && CardSizing.ClaudeLines(792, 1) && !CardSizing.ClaudeLines(791, 1) && CardSizing.ClaudeModels(852, 1.4) && !CardSizing.ClaudeLines(852, 1.4)
                 && CardSizing.ClaudeMediumRow(1) == 44 && CardSizing.ClaudeMediumRow(1.4) == 52 && CardSizing.ClaudeInlineCars(300, 5) == 3 && CardSizing.ClaudeInlineCars(200, 5) == 1 && CardSizing.ClaudeInlineCars(200, 2) == 2 && CardSizing.ClaudeInlineCars(100, 4) == 0
                 && CardSizing.ClaudeSmallMeter(152, 1) && !CardSizing.ClaudeSmallMeter(132, 1.4) && CardSizing.ClaudeSmallCar(252, 100) == 85 && CardSizing.ClaudeSmallCar(100, 20) == 48, "Claude sizes wrong.");
-            Assert(!WidgetLayout.Default(new AppSettings()).First(p => p.Id == "Claude").Visible && WidgetLayout.Minimum("Claude") == new Size(260, 180) && WidgetLayout.Title("Claude") == "Claude Code", "Claude isn't a hidden widget with its minimum.");
             Assert(!new AppSettings().ClaudeChime && new AppSettings().ClaudeShowNewProjects && new AppSettings().ClaudeProjects == null, "Claude settings defaults wrong.");
         });
 
@@ -295,15 +294,15 @@ internal static class ClaudeTests
             {
                 string path = Path.Combine(directory, "claude-" + size.Width + "x" + size.Height + ".xml");
                 var settings = new AppSettings { TextScale = 1.4 };
-                settings.WidgetLayout = WidgetLayout.SpotifyDefault(settings).Select(p => { p.Visible = p.Id == "Claude"; if (p.Visible) { p.X = 0; p.Y = 0; p.Width = size.Width; p.Height = size.Height; } return p; }).ToArray();
                 SettingsStore.Save(path, settings);
                 using (var stream = typeof(AppSettings).Assembly.GetManifestResourceStream("WidgetScreen.MainWindow.xaml"))
                 {
                     var window = (Window)System.Windows.Markup.XamlReader.Load(stream);
                     try
                     {
-                        using (var controller = new DashboardController(window, path, true))
+                        using (var controller = new DashboardController(window, path))
                         {
+                            var sized = (FrameworkElement)window.FindName("ClaudeCard"); sized.Width = size.Width; sized.Height = size.Height;
                             controller.UseClaudeSample(false);
                             foreach (var pair in views)
                             {
