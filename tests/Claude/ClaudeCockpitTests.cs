@@ -92,6 +92,15 @@ internal static class ClaudeCockpitTests
             Assert(days[6].Tokens == 40 && days[6].Needs == 1 && days.Sum(d => d.Tokens) == 5040, "Today isn't counted from its replies: " + days[6].Tokens);
         });
 
+        check("Claude's 7-day bars say what they count, and a sample says so", () => {
+            var days = new long[] { 0, 0, 0, 0, 0, 1500000, 40000 };
+            string tip = ClaudeText.DaysTip(days, 30000, false);
+            Assert(tip.Contains("today 40k") && tip.Contains("busiest 1.5M") && tip.Contains("last week: 30k"), "The tip is wrong: " + tip);
+            Assert(ClaudeText.DaysTip(days, null, false).Contains("No file for this day last week") && ClaudeText.DaysTip(days, 1, true).StartsWith("Sample.") && ClaudeText.DaysTip(null, 1, false) == null, "A missing tick or a sample isn't said.");
+            var fixture = ClaudeView.Fixture(Now, false);
+            Assert(fixture.Days != null && fixture.Days.Length == ClaudeHistory.SparkDays && fixture.LastWeekByNow.HasValue, "The sample has no 7-day bars.");
+        });
+
         check("Claude export writes a safe CSV of the last 7 days and a Markdown summary", () => {
             Assert(ClaudeExport.Field("plain") == "plain" && ClaudeExport.Field("a,b") == "\"a,b\"" && ClaudeExport.Field("say \"hi\"") == "\"say \"\"hi\"\"\"", "Quoting is wrong.");
             Assert(ClaudeExport.Field("=HYPERLINK(1)") == "'=HYPERLINK(1)" && ClaudeExport.Field("@cmd") == "'@cmd" && ClaudeExport.Field("-12.5") == "-12.5", "A formula isn't defused, or a number was.");

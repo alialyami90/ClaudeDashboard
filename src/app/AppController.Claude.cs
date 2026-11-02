@@ -29,6 +29,7 @@ namespace WidgetScreen
         // Package 4: the daily summary files (Settings → Claude → History).
         private ClaudeHistory claudeHistory;
         private bool claudeHistoryCleared;
+        private long[] claudeDays; private long? claudeLastWeek; private DateTime claudeDaysAt = DateTime.MinValue;
         private DateTime lastClaudeRefresh = DateTime.MinValue;
         private readonly HashSet<string> claudeNeeding = new HashSet<string>();
         // The project ticks shown in Settings → Claude, by folder, until Save.
@@ -186,6 +187,7 @@ namespace WidgetScreen
             lastClaudeRefresh = DateTime.UtcNow;
             claudeView = claude.View(DateTime.UtcNow, claude.Usage.Scanned ? claude.Usage.Entries : null, ClaudeFilter);
             ClaudeChoices(claudeView);
+            ClaudeDays(claudeView, DateTime.UtcNow);
             claudeCard.Update(claudeView);
             NotifyClaude(claudeAlerts.Update(claudeView.Sessions, DateTime.UtcNow));
             KeepClaudeHistory(DateTime.UtcNow);
@@ -224,6 +226,19 @@ namespace WidgetScreen
             claudeHistoryCleared = false;
             claudeHistory.Note(claudeView.Sessions, now);
             if (claude.Usage.Scanned && claudeHistory.Due(now)) claudeHistory.Save(claude.Usage.Entries, ClaudeProjectName, now);
+        }
+        // The plan row's 7-day bars and last week's tick, worked out once a minute (the files change no more often).
+        private void ClaudeDays(ClaudeView view, DateTime now)
+        {
+            if (claudeHistory == null || !settings.ClaudeHistory || !claude.Usage.Scanned) { claudeDays = null; claudeLastWeek = null; claudeDaysAt = DateTime.MinValue; return; }
+            if (claudeDays == null || now - claudeDaysAt >= ClaudeHistory.WriteEvery || now < claudeDaysAt)
+            {
+                var today = claudeHistory.Recent(claude.Usage.Entries, null, now, 1);
+                claudeDays = claudeHistory.Spark(now, today.Count > 0 ? today[0] : null);
+                claudeLastWeek = claudeHistory.SameTimeLastWeek(now);
+                claudeDaysAt = now;
+            }
+            view.Days = claudeDays; view.LastWeekByNow = claudeLastWeek;
         }
         private string ClaudeProjectName(string folder)
         {

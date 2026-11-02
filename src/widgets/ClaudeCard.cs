@@ -187,6 +187,15 @@ namespace WidgetScreen
             return calls + " " + f.Asked + " asked you and " + f.Denied + " were denied" + (f.AskedPartial ? ", from the sessions that sent telemetry (not every session does, so this is partial)." : ".");
         }
         public const string TokensTip = "Fresh input, cache writes and output. Cache reads aren't counted here (see Cache hits).";
+        // Package 4: the plan row's 7-day bars, in words.
+        public static string DaysTip(long[] days, long? lastWeek, bool sample)
+        {
+            if (days == null || days.Length == 0) return null;
+            long today = days[days.Length - 1];
+            string tip = "Tokens a day, last " + days.Length + " days (from History): today " + ClaudeUsage.Format(today) + ", busiest " + ClaudeUsage.Format(days.Max()) + ".";
+            tip += lastWeek.HasValue ? " By this time last week: " + ClaudeUsage.Format(lastWeek.Value) + " (the tick)." : " No file for this day last week yet.";
+            return sample ? "Sample. " + tip : tip;
+        }
         public static string PeriodName(ClaudePeriod period) { return period == ClaudePeriod.FiveHour ? "5 h" : period == ClaudePeriod.Today ? "Today" : "Week"; }
         // "Plan limits as of 10:42" when a check failed, and the sign-in's end when it has.
         public static string Source(ClaudeView view, bool use24)
@@ -594,7 +603,7 @@ namespace WidgetScreen
             var groups = String.Join(";", view.Groups(period).Select(g => g.Folder + (collapsed.Contains(g.Folder) ? "!" : "") + ":" + String.Join(",", g.Threads.Select(t => t.Id + (t.Running && t.CanFocus ? "*" : "")))));
             var asking = view.Sessions.FirstOrDefault(s => s.State == ClaudeState.NeedsYou);
             return view.Connected + "|" + view.Sample + "|" + String.Join(",", view.Sessions.Select(s => s.Id + ":" + s.CanFocus)) + "|" + groups + "|" + (asking == null ? "" : asking.Id + asking.CanFocus)
-                + "|" + (view.Limits != null && view.Limits.Known) + view.NoPlan + view.Plan + "|" + ClaudeText.PlanChips(view.Limits, DateTime.UtcNow, use24).Count + "|" + view.LogsFailed + "|" + String.Join(",", view.Lanes.Select(l => l.Folder)) + "|" + view.Facts.Telemetry;
+                + "|" + (view.Limits != null && view.Limits.Known) + view.NoPlan + view.Plan + "|" + ClaudeText.PlanChips(view.Limits, DateTime.UtcNow, use24).Count + "|" + view.LogsFailed + "|" + String.Join(",", view.Lanes.Select(l => l.Folder)) + "|" + view.Facts.Telemetry + "|" + (view.Days != null);
         }
 
         private void Build()
@@ -818,7 +827,16 @@ namespace WidgetScreen
             text.Children.Add(Upper("Revs · tok/min", 13));
             var value = Big("—"); text.Children.Add(At(value, 1));
             var burn = names.Add(new BurnLine { Height = 24, Margin = new Thickness(0, 2, 0, 2) }, "ClaudeBurn"); text.Children.Add(At(burn, 2));
-            text.Children.Add(At(Text("last 60 min", 13, "Muted"), 3));
+            var foot = new DockPanel();
+            DaySpark days = null;
+            if (view.Days != null)
+            {
+                // Package 4: the last 7 days beside the hour, with last week's tick.
+                days = names.Add(new DaySpark { Width = 62, Height = 16, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }, "ClaudeDays");
+                DockPanel.SetDock(days, Dock.Right); foot.Children.Add(days);
+            }
+            foot.Children.Add(Trimmed(Text("last 60 min", 13, "Muted")));
+            text.Children.Add(At(foot, 3));
             var row = Columns(Auto, Star); row.Children.Add(gauge); row.Children.Add(At(text, 0, 1));
             fills.Add(now => {
                 gauge.Value = Math.Min(1, view.Rate / view.Scale); gauge.Low = "0"; gauge.High = ClaudeUsage.Format((long)view.Scale); gauge.InvalidateVisual();
@@ -828,6 +846,11 @@ namespace WidgetScreen
                 value.Inlines.Add(Colored(digits, view.Rate >= view.Scale * ClaudePace.Redline ? "Warning" : "Text"));
                 if (unit.Length > 0) { var small = Colored(unit, "Muted"); small.FontSize = 20; value.Inlines.Add(small); }
                 burn.Values = view.Burn; burn.Maximum = view.Scale; burn.InvalidateVisual();
+                if (days != null && view.Days != null)
+                {
+                    days.Values = view.Days; days.Tick = view.LastWeekByNow; days.InvalidateVisual();
+                    days.ToolTip = ClaudeText.DaysTip(view.Days, view.LastWeekByNow, view.Sample);
+                }
             });
             return Tile(row, 12, new Thickness(12, 10, 14, 10));
         }
