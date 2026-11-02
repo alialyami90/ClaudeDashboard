@@ -6,6 +6,28 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.46.0 (2 Nov 2026)
+
+Claude Dashboard, phase 5 of decision 026: its own settings folder.
+
+- **New folder.** Settings, the Claude sign-in and Claude Code's bridge live in `%LOCALAPPDATA%\ClaudeDashboard`. Setup's "Also delete my settings…" option deletes that folder and never touches Widget Screen's.
+- **Moving over from Widget Screen.** On the first run, if `%LOCALAPPDATA%\WidgetScreen` has settings, a sign-in or a bridge folder, the window asks to bring them over.
+  - **Bring it over** copies the Claude settings, the theme and text size, `claude-session.dat` and the `claude\` folder.
+  - If Claude Code was connected, it's connected again from the new folder on the same telemetry port. Every hook and the status line then run the new `ClaudeHook.exe`, and `settings.json` gets its usual dated backup first.
+  - **Start fresh** copies nothing. Closing the window decides nothing, so the question comes back next time.
+  - Widget Screen's folder is only read. The sheet says to quit Widget Screen afterwards, then uninstall it from Installed apps and keep its settings when asked. If reconnecting fails, the status line says why and points to Settings → Claude → Connect.
+- **Checks.** Six new migration checks, using a v0.41 `settings.xml` and a `settings.json` connected to the old folder.
+
+## v0.45.1 (2 Nov 2026)
+
+Claude Dashboard: the documents catch up with v0.44.0 to v0.45.0.
+
+- **Decision 026** gains an "As built" section: the 360 × 300 window minimum, the new window files, the header and window edge, the Settings changes, what the app does while minimised, v0.44.1's installer and icon, and the namespace rename moving to v0.47.1.
+- **DESIGN.md, README.md and PRODUCT.md** describe the window as it is: the Claude palette and Terracotta accent, the header, the edge, the window sizes and the Settings tabs.
+- **docs/design/setup.md** says what v0.44.1 changed in setup.
+- **CLAUDE.md**: the namespace rename is its own PR at v0.47.1, the `CardSizing.Claude` members live in `ClaudeCard.cs`, the window is at least 360 × 300, phase 6 no longer answers permission prompts, and a new rule says the dashboard never answers a permission dialog (decision 027, which arrives with package 4).
+- No app changes.
+
 ## v0.45.0 (unreleased)
 
 Claude Dashboard, phase 4 of decision 026: the dashboard window.

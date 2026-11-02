@@ -52,6 +52,7 @@ internal static class SmokeTests
         ClaudeTrustTests.Run(directory, Check);
         ClaudeNumbersTests.Run(directory, Check);
         ClaudeInstantTests.Run(directory, Check);
+        MigrationTests.Run(directory, Check);
         Check("Native XAML and control templates load", () => {
             var window = AppController.LoadWindow("ShellWindow"); var settings = AppController.LoadWindow("SettingsWindow");
             Assert(window.FindName("ClaudeCard") != null && window.FindName("WindowEdge") != null && window.FindName("SettingsButton") != null, "Dashboard controls missing.");

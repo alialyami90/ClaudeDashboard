@@ -39,7 +39,7 @@ try {
     "Claude Dashboard $Version"
     "Commit: $commit"
     "Built: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-    'Settings: %LOCALAPPDATA%\WidgetScreen\settings.xml (shared with every build)'
+    'Settings: %LOCALAPPDATA%\ClaudeDashboard\settings.xml (shared with every build)'
     $(if (Test-Path -LiteralPath (Join-Path $releasePath "ClaudeDashboard-Setup-$Version.exe")) { "Setup: ClaudeDashboard-Setup-$Version.exe installs it for you, with Start menu and startup shortcuts and an uninstaller" })
 ) | Set-Content -LiteralPath (Join-Path $releasePath 'release.txt') -Encoding utf8
 Write-Output "Release: $releasePath\ClaudeDashboard.exe"

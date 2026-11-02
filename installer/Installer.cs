@@ -30,7 +30,7 @@ namespace WidgetScreenSetup
                 InstallDir = Path.Combine(Path.Combine(local, "Programs"), AppName);
                 StartMenuShortcut = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), AppName + ".lnk");
                 StartupShortcut = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), AppName + ".lnk");
-                SettingsDir = Path.Combine(local, "WidgetScreen");
+                SettingsDir = Path.Combine(local, "ClaudeDashboard");
                 RegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ClaudeDashboard";
             }
             else
