@@ -42,15 +42,6 @@ jobs:
       - name: App and checks
         run: .\scripts\build.ps1 -Test
 
-      # TEMPORARY (icon redraw): draws the new icon with the app's own pixel art and prints it, to be committed.
-      - name: Draw the icon
-        run: |
-          powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\scripts\make-icon.ps1 -PreviewDirectory artifacts\renders
-          '----- ICON BASE64 BEGIN -----'
-          $b = [Convert]::ToBase64String([IO.File]::ReadAllBytes('assets\ClaudeDashboard.ico'))
-          for ($i = 0; $i -lt $b.Length; $i += 200) { 'ICO ' + $b.Substring($i, [Math]::Min(200, $b.Length - $i)) }
-          '----- ICON BASE64 END -----'
-
       - name: Setup exe and checks
         run: .\scripts\package.ps1 -Test
 

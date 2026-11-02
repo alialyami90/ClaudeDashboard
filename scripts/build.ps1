@@ -33,7 +33,7 @@ $versionSource = Join-Path $generatedPath 'BuildVersion.cs'
 $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Recurse -Filter '*.cs' | Sort-Object FullName | Select-Object -ExpandProperty FullName) + $versionSource
 # Every XAML file under src\ is embedded as WidgetScreen.<FileName> (MainWindow.xaml keeps its exact resource name).
 $xamlResources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Recurse -Filter '*.xaml' | Sort-Object FullName | ForEach-Object { '/resource:' + $_.FullName + ',WidgetScreen.' + $_.Name })
-$arguments = @('/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeDashboard.exe')), ('/win32manifest:' + (Join-Path $projectRoot 'src\app\app.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\WidgetScreen.ico'))) + $xamlResources + $references + $sources
+$arguments = @('/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeDashboard.exe')), ('/win32manifest:' + (Join-Path $projectRoot 'src\app\app.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\ClaudeDashboard.ico'))) + $xamlResources + $references + $sources
 & $compilerPath $arguments
 if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)." }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'src\app\App.config') -Destination (Join-Path $outputPath 'ClaudeDashboard.exe.config') -Force
@@ -41,7 +41,7 @@ Write-Output "Built: $outputPath\ClaudeDashboard.exe ($informationalVersion)"
 # ClaudeHook.exe, the Claude Code bridge (decision 014): a console exe from hook\ and the shared Claude files in src\.
 $claudeShared = @('ClaudeJson.cs', 'ClaudeBridge.cs', 'ClaudeProcesses.cs') | ForEach-Object { Join-Path $projectRoot "src\integrations\Claude\$_" }
 $hookSources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'hook') -Filter '*.cs' | Sort-Object FullName | Select-Object -ExpandProperty FullName) + $claudeShared + $versionSource
-$hookArguments = @('/nologo', '/target:exe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeHook.exe')), ('/win32icon:' + (Join-Path $projectRoot 'assets\WidgetScreen.ico')),
+$hookArguments = @('/nologo', '/target:exe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', ('/out:' + (Join-Path $outputPath 'ClaudeHook.exe')), ('/win32icon:' + (Join-Path $projectRoot 'assets\ClaudeDashboard.ico')),
     ('/reference:' + (Join-Path $frameworkPath 'System.dll')), ('/reference:' + (Join-Path $frameworkPath 'System.Core.dll'))) + $hookSources
 & $compilerPath $hookArguments
 if ($LASTEXITCODE -ne 0) { throw "ClaudeHook build failed (exit $LASTEXITCODE)." }

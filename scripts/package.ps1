@@ -35,7 +35,7 @@ $setupPath = Join-Path $output "ClaudeDashboard-Setup-$label.exe"
 $references = @('System.dll', 'System.Core.dll', 'System.Xaml.dll', 'WPF\WindowsBase.dll', 'WPF\PresentationCore.dll', 'WPF\PresentationFramework.dll') | ForEach-Object { '/reference:' + (Join-Path $frameworkPath $_) }
 $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'installer') -Filter '*.cs' | Sort-Object FullName | Select-Object -ExpandProperty FullName) + $info
 $arguments = @('/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/utf8output', '/warn:4', "/out:$setupPath",
-    ('/win32manifest:' + (Join-Path $projectRoot 'installer\setup.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\WidgetScreen.ico')),
+    ('/win32manifest:' + (Join-Path $projectRoot 'installer\setup.manifest')), ('/win32icon:' + (Join-Path $projectRoot 'assets\ClaudeDashboard.ico')),
     ('/resource:' + (Join-Path $source 'ClaudeDashboard.exe') + ',payload/ClaudeDashboard.exe'),
     ('/resource:' + (Join-Path $source 'ClaudeDashboard.exe.config') + ',payload/ClaudeDashboard.exe.config'),
     ('/resource:' + (Join-Path $source 'ClaudeHook.exe') + ',payload/ClaudeHook.exe')) + $references + $sources
