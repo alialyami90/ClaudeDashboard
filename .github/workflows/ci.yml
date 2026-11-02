@@ -1,5 +1,6 @@
-# Builds and tests the app on every push and pull request, the same way as on the PC:
-# scripts\build.ps1 -Test (the app and its checks) and scripts\package.ps1 -Test (setup exe and its sandboxed checks).
+# Builds and tests Claude Dashboard on every push and pull request, the same way as on the PC:
+# scripts\build.ps1 -Test (the app, ClaudeHook.exe and their checks) and scripts\package.ps1 -Test (the setup exe and its
+# sandboxed checks). Windows only: the Android app is parked until the Claude-only phone companion (decision 026).
 # Changes that only touch Markdown, docs\ or the read-only spec don't start a run.
 name: CI
 
@@ -26,7 +27,7 @@ permissions:
 
 jobs:
   test:
-    name: Windows tests
+    name: Windows build and checks
     runs-on: windows-latest
     timeout-minutes: 30
     defaults:
@@ -38,7 +39,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Windows app and checks
+      # The pinned, hash-checked LibreHardwareMonitor files (decision 016), while the System stats widget still exists.
+      # Optional: without them (or without the script) the app builds and says the sensors aren't installed.
+      - name: Hardware sensor files
+        continue-on-error: true
+        run: if (Test-Path .\scripts\get-sensors.ps1) { .\scripts\get-sensors.ps1 }
+
+      - name: App and checks
         run: .\scripts\build.ps1 -Test
 
       - name: Setup exe and checks
@@ -49,11 +56,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: widget-screen-${{ github.sha }}
+          name: claude-dashboard-${{ github.sha }}
           retention-days: 14
           if-no-files-found: ignore
           path: |
-            artifacts/app/WidgetScreen.exe
-            artifacts/app/WidgetScreen.exe.config
+            artifacts/app/ClaudeDashboard.exe
+            artifacts/app/ClaudeDashboard.exe.config
             artifacts/app/ClaudeHook.exe
             artifacts/setup/*.exe
+            artifacts/renders/*.png

@@ -9,12 +9,12 @@ using System.Windows.Media;
 
 namespace WidgetScreenSetup
 {
-    // Widget Screen setup: one exe that installs, updates and (copied into the install folder) uninstalls.
-    //   WidgetScreen-Setup-vX.Y.Z.exe                 install or update, with a window
+    // Claude Dashboard setup: one exe that installs, updates and (copied into the install folder) uninstalls.
+    //   ClaudeDashboard-Setup-vX.Y.Z.exe              install or update, with a window
     //   ... /S [--no-startup] [--no-sensors] [--launch]  install silently (--no-sensors leaves the hardware sensors out)
     //   ... /uninstall [/S] [--remove-settings]       uninstall (what Installed apps runs)
     //   ... --root <folder>                           sandbox every path and the registry key (automated checks)
-    // Silent runs return 0 on success and 1 on failure, with the reason in %TEMP%\WidgetScreen-Setup.log.
+    // Silent runs return 0 on success and 1 on failure, with the reason in %TEMP%\ClaudeDashboard-Setup.log.
     static class Program
     {
         [STAThread]
@@ -44,7 +44,7 @@ namespace WidgetScreenSetup
                 }
                 catch (Exception error)
                 {
-                    try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "WidgetScreen-Setup.log"), DateTime.Now.ToString("s") + " " + error + Environment.NewLine); } catch { }
+                    try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "ClaudeDashboard-Setup.log"), DateTime.Now.ToString("s") + " " + error + Environment.NewLine); } catch { }
                     return 1;
                 }
             }
@@ -69,7 +69,7 @@ namespace WidgetScreenSetup
         public SetupWindow(Installer installer, bool uninstall)
         {
             this.installer = installer; this.uninstall = uninstall;
-            Title = uninstall ? "Uninstall Widget Screen" : "Widget Screen setup";
+            Title = uninstall ? "Uninstall Claude Dashboard" : "Claude Dashboard setup";
             Width = 600; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Background = Page; FontFamily = new FontFamily("Segoe UI"); FontSize = 15; Foreground = Text;
@@ -99,12 +99,12 @@ namespace WidgetScreenSetup
         {
             string installed = installer.InstalledVersion();
             bool update = installed != null;
-            heading.Text = update ? "Update Widget Screen" : "Install Widget Screen";
+            heading.Text = update ? "Update Claude Dashboard" : "Install Claude Dashboard";
             body.Text = (update ? "Version " + installed + " is installed. This replaces it with version " + SetupInfo.Version + ". Your settings, sign-ins and paired phones stay as they are."
                                 : "Version " + SetupInfo.Version + ", for you only. No administrator rights are needed.")
                 + "\nIt goes in " + installer.InstallDir + ", with a Start menu shortcut and an entry in Settings → Apps → Installed apps for uninstalling.";
-            startup = Check("Start Widget Screen when I sign in to Windows", update ? installer.StartsWithWindows() : true);
-            open = Check("Open Widget Screen when setup finishes", true);
+            startup = Check("Start Claude Dashboard when I sign in to Windows", update ? installer.StartsWithWindows() : true);
+            open = Check("Open Claude Dashboard when setup finishes", true);
             options.Children.Add(startup);
             // The extra packages (user request, 1 Nov 2026): said plainly, on by default for a new install, kept as chosen on an update.
             if (Installer.HasSensors)
@@ -115,30 +115,42 @@ namespace WidgetScreenSetup
                 options.Children.Add(new TextBlock
                 {
                     Text = "Extra packages: LibreHardwareMonitor " + SetupInfo.SensorsVersion + " (LibreHardwareMonitorLib.dll, HidSharp.dll and " + (Installer.SensorLibraries() - 2) + " libraries they need, about "
-                        + (Installer.SensorBytes() / 1048576.0).ToString("0.0") + " MB), under the MPL-2.0 licence (HidSharp Apache-2.0, the .NET parts MIT), with their licence texts and a third-party notice. Widget Screen uses them for CPU temperatures; "
+                        + (Installer.SensorBytes() / 1048576.0).ToString("0.0") + " MB), under the MPL-2.0 licence (HidSharp Apache-2.0, the .NET parts MIT), with their licence texts and a third-party notice. Claude Dashboard uses them for CPU temperatures; "
                         + "without them it still shows GPU temperature and video memory. CPU temperatures also need the PawnIO driver, which setup doesn't install.",
                     Foreground = Muted, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(44, 0, 0, 8)
                 });
             }
             options.Children.Add(open);
+            var notes = new System.Collections.Generic.List<string>();
+            bool warn = false;
             var others = installer.OtherStartupShortcuts();
             if (others.Length > 0)
-                Say("Another startup shortcut also opens Widget Screen (" + string.Join(", ", others.Select(Path.GetFileName)) + "). Delete it from the Startup folder so the app doesn't open twice.", Warning);
-            if (installer.RunningCopies().Length > 0) Say("Widget Screen is running. Setup will close it first.", Muted);
+            {
+                notes.Add("Another startup shortcut also opens Claude Dashboard or the older Widget Screen (" + string.Join(", ", others.Select(Path.GetFileName)) + "). Delete it from the Startup folder so two copies don't open.");
+                warn = true;
+            }
+            // Until the migration release, the old app and this one share the settings folder and the Claude Code connection.
+            if (Installer.OldAppRunning())
+            {
+                notes.Add("Widget Screen, the older version of this app, is running. Close it before you open Claude Dashboard: for now they share the same settings and Claude Code connection.");
+                warn = true;
+            }
+            if (installer.RunningCopies().Length > 0) notes.Add("Claude Dashboard is running. Setup will close it first.");
+            if (notes.Count > 0) Say(string.Join("\n", notes), warn ? Warning : Muted);
             SetButtons(Primary(update ? "Update" : "Install", Install), Secondary("Cancel", Close));
         }
 
         void ShowUninstall()
         {
             string installed = installer.InstalledVersion();
-            heading.Text = "Uninstall Widget Screen";
+            heading.Text = "Uninstall Claude Dashboard";
             body.Text = installed == null
-                ? "Widget Screen isn't installed for this account. Uninstalling removes any shortcuts and files that are left."
+                ? "Claude Dashboard isn't installed for this account. Uninstalling removes any shortcuts and files that are left."
                 : "This removes version " + installed + ", its Start menu and startup shortcuts, and its Installed apps entry.";
             removeSettings = Check("Also delete my settings, Spotify and Discord sign-ins and paired phones", false);
             options.Children.Add(removeSettings);
-            options.Children.Add(new TextBlock { Text = "They're in " + installer.SettingsDir + ". Keep them to pick up where you left off if you install again.", Foreground = Muted, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(44, 0, 0, 0) });
-            if (installer.RunningCopies().Length > 0) Say("Widget Screen is running. Uninstalling will close it first.", Muted);
+            options.Children.Add(new TextBlock { Text = "They're in " + installer.SettingsDir + ", which the older Widget Screen uses too. Keep them to pick up where you left off if you install again.", Foreground = Muted, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(44, 0, 0, 0) });
+            if (installer.RunningCopies().Length > 0) Say("Claude Dashboard is running. Uninstalling will close it first.", Muted);
             SetButtons(Primary("Uninstall", Uninstall), Secondary("Cancel", Close));
         }
 
@@ -150,7 +162,7 @@ namespace WidgetScreenSetup
             {
                 await Task.Run(() => installer.Install(startWithWindows, withSensors, Progress));
                 if (openAfter) installer.Launch();
-                heading.Text = "Widget Screen is installed";
+                heading.Text = "Claude Dashboard is installed";
                 body.Text = "Find it in the Start menu" + (startWithWindows ? ". It also starts when you sign in." : ".") + " To remove it, use Settings → Apps → Installed apps.";
                 Done();
             }
@@ -164,7 +176,7 @@ namespace WidgetScreenSetup
             try
             {
                 await Task.Run(() => installer.Uninstall(alsoSettings, Progress));
-                heading.Text = "Widget Screen is uninstalled";
+                heading.Text = "Claude Dashboard is uninstalled";
                 body.Text = alsoSettings ? "Its settings, sign-ins and paired phones were deleted too." : "Your settings are still in " + installer.SettingsDir + ", ready if you install it again.";
                 Done();
             }

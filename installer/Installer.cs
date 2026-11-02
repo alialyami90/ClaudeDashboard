@@ -15,7 +15,10 @@ namespace WidgetScreenSetup
     // With a sandbox root, every path and the registry key move under that root, for the automated checks.
     public sealed class Installer
     {
-        public const string AppName = "Widget Screen", AppExe = "WidgetScreen.exe", UninstallerExe = "Uninstall Widget Screen.exe", Publisher = "Ali Alyami";
+        public const string AppName = "Claude Dashboard", AppExe = "ClaudeDashboard.exe", UninstallerExe = "Uninstall Claude Dashboard.exe", Publisher = "Ali Alyami";
+        // The app was called Widget Screen until v0.42 (decision 026). Its startup shortcuts would open the old app beside
+        // this one, so setup points them out too. The settings folder keeps the old name until the migration release.
+        public const string OldAppName = "Widget Screen", OldAppExe = "WidgetScreen.exe";
         public readonly string InstallDir, StartMenuShortcut, StartupShortcut, SettingsDir, RegistryPath, Root;
 
         public Installer(string sandboxRoot)
@@ -28,7 +31,7 @@ namespace WidgetScreenSetup
                 StartMenuShortcut = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), AppName + ".lnk");
                 StartupShortcut = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), AppName + ".lnk");
                 SettingsDir = Path.Combine(local, "WidgetScreen");
-                RegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\WidgetScreen";
+                RegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ClaudeDashboard";
             }
             else
             {
@@ -36,14 +39,14 @@ namespace WidgetScreenSetup
                 StartMenuShortcut = Path.Combine(Path.Combine(Root, "StartMenu"), AppName + ".lnk");
                 StartupShortcut = Path.Combine(Path.Combine(Root, "Startup"), AppName + ".lnk");
                 SettingsDir = Path.Combine(Root, "Settings");
-                RegistryPath = @"Software\WidgetScreen.SetupTests\Uninstall\WidgetScreen";
+                RegistryPath = @"Software\ClaudeDashboard.SetupTests\Uninstall\ClaudeDashboard";
             }
         }
 
         public string AppPath { get { return Path.Combine(InstallDir, AppExe); } }
         public string UninstallerPath { get { return Path.Combine(InstallDir, UninstallerExe); } }
 
-        // The installed version, or null when Widget Screen isn't installed.
+        // The installed version, or null when Claude Dashboard isn't installed.
         public string InstalledVersion()
         {
             using (var key = Registry.CurrentUser.OpenSubKey(RegistryPath))
@@ -70,15 +73,19 @@ namespace WidgetScreenSetup
         }
         public static int SensorLibraries() { return Assembly.GetExecutingAssembly().GetManifestResourceNames().Count(n => n.StartsWith(SensorsPrefix, StringComparison.Ordinal) && n.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)); }
 
-        // Copies of Widget Screen started from the install folder (other builds are left alone).
+        // Copies of Claude Dashboard started from the install folder (other builds are left alone).
         public Process[] RunningCopies()
         {
-            return Process.GetProcessesByName("WidgetScreen").Where(p => IsInside(PathOf(p), InstallDir)).ToArray();
+            return Process.GetProcessesByName(Path.GetFileNameWithoutExtension(AppExe)).Where(p => IsInside(PathOf(p), InstallDir)).ToArray();
         }
 
-        public static bool AnyCopyRunning() { return Process.GetProcessesByName("WidgetScreen").Length > 0; }
+        public static bool AnyCopyRunning() { return Process.GetProcessesByName(Path.GetFileNameWithoutExtension(AppExe)).Length > 0; }
 
-        // Other shortcuts in the Startup folders that also open Widget Screen, so it would open twice.
+        // Whether the old Widget Screen app is running: until the migration release it shares the settings folder and the
+        // Claude Code connection, so setup asks for it to be closed.
+        public static bool OldAppRunning() { return Process.GetProcessesByName(Path.GetFileNameWithoutExtension(OldAppExe)).Length > 0; }
+
+        // Other shortcuts in the Startup folders that also open Claude Dashboard or the old Widget Screen, so two copies would open.
         public string[] OtherStartupShortcuts()
         {
             if (Root != null) return new string[0];
@@ -90,7 +97,7 @@ namespace WidgetScreenSetup
                 {
                     if (string.Equals(link, StartupShortcut, StringComparison.OrdinalIgnoreCase)) continue;
                     string target = ShortcutTarget(link);
-                    if (target != null && target.EndsWith("\\" + AppExe, StringComparison.OrdinalIgnoreCase)) found.Add(link);
+                    if (target != null && (target.EndsWith("\\" + AppExe, StringComparison.OrdinalIgnoreCase) || target.EndsWith("\\" + OldAppExe, StringComparison.OrdinalIgnoreCase))) found.Add(link);
                 }
             }
             return found.ToArray();
@@ -99,7 +106,7 @@ namespace WidgetScreenSetup
         public void Install(bool startWithWindows, Action<string> progress) { Install(startWithWindows, true, progress); }
         public void Install(bool startWithWindows, bool sensors, Action<string> progress)
         {
-            Report(progress, "Closing Widget Screen…");
+            Report(progress, "Closing Claude Dashboard…");
             CloseRunningCopies();
             Report(progress, "Copying files…");
             Directory.CreateDirectory(InstallDir);
@@ -126,8 +133,8 @@ namespace WidgetScreenSetup
             bytes += new FileInfo(UninstallerPath).Length;
 
             Report(progress, "Adding shortcuts…");
-            CreateShortcut(StartMenuShortcut, AppPath, InstallDir, "Your second-screen dashboard");
-            if (startWithWindows) CreateShortcut(StartupShortcut, AppPath, InstallDir, "Starts Widget Screen when you sign in");
+            CreateShortcut(StartMenuShortcut, AppPath, InstallDir, "Watch your Claude Code sessions");
+            if (startWithWindows) CreateShortcut(StartupShortcut, AppPath, InstallDir, "Starts Claude Dashboard when you sign in");
             else DeleteFile(StartupShortcut);
 
             using (var key = Registry.CurrentUser.CreateSubKey(RegistryPath))
@@ -152,9 +159,9 @@ namespace WidgetScreenSetup
         public void Uninstall(bool removeSettings, Action<string> progress)
         {
             Environment.CurrentDirectory = Path.GetTempPath();
-            Report(progress, "Closing Widget Screen…");
+            Report(progress, "Closing Claude Dashboard…");
             CloseRunningCopies();
-            Report(progress, "Removing Widget Screen…");
+            Report(progress, "Removing Claude Dashboard…");
             RemoveFullSensorsTask(progress);
             DeleteFile(StartMenuShortcut);
             DeleteFile(StartupShortcut);
@@ -176,7 +183,7 @@ namespace WidgetScreenSetup
             if (removeSettings && Directory.Exists(SettingsDir)) Retry(() => Directory.Delete(SettingsDir, true));
         }
 
-        // Full-sensors mode's Task Scheduler task (decision 016), if Widget Screen made one: removing it needs administrator
+        // Full-sensors mode's Task Scheduler task (decision 016, still named after Widget Screen), if the app made one: removing it needs administrator
         // rights, so Windows asks. Never in the automated checks (a sandbox root).
         public const string FullSensorsTask = "Widget Screen full sensors";
         void RemoveFullSensorsTask(Action<string> progress)

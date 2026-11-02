@@ -6,6 +6,16 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.42.1 (2 Nov 2026)
+
+Claude Dashboard, phase 1 of decision 026: the names.
+
+- **New name.** The exe, setup, uninstaller, Start menu and Startup shortcuts, Installed apps entry and window title say Claude Dashboard (`ClaudeDashboard.exe`, `ClaudeDashboard-Setup-vX.Y.Z.exe`, installed in `%LOCALAPPDATA%\Programs\Claude Dashboard`). The start-up error box and the Settings → Claude texts about sign-in, telemetry and the status line use the new name too.
+- **Settings stay put.** Settings and Claude Code's hooks still live in `%LOCALAPPDATA%\WidgetScreen` until phase 5, so nothing needs reconnecting.
+- **The old app.** Setup warns when Widget Screen is running or another startup shortcut opens it, because for now both share the same settings and Claude Code connection. The uninstall option to delete settings says the folder is shared.
+- **Releases.** The GitHub Release ships the setup exe and the portable zip, with no APK; v0.41.0 is the last release with the Android app. CI builds and checks the Windows app and setup only. `scripts\release.ps1 -UpdateShortcut` makes a "Claude Dashboard" desktop shortcut and removes the old "Widget Screen" one when it opened a release from this folder.
+- **Builds.** Builds work before the first tag (version 0.0.0), and without the hardware-sensor files folder. Every XAML file under `src\` is embedded, ready for the new window. CI keeps window renders with its test builds.
+
 ## v0.42.0 (2 Nov 2026)
 
 Claude Dashboard, phase 1 of decision 026: the documents.
