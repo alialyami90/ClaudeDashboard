@@ -13,6 +13,65 @@ Docs for the lap chart (decision 030). Docs only. It lands after v0.58.0.
 - **Decision 030:** the lap chart. It covers the six views and their keys (Ctrl+1 to Ctrl+6, and Ctrl+G for the session waiting longest), the lanes and how each state is drawn, rose for Retrying, the sizes, the in-memory engine, and the six defaults that hold until Ali changes them.
 - DESIGN.md, PRODUCT.md and README follow once packages A to E have merged.
 
+## v0.57.0 (unreleased)
+
+The lap chart's package D (decision 030): the Limits and History tabs.
+
+- **Limits** shows the 5-hour window from its start to its reset. It has the use curve from the plan readings, the "≈ limit" at the last 30 minutes' pace (dashed, amber with a wall where it hits 100% before the reset) and at today's average from tokens (dotted), and a mark where heavy use began. With fewer than 3 plan readings it shows no projection and says why. Beside it: the week's laps by day (each day's ≈ share from its tokens) with the pace to the reset; the weekly windows (all models, each model's own, extra usage, the spend limit, each saying when it isn't reported); and this window's tokens by project.
+- **History** shows the 8-week calendar of tokens per day, the hour-of-day profile with a tick at the same hour last week, and the last 7 days: tokens, ≈ $ at API prices, threads, times it needed you, and the longest wait (amber from 15 minutes). Below that are this week's projects. It reads ClaudeHistory's day files (through the view context) only when today's tokens or the date change, and at most once a minute. While History is off it says so and points to Settings → Claude → History.
+- **At the limit** (the engine's `Reached`, or 100%) Limits says "Limit reached. It resets …" in Amber, and draws no pace or average line.
+- **Keyboard:** each tab's page is one tab stop with a spoken name ("Limits page", "History page") that scrolls with the arrow, Page and Home/End keys, and a redraw keeps its focus and scroll position. The week's laps show whole percents, and "<1%" for a little use.
+- Both draw in code with the palette's brushes, say Sample over the fixture at every size, start no timers, and redraw only when the snapshot or the minute changes.
+- **Checks** (`tests/Claude/LimitsHistoryTests.cs`): both tabs at 640 × 420, 1000 × 600 and 1600 × 900, at 100% and 140%; no projection under 3 readings; the engine's projections taken as they are and marked ≈; the onset rule; honest weekly-window rows; the History model; and reading the day files once a minute.
+
+## v0.56.1 (unreleased)
+
+Claude Dashboard: lap chart follow-ups, and "Limit reached" from the engine.
+
+- **`ClaudeLimitProjection.Reached`**: when the newest plan reading of the 5-hour window is already at 100%, both projections say Reached. `LimitAt` is then null, so no view ever shows "≈ limit" at a time that has already passed. Live's 5-hour line and the curve's label say "Limit reached" in Amber, with no wall. Shell's header keys off the same flag.
+- **A frame clock for the views.** A view asks the window for frames while a car moves (`ClaudeViewContext.Frames`). The window's one timer for it runs only while that view is on screen, the window isn't minimised and Quiet mode isn't keeping the cars still, the same rule as Garage's cars. A view is told Quiet (`ClaudeViewContext.Quiet`).
+- **Each view tab has its name** for screen readers. Tab after Live's last lane landed on a tab with none.
+- **The header says "Limit reached"** in Amber, with no "≈ limit" time, while the 5-hour window is Reached.
+- **Checks:** a full window is Reached with no time, in the engine and on Live's line.
+
+## v0.56.0 (unreleased)
+
+Claude Dashboard: the Live tab, the lap chart (package C of the lap chart plan). From 640 wide, Live is the first tab.
+
+- **One time axis** from the last 100 minutes to the 5-hour reset (an hour ahead when the reset isn't known). After now, the future region is in the Input colour. Before the app began watching, the lanes stay empty behind a dashed edge.
+- **A lane per session**, running or ended within the axis, in urgency order: Needs you, Stuck, Retrying, Silent, Your turn, Compacting, Working, Idle, then Ended. Each car sits on the now line with its trail behind it: solid project colour while working, an Amber block while it needs you, a hollow Glacier outline on your turn, a thin grey line when idle or silent, stripes while compacting, and rose marks for API errors. Silent's words are Amber and Retrying's are rose. Lanes are buttons named like "Fix the login timeout, needs you 4 minutes, api-server". The cars are still for now; they move in v0.56.1.
+- **The 5-hour curve** above the lanes, with its dashed projection at the last 30 minutes' pace. When that reaches 100% before the reset, an Amber wall drops through every lane at "≈ limit 3:21 pm". With fewer than 3 plan readings there's no projection, and the line says why. Its tip gives "≈ limit" at today's average and says that one is converted from today's tokens.
+- **What just happened**: the newest lines of the feed, with names and times only.
+- **The selected session** sits beside the chart from 1000 wide, showing the most urgent session until you choose a lane. From 640 to 1000 it's a drawer that a lane opens and Esc or ✕ closes. It shows what it asks, Go to it (which only opens the session), last sign of life, Now (or the last tool), tasks and helpers, context with 60, 80 and 95% ticks, today's tokens, lines and asks, and its tool runs with typical and longest times.
+- **Checks:** `tests/Claude/LapChartTests.cs`, including renders at 640, 1000 and 1600 wide, at 100% and 140%. The older checks that mean the Garage card now choose it.
+
+## v0.55.0 (unreleased)
+
+Claude Dashboard: the lap chart's tab shell (decision 030, package B).
+
+- **Views as tabs.** From 640 wide, a tab list under the header: Live, Garage, Limits, History, Reliability, Sources. Ctrl+1 to Ctrl+6 choose them. Screen readers get a real tab list. Below 640 wide there are no tabs and the window is the Garage card, as before.
+- **Garage is today's pit wall**, with its 5 h / Today / Week switch, which shows in the header only while Garage does. Another view's cars keep still.
+- **The other views are placeholders for now**, saying when they come: Live in v0.56.0, Limits and History in v0.57.0, Reliability and Sources in v0.58.0. Live opens first once it's in the build; until then Garage does.
+- **The header summary**: the states now, with the threads of Garage's chosen period while Garage is on screen (as before, and below 640 wide) and of the last 5 hours on every other view. It adds "≈ limit 4:12 pm" when the plan readings' pace (3 readings or more) fills the 5-hour window before it resets. It is still an assertive live region.
+- **The source-health line** moves to the tab row's right end from 640 wide. It is the same control, with Sample first. When the row has no room for it, it takes a line of its own under the tabs. Below 640 it stays under the card.
+- **Ctrl+G** opens the session that has waited longest (Ctrl+1 until now).
+- **For the views:** a view-host contract (`IClaudeView` in `ClaudeViews.cs`) that the next packages build on, with actions that take the same path as their Settings → Claude buttons, confirmations included.
+- **`--render-view <name>`** renders one view.
+
+## v0.54.0 (unreleased)
+
+Claude Dashboard: the lap chart's engine (package A of the lap chart plan). Nothing on screen changes yet; the Live, Limits, Reliability and Sources views read these. Everything is in memory only and holds names, states and times, never prompts, replies, commands or file contents. No new polling.
+
+- **State timeline per session** for the last five hours (`ClaudeView.Trails`, `ClaudeTimeline`): each change of lane state (Needs you, Stuck, Retrying, Silent, Your turn, Compacting, Working, Idle, Ended), starting no earlier than when the app began watching (`WatchStart`). Each thread has its `Lane` and `LaneSince`.
+- **Last sign of life** goes by the hook's `heard` time, the session's log and now its telemetry events; Silent is still Working with no sign for 5 minutes.
+- **Retrying**: an API error on a working session with no request through since (`ClaudeSession.Retrying`).
+- **Plan reading ring**: the 5-hour readings of the last five hours from the status line and the plan check (`PlanReadings`), and "≈ limit" at the last 30 minutes' pace and at today's average (`LimitAtPace`, `LimitAtAverage`). With fewer than 3 readings there's no projection, and `Why` says so.
+- **Typical tool times**: median, longest, runs and failures per tool across all sessions (`ToolTimes`) and per session (`ClaudeSession.ToolTimes`), from telemetry. Log tool calls now carry the tool's name.
+- **Event feed**: the last 50 state changes, tool failures, API errors and compactions of the projects you show (`Feed`), newest first. A project Settings hides never takes a slot.
+- **For Reliability and Sources**: today's tool runs, the last 24 hours' API errors, today's compactions, a tool name on tool decisions, and each source's freshness (logs' last scan, telemetry's last export and port, the Claude app's records, the plan's next check).
+- **Samples** carry all of it: three hours of trails, readings, a crowd thread retrying, the feed and tool times.
+- **Checks:** `tests/Claude/ClaudeTimelineTests.cs`.
+
 ## v0.53.2 (unreleased)
 
 Docs catch up with the observability wave, v0.48.0 to v0.53.0. Docs only.

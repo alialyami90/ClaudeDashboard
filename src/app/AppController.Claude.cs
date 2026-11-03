@@ -139,7 +139,8 @@ namespace ClaudeDashboard
             if (changed || claudeDirty) RefreshClaudeView();
         }
         // The cars move only while the window isn't minimised.
-        private void UpdateClaudeLive() { claudeCard.SetLive(CardShown); }
+        // Another view's card is hidden, so its cars keep still too (decision 030).
+        private void UpdateClaudeLive() { claudeCard.SetLive(CardShown && GarageShown); }
         private bool ClaudeStill { get { return settings.QuietMode && settings.ClaudeStillInQuiet; } }
 
         private void TickClaudeOnline()

@@ -11,7 +11,7 @@ namespace ClaudeDashboard
 {
     // Alerts that respect attention (observability critique, issue 5): the taskbar button carries an Amber dot with how
     // many sessions need you, flashes once when a new one does (never in Quiet mode, never while the window is in
-    // front), and Ctrl+1 opens the session that has waited longest, in the attention queue's order. The window's frame
+    // front), and Ctrl+G (Ctrl+1 until v0.55.0) opens the session that has waited longest, in the attention queue's order. The window's frame
     // (ClaudeCard.Render) goes Glacier only once a reply you owe has waited 10 minutes.
     public sealed partial class AppController
     {
@@ -68,7 +68,7 @@ namespace ClaudeDashboard
             return true;
         }
 
-        // Ctrl+1: the first session in the attention queue (Needs you first, the longest waiting first). Returns its id,
+        // Ctrl+G: the first session in the attention queue (Needs you first, the longest waiting first). Returns its id,
         // or null when nothing is waiting on you.
         public string OpenWaitingLongest()
         {
@@ -80,6 +80,60 @@ namespace ClaudeDashboard
         public ClaudeAttention WaitingLongest(DateTime now)
         {
             return claudeView == null ? null : claudeView.Attention(now).FirstOrDefault();
+        }
+
+        // A view's action (ClaudeViewContext.Act, decision 030): each name takes exactly the path of its Settings →
+        // Claude button, confirmation sheet and settings.json backups included, and is refused when that button
+        // wouldn't show. Returns null when it started or worked, or why not.
+        public static readonly string[] Actions = { "Connect", "Disconnect", "Reconnect", "OpenLogs", "UpdateConnection", "CheckPlan", "SignIn", "ShowArchived", "HideArchived" };
+        public string Act(string name)
+        {
+            if (disposed) return "Claude Dashboard is closing.";
+            if (claudeSample) return Array.IndexOf(Actions, name) >= 0 ? "These are sample numbers, so there's nothing to change." : "Unknown action: " + (name ?? "(none)") + ".";
+            switch (name)
+            {
+                case "Connect": case "Reconnect": case "UpdateConnection":
+                {
+                    claude.CheckConnected();
+                    string port = claude.TelemetryWarning();
+                    bool update = claude.Connector.NeedsUpdate() || claude.HooksElsewhere != null || (port.Length > 0 && !claude.WidgetScreenOpen);
+                    if (name == "Connect" && claude.Connected && !update) return "Claude Code is already connected.";
+                    if (name == "Reconnect" && claude.HooksElsewhere == null) return claude.Connected ? "Claude Code's hooks already run Claude Dashboard's bridge." : "Claude Code isn't connected. Connect it first.";
+                    if (name == "UpdateConnection" && (!claude.Connected || !update)) return claude.Connected ? "The connection is up to date." : "Claude Code isn't connected. Connect it first.";
+                    ConnectClaude();
+                    return null;
+                }
+                case "Disconnect":
+                    claude.CheckConnected();
+                    if (!claude.Connected) return "Claude Code isn't connected.";
+                    DisconnectClaude();
+                    return null;
+                case "OpenLogs":
+                {
+                    string folder = System.IO.Path.Combine(claude.ConfigFolder, "projects");
+                    if (!System.IO.Directory.Exists(folder)) folder = claude.ConfigFolder;
+                    if (!System.IO.Directory.Exists(folder)) return "Claude Code's folder isn't on this PC yet: " + claude.ConfigFolder;
+                    try { System.Diagnostics.Process.Start("explorer.exe", "\"" + folder + "\""); return null; }
+                    catch (Exception e) { return "Couldn't open " + folder + ": " + e.Message; }
+                }
+                case "CheckPlan":
+                    if (!claude.Account.SignedIn) return "Sign in to Claude first (Settings → Claude), so Claude Dashboard can check the plan.";
+                    claude.CheckSoon(); TickClaudeOnline();
+                    return null;
+                case "SignIn":
+                    if (claude.Account.SignedIn) return "Claude Dashboard is already signed in to Claude.";
+                    if (claude.Account.SigningIn) return "The sign-in is already open in your browser.";
+                    SignInClaude();
+                    return null;
+                case "ShowArchived": case "HideArchived":
+                    settings.ClaudeShowArchived = name == "ShowArchived";
+                    Persist();
+                    claudeDirty = true;
+                    if (claudeView != null) { claudeView.ShowArchived = settings.ClaudeShowArchived; claudeCard.Update(claudeView); }
+                    return null;
+                default:
+                    return "Unknown action: " + (name ?? "(none)") + ".";
+            }
         }
 
         private const uint FlashTray = 2;

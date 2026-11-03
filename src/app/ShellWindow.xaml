@@ -1,6 +1,6 @@
 <!-- Claude Dashboard's window (phase 4 of the transformation plan): an ordinary resizable Windows window that is the pit
-     wall and nothing else. A header with the live summary, the period switch, Quiet mode and Settings, then the Claude
-     card filling the rest; the card picks its Small, Medium or Large design from its own size as the window resizes.
+     wall and nothing else. A header with the live summary, the period switch (Garage's), Quiet mode and Settings, from
+     640 wide the view tabs, then the chosen view filling the rest (the Claude card is Garage); the card picks its Small, Medium or Large design from its own size as the window resizes.
      The window's edge turns Amber while a session needs you and Glacier while one waits for your reply. AppController
      merges ShellStyles.xaml and the palette into the resources, so styles here are DynamicResource. -->
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -12,7 +12,7 @@
   <Grid x:Name="Dashboard" Background="{DynamicResource Surface}">
     <Border x:Name="WindowEdge" BorderThickness="3" BorderBrush="Transparent" AutomationProperties.Name="Claude Dashboard">
       <Grid x:Name="DashboardContent">
-        <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <!-- One line when everything fits; otherwise the summary takes a second line under the name, the flag and the
              buttons (AppController.FitHeader), so the summary is never cut mid-word. -->
         <Grid x:Name="Header" Margin="24,12,20,0">
@@ -41,23 +41,43 @@
             </DockPanel>
           </DockPanel>
         </Grid>
-        <!-- ClaudeCard builds the Small, Medium or Large design in ClaudeBody (docs/design/claude-watcher.md). -->
-        <Border x:Name="ClaudeCard" Grid.Row="1" Padding="24" Background="Transparent" AutomationProperties.Name="Claude Code">
+        <!-- The view tabs (decision 030), from 640 wide: Live, Garage, Limits, History, Reliability, Sources; Ctrl+1 to
+             Ctrl+6. The source-health line moves to the row's right end (the same control, under no view), or onto a
+             line of its own under the tabs when the row has no room for it. Below 640 there are no tabs and the window
+             is the Garage card, as before v0.55.0. -->
+        <Grid x:Name="TabRow" Grid.Row="1" Margin="24,0,24,0" Visibility="Collapsed">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <TabControl x:Name="ViewTabs" Style="{DynamicResource ViewTabs}" AutomationProperties.Name="Views" HorizontalAlignment="Left">
+            <TabItem x:Name="ViewTab0" Header="Live" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Live" ToolTip="Live: every session on the lap chart (Ctrl+1)"/>
+            <TabItem x:Name="ViewTab1" Header="Garage" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Garage" ToolTip="Garage: the pit wall by project, for 5 h, today or the week (Ctrl+2)"/>
+            <TabItem x:Name="ViewTab2" Header="Limits" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Limits" ToolTip="Limits: the 5-hour window and the week (Ctrl+3)"/>
+            <TabItem x:Name="ViewTab3" Header="History" Style="{DynamicResource ViewTab}" AutomationProperties.Name="History" ToolTip="History: the last eight weeks (Ctrl+4)"/>
+            <TabItem x:Name="ViewTab4" Header="Reliability" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Reliability" ToolTip="Reliability: tool failures, API errors and stuck turns (Ctrl+5)"/>
+            <TabItem x:Name="ViewTab5" Header="Sources" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Sources" ToolTip="Sources: where every number comes from (Ctrl+6)"/>
+          </TabControl>
+          <Border x:Name="TabSources" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="16,0,0,0"/>
+        </Grid>
+        <!-- ClaudeCard builds the Small, Medium or Large design in ClaudeBody (docs/design/claude-watcher.md). It is the
+             Garage view; another view's card is hidden (it keeps its size, so nothing reflows) and the view shows in
+             ViewHost instead. -->
+        <Border x:Name="ClaudeCard" Grid.Row="2" Padding="24" Background="Transparent" AutomationProperties.Name="Claude Code">
           <Grid x:Name="ClaudeBody"/>
         </Border>
+        <Border x:Name="ViewHost" Grid.Row="2" Padding="24" Background="Transparent" Visibility="Collapsed"/>
         <!-- The source-health line (observability critique, issue 3): Sample, then Hooks · Logs · Telemetry · Plan, each
              with its glyph and words: ok, waiting, old or off and why. It never folds away; on a narrow window the
              reasons shorten, then the sources that are fine keep only their glyph (AppController.FitSources). It sits
              over the lower 16 units of the card's 24-unit padding, which the card never draws in, so its own row is
              only 8 units at 100% text and the card keeps its room. -->
-        <StackPanel x:Name="SourceLine" Grid.Row="2" Orientation="Horizontal" Margin="24,-16,24,4" ClipToBounds="True" AutomationProperties.Name="Sources">
+        <StackPanel x:Name="SourceLine" Grid.Row="3" Orientation="Horizontal" Margin="24,-16,24,4" ClipToBounds="True" AutomationProperties.Name="Sources">
           <TextBlock x:Name="SourceSample" Text="SAMPLE" FontWeight="SemiBold" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,16,0" TextTrimming="None" ToolTip="These are sample numbers, not this PC's sessions." AutomationProperties.Name="Sample: these are sample numbers, not this PC's sessions"/>
           <StackPanel x:Name="Source0" Orientation="Horizontal" Margin="0,0,16,0"><TextBlock x:Name="SourceGlyph0" Style="{DynamicResource Glyph}" Margin="0,1,5,0"/><TextBlock x:Name="SourceText0" VerticalAlignment="Center" TextTrimming="None"/></StackPanel>
           <StackPanel x:Name="Source1" Orientation="Horizontal" Margin="0,0,16,0"><TextBlock x:Name="SourceGlyph1" Style="{DynamicResource Glyph}" Margin="0,1,5,0"/><TextBlock x:Name="SourceText1" VerticalAlignment="Center" TextTrimming="None"/></StackPanel>
           <StackPanel x:Name="Source2" Orientation="Horizontal" Margin="0,0,16,0"><TextBlock x:Name="SourceGlyph2" Style="{DynamicResource Glyph}" Margin="0,1,5,0"/><TextBlock x:Name="SourceText2" VerticalAlignment="Center" TextTrimming="None"/></StackPanel>
           <StackPanel x:Name="Source3" Orientation="Horizontal"><TextBlock x:Name="SourceGlyph3" Style="{DynamicResource Glyph}" Margin="0,1,5,0"/><TextBlock x:Name="SourceText3" VerticalAlignment="Center" TextTrimming="None"/></StackPanel>
         </StackPanel>
-        <TextBlock x:Name="StatusMessage" Grid.Row="3" Text="" Style="{DynamicResource Small}" Margin="24,0,24,10" Visibility="Collapsed"/>
+        <TextBlock x:Name="StatusMessage" Grid.Row="4" Text="" Style="{DynamicResource Small}" Margin="24,0,24,10" Visibility="Collapsed"/>
       </Grid>
     </Border>
 

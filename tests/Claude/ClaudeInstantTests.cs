@@ -217,5 +217,7 @@ internal static class ClaudeInstantTests
         ClaudeAccessTests.Run(directory, check);
         ClaudeAttentionTests.Run(directory, check);
         ClaudeLiveTests.Run(directory, check);
+        ClaudeTimelineTests.Run(directory, check);
+        LapChartTests.Run(directory, check);
     }
 }
