@@ -105,15 +105,40 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
 ## Verified
 
 - **Checks.** CI was green on every PR. Each view has its own checks: `LapChartTests` (Live), `LimitsHistoryTests`, `ReliabilitySourcesTests`, and the shell's tabs, keys, frame clock and header checks in `ShellTests`. Each view renders at 640 × 420, 1000 × 600 and 1600 × 900, at 100% and 140%, and Live at 800 × 500 too. The checks point at throwaway folders and never touch the PC's real Claude Code.
-- **Renders on Ali's PC** (`artifacts\review\`, through `--render-view` with the sample), checked by the Lead, with each finding fixed before or right after its merge:
-  - **v0.56.0 (Live).** The curve's percent sat on the label, the axis had no times, and the trails had no key. At 140% the panel cut numbers, and the 800 × 500 drawer ended on a half line. Two older collisions also showed up: the tank gauge's "100" read "T00" at 140%, and the Garage side panel's times met. All of these were fixed in v0.57.2.
-  - **v0.57.0 (Limits and History).** Tab never reached the page, so the week and the last 7 days were out of a keyboard user's reach. That was fixed before the merge: each page is a named tab stop. Home and End went sideways, which v0.57.1 fixed.
-  - **v0.57.2.** Ali forced a full window. The header, the tank, Medium, Small, Live and Limits all said "Limit reached" in Amber, with no time and no wall.
-  - **v0.58.0 (Reliability and Sources), first render.** Tool failures disagreed with the tools table. The page's focus ring couldn't be seen. Off Sources buttons were faint on the Claude palette. The two "Asked you" counts didn't say which was which. All four were fixed before the merge, and the second render (v0.58.0b) was clean. There was no turn text, rose read well on the Claude palette, and nothing was cut at 140%. Builder's matching ring for Limits and History is v0.58.1.
+- **Renders on Ali's PC** (`artifacts\review\`, through `--render-view` with the sample), checked by the Lead. Each finding below says where it was fixed:
+  - **v0.55.0 (tab shell).** Two collisions from v0.51.0 showed up. At 140% the tank gauge's "100" read "T00", and the Garage side panel's times ran into each other. Both were fixed in v0.57.2.
+  - **v0.56.0 (Live).** This render found:
+    - no time axis;
+    - no key for the trails;
+    - the curve's percent at the left end of the dashed top line, where it read as the 100% mark;
+    - side-panel numbers cut at 140%;
+    - the drawer's last line half cut at 800 × 500;
+    - a view tab with no screen-reader name (fixed in v0.56.1);
+    - the header's "≈ limit" and the tank's "≈ empty" differing by minutes and in words (fixed in v0.57.2, which made one "≈ limit").
+
+    The rest were fixed in v0.57.2.
+  - **v0.57.0 (Limits and History).** Found and fixed before the merge:
+    - Tab never reached the page, so the week and the last 7 days were out of a keyboard user's reach. Each page is now a named tab stop.
+    - The week's laps mixed precision ("7.4%", "0.0%"). They now show whole percents, and "<1%" for a little use.
+
+    With the meter set to 100%, Garage still said "≈ empty before reset". v0.57.2 fixed that. Home and End going sideways was found later, by Demolition on #24 and the v0.58.0 render. v0.57.1 fixed it.
+  - **v0.57.2.** The render harness set the 5-hour meter to 100%. The first render (fe37c7d) found three problems:
+    - Live still predicted while the meter read 100% but Reached was false;
+    - Garage said "Limit reached" twice;
+    - the trail key's Working swatch took a project colour.
+
+    All three were fixed before the merge (48cd355). Live, the tank, Medium and Small now say "Limit reached" once, in Amber, with no wall. The header wasn't rendered at 100%; its check covers it. As on the Garage, Quiet stops Live's cars only with Settings → Claude's "keep the cars still" on. That's by design.
+  - **v0.58.0 (Reliability and Sources), first render.** Found and fixed before the merge:
+    - Tool failures disagreed with the tools table;
+    - the page's focus ring couldn't be seen;
+    - off Sources buttons were faint on the Claude palette;
+    - the two "Asked you" counts didn't say which was which.
+
+    The second render (v0.58.0b) was clean except for one thing: the focus ring touched the heading's "R". v0.58.1 fixed that with `PageInset`. No turn text appeared, rose read well on the Claude palette, and nothing was cut at 140%.
   - The tab order, with Quiet and Settings before the page, was accepted as it is.
 - **Not verified live:**
   - a screen reader reading the lane names and the header's "Limit reached";
   - moving Live cars and the frame clock over a long day of real sessions;
   - Retrying and Silent lanes from real API errors and real hangs;
-  - "Limit reached" from a real full window rather than a forced one;
+  - "Limit reached" from a real full window, rather than the harness's 100% meter, and the header at 100%, which only its check covers;
   - Sources' Connect, Reconnect and Sign in clicked on the real PC (the checks drive them through a stand-in for `Act`).
