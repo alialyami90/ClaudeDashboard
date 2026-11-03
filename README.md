@@ -37,7 +37,7 @@ The first time Claude Dashboard starts with nothing in its own folder and someth
 - **Start fresh** copies nothing. If Claude Code was connected, it keeps sending to Widget Screen until you connect it in Settings → Claude.
 - Closing the window decides nothing, and the question comes back next time.
 
-Widget Screen's folder is only read. Afterwards, quit Widget Screen, then uninstall it from Installed apps and keep its settings when asked.
+Widget Screen's folder is only read, and Widget Screen can stay installed. Leave Claude Code connected in Claude Dashboard: Connect, Update or Disconnect in Widget Screen would take the connection back.
 
 ## Where your data lives
 

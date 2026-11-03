@@ -12,7 +12,7 @@ Claude Dashboard and Widget Screen are independent apps (Ali, 3 Nov 2026). Since
 
 - **Setup leaves Widget Screen alone.** It no longer warns about Widget Screen's startup shortcut or a running Widget Screen. It still points out another startup shortcut that opens Claude Dashboard itself, so two copies don't open.
 - **Reinstall.** When the installed version is the setup's own, setup says "Reinstall Claude Dashboard" instead of offering to replace a version with the same one.
-- **The first run's question.** It no longer tells you to quit or uninstall Widget Screen. **Bring it over** connects Claude Code to Claude Dashboard, and Widget Screen can stay installed.
+- **The first run's question.** It no longer tells you to quit or uninstall Widget Screen. **Bring it over** connects Claude Code to Claude Dashboard, and Widget Screen can stay installed; until the shared feed arrives, the sheet asks you to leave Claude Code connected in Claude Dashboard, since Connect, Update or Disconnect in Widget Screen would take the connection back. README says the same.
 - **Checks.** A setup check that Widget Screen's shortcut isn't pointed out but a second Claude Dashboard shortcut is, and the migration check now covers the new words.
 
 ## v0.47.3 (unreleased)

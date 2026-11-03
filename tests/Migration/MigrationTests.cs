@@ -158,9 +158,9 @@ internal static class MigrationTests
             Assert(text.StartsWith("Copies your Claude settings and theme, your Claude sign-in and Claude Code's sessions from C:\\Users\\ali\\AppData\\Local\\WidgetScreen.", StringComparison.Ordinal), "The list is wrong: " + text);
             Assert(text.Contains("backed up first") && text.Contains("Claude Code is then connected to Claude Dashboard") && text.EndsWith("connect Claude Code here later in Settings → Claude.", StringComparison.Ordinal), "The connection or Start fresh isn't explained: " + text);
             // The two apps are independent (Ali, 3 Nov 2026): nothing tells the user to quit or remove Widget Screen.
-            Assert(text.Contains("Widget Screen can stay installed") && text.IndexOf("quit", StringComparison.OrdinalIgnoreCase) < 0 && text.IndexOf("uninstall", StringComparison.OrdinalIgnoreCase) < 0, "The words tell the user to quit or uninstall Widget Screen: " + text);
+            Assert(text.Contains("Widget Screen can stay installed. Leave Claude Code connected here: Connect, Update or Disconnect in Widget Screen would take the connection back.") && text.IndexOf("quit", StringComparison.OrdinalIgnoreCase) < 0 && text.IndexOf("uninstall", StringComparison.OrdinalIgnoreCase) < 0, "The words tell the user to quit or uninstall Widget Screen: " + text);
             string signIn = AppController.MoveDetail(new Migration.Found { SignIn = true }, "old");
-            Assert(signIn.StartsWith("Copies your Claude sign-in from old.", StringComparison.Ordinal) && !signIn.Contains("backed up") && signIn.EndsWith("copies nothing.", StringComparison.Ordinal), "The sign-in-only words are wrong: " + signIn);
+            Assert(signIn.StartsWith("Copies your Claude sign-in from old.", StringComparison.Ordinal) && !signIn.Contains("backed up") && !signIn.Contains("Leave Claude Code connected") && signIn.EndsWith("copies nothing.", StringComparison.Ordinal), "The sign-in-only words are wrong: " + signIn);
         });
 
         check("Settings live in %LOCALAPPDATA%\\ClaudeDashboard", () => {
