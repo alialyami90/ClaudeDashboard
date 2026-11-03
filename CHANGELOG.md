@@ -16,7 +16,7 @@ Claude Dashboard, phase 6 of decision 026: Watcher package 4, the Cockpit.
 - **Plain mode.** Settings → Claude → Show a plain list instead of the pit wall. The same projects, threads, states and numbers appear as rows of text, each named for screen readers. Click a row to bring its session forward. Nothing animates. Numbers read before the logs are counted show "≈".
 - **No answering permission prompts** (decision 027, Ali's choice). The dashboard never answers a permission dialog. Needs you only brings the session's window forward.
 - **Not in this version.** The cloud garage (4.3) waits on a look at the Claude app's cloud thread records. The phone (4.2) moves to the Android companion.
-- **Checks.** Seven new checks in `tests/Claude/ClaudeCockpitTests.cs` cover history, the 7-day bars, Copy summary, the CSV and plain mode, the last in a real window with the sample.
+- **Checks.** Nine new checks in `tests/Claude/ClaudeCockpitTests.cs` cover history, the 7-day bars, Copy summary, the CSV and its thread names, and plain mode in a real window with the sample. They also render the bars and the plain list at 1000 × 600 and 640 × 420 into `artifacts\renders`.
 
 ## v0.46.0 (2 Nov 2026)
 
