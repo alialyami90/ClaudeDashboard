@@ -213,7 +213,7 @@ namespace ClaudeDashboard
             if (kind == ClaudeAttention.Need) { string ask = Ask(t.Message); if (ask.Length > 0) parts.Add(ask); parts.Add("waiting " + Duration(now - t.Since)); }
             else if (kind == ClaudeAttention.Stuck) { string why = StuckReason(t, view, now, use24); if (!String.IsNullOrEmpty(why)) parts.Add(why); parts.Add("stuck " + Duration(now - t.Since)); }
             else if (kind == ClaudeAttention.Turn) parts.Add("Waiting for your reply · " + Duration(now - t.Since));
-            else parts.Add("Working, no sign of life for " + Duration(now - t.LastSign));
+            else parts.Add(t.Pit == PitState.Rev ? "In a tool for " + Duration(now - t.LastSign) : "Working, no sign of life for " + Duration(now - t.LastSign));
             if (t.Where.Length > 0) parts.Add(t.Where == "Desktop" ? "Claude app" : t.Where);
             return String.Join(" · ", parts);
         }

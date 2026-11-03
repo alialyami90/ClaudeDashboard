@@ -759,7 +759,7 @@ namespace ClaudeDashboard
             {
                 sessions[file.Id] = new ClaudeSession { Id = file.Id, State = file.State, Since = ClaudeBridge.FromEpoch(file.Since), Project = file.Project,
                     Title = file.Title, Message = file.Message, Model = ModelName(file.Model), Pid = file.Pid, WindowPid = file.WindowPid, Window = file.Window,
-                    Compacting = file.Compacting && now - ClaudeBridge.FromEpoch(Math.Max(file.LastEvent, file.Since)) < ClaudePace.CompactForgotten, LastSign = ClaudeBridge.FromEpoch(Math.Max(file.LastEvent, file.Since)),
+                    Compacting = file.Compacting && now - ClaudeBridge.FromEpoch(Math.Max(file.LastEvent, file.Since)) < ClaudePace.CompactForgotten, LastSign = ClaudeBridge.FromEpoch(Math.Max(file.Heard > 0 ? file.Heard : file.LastEvent, file.Since)),
                     Reason = file.State == ClaudeState.Stuck ? file.Error : "", ReasonText = file.State == ClaudeState.Stuck ? file.ErrorText : "", Context = file.Context,
                     Workers = file.Workers.Count, Tasks = file.OpenTasks, TasksDone = file.TasksDone.Count(t => file.Tasks.Contains(t)), TasksTotal = file.Tasks.Count, EndReason = file.Ended ? file.EndReason : "", Failed = file.Failed, Denied = file.Denied, LastError = file.LastError,
                     CostUsd = file.CostUsd, DurationMs = file.DurationMs, ApiMs = file.ApiMs, Style = file.Style, Agent = file.Agent, Worktree = file.Worktree };

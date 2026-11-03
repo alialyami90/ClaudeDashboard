@@ -56,6 +56,34 @@ internal static class ClaudeAttentionTests
             Assert(ClaudeView.Fixture(Now, false, false).Attention(Now).All(a => a.Kind != ClaudeAttention.Need), "A calm sample has a thread that needs you.");
         });
 
+        check("Claude calls a hung turn Silent even while the status line keeps its file fresh", () => {
+            // Scribe on #13: the status line refreshes the session file every minute of a turn's wall clock, so only hook
+            // events (and log replies) count as a sign of life.
+            string bridge = Fresh(directory, "silent-bridge");
+            DateTime start = Now.AddMinutes(-10);
+            Action<string, string, DateTime> hook = (id, name, at) => ClaudeBridge.Hook("{\"session_id\":\"" + id + "\",\"hook_event_name\":\"" + name + "\",\"cwd\":\"C:/Code/api\",\"prompt\":\"\"}", bridge, null, at);
+            Func<string, int, string> status = (id, seconds) => "{\"session_id\":\"" + id + "\",\"cwd\":\"C:/Code/api\",\"cost\":{\"total_duration_ms\":" + (seconds * 1000) + ",\"total_api_duration_ms\":1000}}";
+            foreach (var id in new[] { "hung", "busy" }) hook(id, "UserPromptSubmit", start);
+            for (int m = 1; m <= 10; m++) ClaudeBridge.StatusLine(status("hung", m * 60 + 5), bridge, null, start.AddMinutes(m));
+            for (int m = 1; m <= 10; m++) hook("busy", "PreToolUse", start.AddMinutes(m).AddSeconds(-30));
+            var hung = ClaudeBridge.Read(ClaudeBridge.SessionPath(bridge, "hung"));
+            Assert(hung.LastEvent >= ClaudeBridge.Epoch(Now.AddMinutes(-1)) && hung.Heard == ClaudeBridge.Epoch(start), "The status line didn't refresh the file, or it moved the hook's time: " + hung.LastEvent + " / " + hung.Heard);
+            var round = ClaudeSessionFile.FromJson(ClaudeJson.Obj(ClaudeJson.Parse(ClaudeJson.Compact(hung.ToJson()))));
+            Assert(round.Heard == hung.Heard && !ClaudeJson.Compact(new ClaudeSessionFile().ToJson()).Contains("heard"), "The hook's time doesn't round-trip, or an empty file writes it.");
+            var service = new ClaudeService(bridge, Fresh(directory, "silent-config"), appThreads: new ClaudeAppThreads(() => new string[0]));
+            try
+            {
+                Assert(service.ReadSessions(Now, true), "Nothing was read.");
+                var queue = service.View(Now, null).Attention(Now);
+                var silent = queue.FirstOrDefault(a => a.Thread.Id == "hung");
+                Assert(silent != null && silent.Kind == ClaudeAttention.Silent && Math.Abs((silent.For - TimeSpan.FromMinutes(10)).TotalSeconds) < 1, "A turn kept fresh only by the status line isn't Silent: " + String.Join(",", queue.Select(a => a.Thread.Id + ":" + a.Kind)));
+                Assert(!queue.Any(a => a.Thread.Id == "busy"), "A turn with hook events every minute is called Silent.");
+            }
+            finally { service.Dispose(); }
+            var tool = new ClaudeSession { State = ClaudeState.Working, Running = true, LastSign = Now.AddMinutes(-8), Pit = PitState.Rev, Where = "" };
+            Assert(ClaudeText.AttentionReason(ClaudeAttention.Silent, tool, new ClaudeView(), Now, false) == "In a tool for 8 min", "A long tool run isn't said as one: " + ClaudeText.AttentionReason(ClaudeAttention.Silent, tool, new ClaudeView(), Now, false));
+        });
+
         check("Claude's crowded sample: the strip queue, the ledger footer and Medium's count, rendered at four sizes", () => {
             string renders = Path.GetFullPath(Path.Combine(directory, "..", "renders")); Directory.CreateDirectory(renders);
             bool footerSeen = false, nextSeen = false, mediumSeen = false;
