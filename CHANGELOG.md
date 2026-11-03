@@ -6,6 +6,15 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.53.2 (unreleased)
+
+Docs catch up with the observability wave, v0.48.0 to v0.53.0. Docs only.
+
+- **Decision 029:** 5 h and Today are a live status board, and Week is the ledger. It records what each of v0.49.0 to v0.53.0 did for the critique's five issues and the rules it kept: no tool details, no new polling, Amber only for Needs you and warnings, and the dashboard never answers. It also records that on Small, and on any narrow window, healthy sources show as glyphs only, with Reconnect and the reasons in the tooltips. It ends with a polish list of what the wave left for Ali.
+- **DESIGN.md:** the burn tile in place of the rev counter. New sections for the plan row in time, attention first, live rows and the Week ledger, the source-health line with its five steps, and keyboard and window: Tab, the 2-unit focus outline, Ctrl+1, the live region, the taskbar dot and flash, and Keep on top. Amber's uses now cover Stuck, the context bar, old or failed sources and the taskbar dot. Ended rows dim by colour. Text size and contrast are now rules.
+- **PRODUCT.md and README:** the live board and the Week ledger, pace as a time, the queue, the source-health line, the taskbar dot and flash, Ctrl+1 and Keep on top. Telemetry's tool name is listed as read, for Now, and kept in memory only. Decisions run to 029.
+- **The watcher's design note** points to decision 029 and DESIGN.md for anything the older sections describe differently.
+
 ## v0.53.1 (unreleased)
 
 Claude Dashboard: follow-ups to the live status board.
