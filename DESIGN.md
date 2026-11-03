@@ -4,7 +4,7 @@ The window is a race team's pit wall. Each project is a garage, each Claude Code
 
 ## Surfaces
 
-- **Palettes** (`Palettes.cs`): Midnight (default), Slate and Warm, and since v0.45.0 the light **Claude** palette in the spirit of the Claude app: warm paper `#FAF9F5`, soft black text `#1F1E1D` and a terracotta accent. Each sets the same keys (Page, Surface, Raised, Input, Track, ControlBorder, Selected, Muted, Text, Warning, Turn, OnAccent…), so the pit wall, the header and the Settings window change together. On paper, Amber and Glacier are darkened (`#9E5A0A`, `#27709A`) so they read as text.
+- **Palettes** (`Palettes.cs`): Midnight (default), Slate and Warm, and since v0.45.0 the light **Claude** palette in the spirit of the Claude app: warm paper `#FAF9F5`, soft black text `#1F1E1D` and a terracotta accent. Each sets the same keys (Page, Surface, Raised, Input, Track, ControlBorder, Selected, Muted, Text, Warning, Turn, OnAccent…), so the pit wall, the header and the Settings window change together. On paper, Amber and Glacier are darkened (`#8F5108`, `#21668D` since v0.51.0) so they read as text at 4.5:1 or more on Raised and Selected too.
 - **Accent:** Lime `#BAF28B`, Glacier `#8ED8F8`, Lavender `#C5AEFF`, Amber or Terracotta (`#E08A68`; the Claude palette's default), each with a deeper shade on paper. It fills gauges, meters, the hour's burn line and the selected period.
 - **Warning:** Amber `#F5C47D`, used for Needs you, meters from 80%, and the fuel lamp. Nothing decorative is Amber.
 - **Project colours:** each garage and its cars take Lime, Glacier or Lavender from a hash of the project's name, so a project keeps its colour everywhere.
@@ -56,7 +56,7 @@ The card has no heading of its own since v0.45.0: the window's header carries th
 
 - One frame clock per card (`PitClock`), at the rate the fastest moving car needs (at most 24 fps; 20 while rolling), and only while something visible moves.
 - It stops when the window is minimised. Minimised, the app still watches the session files (so Needs you still notifies and chimes) but doesn't scan logs or work out the view on the clock. In Quiet mode the cars keep still unless Settings → Claude says they may move, and the state swaps stay.
-- Tapping a garage rolls its cars in (tail lights toward you) or out (headlights toward you), about 1.2 s, instant in Quiet mode.
+- Clicking a garage (or Enter or Space on it) rolls its cars in (tail lights toward you) or out (headlights toward you), about 1.2 s, instant in Quiet mode.
 - No other animation: no spinners, no transitions, no hover effects.
 
 ## Rules
