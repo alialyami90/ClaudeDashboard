@@ -6,6 +6,20 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.54.0 (unreleased)
+
+Claude Dashboard: the lap chart's engine (package A of the lap chart plan). Nothing on screen changes yet; the Live, Limits, Reliability and Sources views read these. Everything is in memory only and holds names, states and times, never prompts, replies, commands or file contents. No new polling.
+
+- **State timeline per session** for the last five hours (`ClaudeView.Trails`, `ClaudeTimeline`): each change of lane state (Needs you, Stuck, Retrying, Silent, Your turn, Compacting, Working, Idle, Ended), starting no earlier than when the app began watching (`WatchStart`). Each thread has its `Lane` and `LaneSince`.
+- **Last sign of life** goes by the hook's `heard` time, the session's log and now its telemetry events; Silent is still Working with no sign for 5 minutes.
+- **Retrying**: an API error on a working session with no request through since (`ClaudeSession.Retrying`).
+- **Plan reading ring**: the 5-hour readings of the last five hours from the status line and the plan check (`PlanReadings`), and "≈ limit" at the last 30 minutes' pace and at today's average (`LimitAtPace`, `LimitAtAverage`). With fewer than 3 readings there's no projection, and `Why` says so.
+- **Typical tool times**: median, longest, runs and failures per tool across all sessions (`ToolTimes`) and per session (`ClaudeSession.ToolTimes`), from telemetry. Log tool calls now carry the tool's name.
+- **Event feed**: the last 50 state changes, tool failures, API errors and compactions of the projects you show (`Feed`), newest first. A project Settings hides never takes a slot.
+- **For Reliability and Sources**: today's tool runs, the last 24 hours' API errors, today's compactions, a tool name on tool decisions, and each source's freshness (logs' last scan, telemetry's last export and port, the Claude app's records, the plan's next check).
+- **Samples** carry all of it: three hours of trails, readings, a crowd thread retrying, the feed and tool times.
+- **Checks:** `tests/Claude/ClaudeTimelineTests.cs`.
+
 ## v0.53.2 (unreleased)
 
 Docs catch up with the observability wave, v0.48.0 to v0.53.0. Docs only.

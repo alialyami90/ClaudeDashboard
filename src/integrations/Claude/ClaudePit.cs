@@ -92,7 +92,7 @@ namespace ClaudeDashboard
     }
 
     // A tool decision or result, or lines changed, from telemetry: kept a week for the facts and each thread's lines.
-    public sealed class ClaudeToolEntry { public DateTime At; public string Session = ""; public bool Result, Asked, Denied; }
+    public sealed class ClaudeToolEntry { public DateTime At; public string Session = "", Tool = ""; public bool Result, Asked, Denied; }
     public sealed class ClaudeLinesEntry { public DateTime At; public string Session = ""; public long Added, Removed; }
 
     // The pit wall's arithmetic, the same as ClaudePit.java on the phone: the plan's pace, the week's laps, the rev
