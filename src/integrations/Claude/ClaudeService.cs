@@ -228,6 +228,9 @@ namespace ClaudeDashboard
         public DateTime? OldestLog;
         public int? LogsKeptDays;
         public bool LogsKeptByUs;
+        // v0.60.0: the Insights ranges (7 days, 30 days, all kept), computed after each background scan; null until
+        // the first one (or with History off).
+        public ClaudeInsightsSet Insights;
         // "Telemetry off: port 43832 in use" when the receiver couldn't listen where settings.json sends it (decision 023).
         public string TelemetryWarning = "";
         // v0.59.0: the two parts of that line apart, so Sources and the health line put each on its own row: telemetry's

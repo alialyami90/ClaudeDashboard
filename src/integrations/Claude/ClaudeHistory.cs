@@ -31,6 +31,9 @@ namespace ClaudeDashboard
         public bool FromLogs;
         public long[] Hours = new long[24];
         public List<ClaudeDayGarage> Garages = new List<ClaudeDayGarage>();
+        // v0.60.0: models, effort, thinking, tools, MCP, skills, permissions, health, sessions and lines ("v": 2 in the
+        // file); null in a day kept before it (v1).
+        public ClaudeDayDetail Detail;
 
         public string Name { get { return Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture); } }
         // Tokens from midnight up to a time of day, the last hour counted in part.
@@ -53,6 +56,7 @@ namespace ClaudeDashboard
             o["replies"] = new JsonNumber(Replies); o["threads"] = new JsonNumber(Threads); o["cost"] = new JsonNumber(Math.Round(Cost, 4));
             o["unpriced"] = new JsonNumber(Unpriced); o["needs"] = new JsonNumber(Needs); o["longestWait"] = new JsonNumber(LongestWait);
             if (FromLogs) o["fromLogs"] = true;
+            if (Detail != null) { o["v"] = new JsonNumber(ClaudeDayDetail.Version); o["detail"] = Detail.ToJson(); }
             o["hours"] = Hours.Select(h => (object)new JsonNumber(h)).ToList();
             o["garages"] = Garages.Select(g => {
                 var x = new JsonObject(); x["folder"] = g.Folder; x["name"] = g.Name; x["tokens"] = new JsonNumber(g.Tokens);
@@ -70,6 +74,7 @@ namespace ClaudeDashboard
                 Unpriced = (int)num(o, "unpriced"), Needs = (int)num(o, "needs"), LongestWait = (int)num(o, "longestWait") };
             double cost = ClaudeJson.Num(o, "cost"); day.Cost = Double.IsNaN(cost) ? 0 : cost;
             day.FromLogs = ClaudeJson.Bool(o, "fromLogs");
+            if (ClaudeJson.Num(o, "v") >= ClaudeDayDetail.Version) day.Detail = ClaudeDayDetail.FromJson(ClaudeJson.Obj(o, "detail"));
             var hours = ClaudeJson.List(o, "hours");
             if (hours != null) for (int h = 0; h < 24 && h < hours.Count; h++) { var n = hours[h] as JsonNumber; day.Hours[h] = n == null || Double.IsNaN(n.Value) ? 0 : (long)n.Value; }
             foreach (var g in (ClaudeJson.List(o, "garages") ?? new List<object>()).OfType<JsonObject>())
