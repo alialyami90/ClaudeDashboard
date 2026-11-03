@@ -95,8 +95,10 @@ namespace ClaudeDashboard
                         DateTime cutoff = now - TimeSpan.FromDays(ClaudeHistory.KeptDays + 1);
                         // Through the long-path prefix: a Claude app scratch workspace's log sits in a folder whose
                         // encoded name alone can be 200 characters, past Windows' 260 for the whole path.
-                        files = new DirectoryInfo(LongPath(projects)).EnumerateFiles("*.jsonl", SearchOption.AllDirectories).Where(f => f.LastWriteTimeUtc >= cutoff)
-                            .Select(f => f.FullName).OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
+                        // (App.config turns off .NET's legacy path handling so the prefix is taken; if it still isn't, the
+                        // plain path lists what it can.)
+                        try { files = List(LongPath(projects), cutoff); }
+                        catch (Exception) { files = List(projects, cutoff); }
                         FilesTotal = files.Count; FilesRead = 0; index = 0; offset = 0;
                     }
                     long budget = StepBudget;
@@ -159,6 +161,11 @@ namespace ClaudeDashboard
         {
             if (String.IsNullOrEmpty(folder) || Path.DirectorySeparatorChar != '\\' || folder.StartsWith(@"\\", StringComparison.Ordinal)) return folder;
             try { string full = Path.GetFullPath(folder); return full.Length >= 2 && full[1] == ':' ? @"\\?\" + full : folder; } catch (Exception) { return folder; }
+        }
+        private static List<string> List(string root, DateTime cutoff)
+        {
+            return new DirectoryInfo(root).EnumerateFiles("*.jsonl", SearchOption.AllDirectories).Where(f => f.LastWriteTimeUtc >= cutoff)
+                .Select(f => f.FullName).OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
         }
         private static bool Helper(string path)
         {
