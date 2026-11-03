@@ -11,11 +11,20 @@ Nothing yet.
 Claude Dashboard: every number says where it came from (observability critique, issue 3).
 
 - **The source-health line.** Under the card, at every size: Hooks · Logs · Telemetry · Plan, each with a Segoe MDL2 glyph and words. A source is fine, still waiting ("Logs counting…", "Plan reading…"), old ("Plan 12 min old"), off with the reason ("Hooks off: not connected", "Telemetry off: not set up", "Plan off: not signed in") or failed ("Logs unreadable", "Telemetry off: port 43832 in use"). Old and failed are Amber; each level has its own glyph, so colour isn't the only sign. The tooltip and the screen-reader name give the full reason. On a narrow window the reasons shorten, then the fine sources keep only their glyph; the line never folds away and never cuts a word. The line sits over the lower part of the card's bottom padding, so its own row is 8 units at 100% text and Small keeps its 5-hour meter at the smallest window.
-- **"Telemetry off: port 43832 in use"** moves from the side panel (only from 1000 units wide) to this line.
+- **"Telemetry off: port 43832 in use"** moves from the side panel (only from 1000 units wide) to this line, and so do v0.48.0's Widget Screen states: "Telemetry with Widget Screen" while Widget Screen is open with the port (calm, since it hands the port back within about 10 seconds of closing), and "Hooks with Widget Screen · Reconnect" in Amber when Widget Screen took Claude Code's hooks.
 - **Sample is pinned** at the start of the line at every size, Small included, instead of in the header flag that narrow windows dropped.
 - **Loading and unavailable look different.** While Claude Code's logs are still being read, token counts show "≈1.2M" and the side panel's period says COUNTING. When the logs can't be read, tokens show "—" with "Can't read Claude Code's logs." in the tip, and the side panel says LOGS UNREADABLE.
 - **"PLAN · 2:17 AM"** replaces "LIVE · AS OF 2:17 PM" in the header. Numbers up to 15 minutes old were called live; how old they are is now on the source-health line.
 - **One meaning for "running".** The header's summary says "2 working" for sessions that are working, as the chips do. "Running" stays for open sessions under a project's name.
+
+## v0.48.0 (unreleased)
+
+Claude Dashboard and Widget Screen both watch Claude Code, so closing either leaves the other working ([decision 028](docs/decisions/028-claude-both-apps-watch.md)).
+
+- **One bridge feeds both apps.** `ClaudeHook.exe` writes each Claude Code event and status-line reading into Claude Dashboard's bridge folder and, when it exists, into Widget Screen's `%LOCALAPPDATA%\WidgetScreen\claude`, in the files Widget Screen 0.41.0 reads. Hooks run without either app open, so whichever app was closed is current the moment it opens.
+- **Telemetry goes to whichever app is open.** Both apps take the telemetry port within about 10 seconds when the other closes. While Widget Screen holds it, the card says "Telemetry goes to Widget Screen while it's open" instead of "Telemetry off", and Settings → Claude no longer offers Update connection for it.
+- **Widget Screen taking the hooks back is shown.** If Widget Screen's Settings → Claude → Update connection points Claude Code's hooks at its own bridge, the card says "Live updates go to Widget Screen: reconnect in Settings → Claude", and Settings → Claude names that bridge and offers Reconnect, which keeps both apps current again.
+- **Checks:** the hook writes to both folders only while Widget Screen's exists, and never twice to one; Settings sees hooks run by another bridge and gets them back on Reconnect. Widget Screen's folder is a throwaway one in the checks (`WIDGETSCREEN_CLAUDE_BRIDGE`).
 
 ## v0.47.3 (unreleased)
 

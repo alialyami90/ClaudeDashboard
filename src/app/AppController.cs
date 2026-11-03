@@ -241,7 +241,7 @@ namespace ClaudeDashboard
         // reason in the tooltip and for screen readers. Sample is pinned at its start whenever the numbers are a fixture.
         private void UpdateSources(ClaudeView view)
         {
-            sources = ClaudeHealth.Of(view, DateTime.UtcNow, settings.Use24HourClock, claudeSample || claudeTelemetrySetUp);
+            sources = ClaudeHealth.Of(view, DateTime.UtcNow, settings.Use24HourClock, claudeSample ? null : claudeLinks);
             Control<TextBlock>("SourceSample").Visibility = view != null && view.Sample ? Visibility.Visible : Visibility.Collapsed;
             for (int i = 0; i < 4; i++)
             {

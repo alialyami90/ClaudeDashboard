@@ -21,6 +21,22 @@ namespace ClaudeDashboard
         public string Spoken { get { return Long + ". " + Tip; } }
     }
 
+    // What the dashboard knows about the connection beyond the view, read with it every 10 s (decision 028): whether
+    // settings.json sends telemetry here, the bridge Claude Code's hooks run when Widget Screen took them back, and
+    // why telemetry doesn't arrive ("Telemetry goes to Widget Screen while it's open", "Telemetry off: port 43832 in
+    // use"). Null in Of: taken from the view (the fixture, and the checks).
+    public sealed class ClaudeLinks
+    {
+        public bool TelemetrySetUp;
+        public string HooksElsewhere;
+        public string TelemetryProblem = "";
+        public bool WidgetScreenHasTelemetry;
+        public static ClaudeLinks From(ClaudeView view)
+        {
+            return new ClaudeLinks { TelemetrySetUp = view == null || view.Sample, TelemetryProblem = view == null ? "" : view.TelemetryWarning ?? "" };
+        }
+    }
+
     public static class ClaudeHealth
     {
         public const string Hooks = "Hooks", Logs = "Logs", Telemetry = "Telemetry", Plan = "Plan";
@@ -37,13 +53,13 @@ namespace ClaudeDashboard
             }
         }
 
-        // The four sources for a view. telemetrySetUp: settings.json sends Claude Code's telemetry to this app (the
-        // dashboard looks at that every 10 s, not on each render).
-        public static List<ClaudeHealthItem> Of(ClaudeView view, DateTime now, bool use24, bool telemetrySetUp)
+        // The four sources for a view.
+        public static List<ClaudeHealthItem> Of(ClaudeView view, DateTime now, bool use24, ClaudeLinks links)
         {
+            links = links ?? ClaudeLinks.From(view);
             if (view == null)
                 return new List<ClaudeHealthItem> { Waiting(Hooks, "Reading Claude Code…"), Waiting(Logs, "Reading Claude Code…"), Waiting(Telemetry, "Reading Claude Code…"), Waiting(Plan, "Reading Claude Code…") };
-            return new List<ClaudeHealthItem> { HooksItem(view), LogsItem(view), TelemetryItem(view, telemetrySetUp), PlanItem(view, now, use24) };
+            return new List<ClaudeHealthItem> { HooksItem(view, links), LogsItem(view), TelemetryItem(view, links), PlanItem(view, now, use24) };
         }
 
         private static ClaudeHealthItem Item(string name, ClaudeHealthLevel level, string longText, string shortText, string tip)
@@ -52,8 +68,12 @@ namespace ClaudeDashboard
         }
         private static ClaudeHealthItem Waiting(string name, string tip) { return Item(name, ClaudeHealthLevel.Waiting, name, name, tip); }
 
-        private static ClaudeHealthItem HooksItem(ClaudeView view)
+        private static ClaudeHealthItem HooksItem(ClaudeView view, ClaudeLinks links)
         {
+            // Widget Screen's Update connection pointed the hooks at its own bridge (decision 028): live states reach
+            // it, not this app, until Reconnect.
+            if (view.Connected && links.HooksElsewhere != null)
+                return Item(Hooks, ClaudeHealthLevel.Failed, "Hooks with Widget Screen · Reconnect", "Hooks with Widget Screen", "Claude Code's hooks run Widget Screen's bridge, so live states and Needs you reach Widget Screen only. Sessions still show here from Claude Code's own files. Settings → Claude → Reconnect brings them back; Claude Dashboard's bridge keeps Widget Screen up to date too.");
             if (!view.Connected)
                 return Item(Hooks, ClaudeHealthLevel.Off, "Hooks off: not connected", "Hooks off", "Claude Code isn't connected, so states come only from its session list and logs and Needs you can't show. Settings → Claude → Connect adds the hooks.");
             return Item(Hooks, ClaudeHealthLevel.Ok, Hooks, Hooks, "Claude Code's hooks report each session's state as it changes.");
@@ -68,12 +88,17 @@ namespace ClaudeDashboard
             return Item(Logs, ClaudeHealthLevel.Ok, Logs, Logs, "Tokens, replies, tool calls and lines come from Claude Code's logs.");
         }
 
-        private static ClaudeHealthItem TelemetryItem(ClaudeView view, bool setUp)
+        private static ClaudeHealthItem TelemetryItem(ClaudeView view, ClaudeLinks links)
         {
             const string port = "Claude Dashboard couldn't listen on the port Claude Code sends telemetry to. Settings → Claude → Update connection picks a free one.";
-            if (!String.IsNullOrEmpty(view.TelemetryWarning)) return Item(Telemetry, ClaudeHealthLevel.Failed, view.TelemetryWarning, "Telemetry off", port);
+            string problem = links.TelemetryProblem ?? "";
+            // Widget Screen open with the port: not off and not an error, since it hands the port back within about
+            // 10 s of closing (decision 028).
+            if (problem.Length > 0 && (links.WidgetScreenHasTelemetry || problem.StartsWith("Telemetry goes to Widget Screen", StringComparison.Ordinal)))
+                return Item(Telemetry, ClaudeHealthLevel.Waiting, "Telemetry with Widget Screen", "Telemetry with Widget Screen", "Telemetry goes to Widget Screen while it's open, and comes here within about 10 seconds of closing it.");
+            if (problem.Length > 0) return Item(Telemetry, ClaudeHealthLevel.Failed, problem, "Telemetry off", port);
             if (!view.Connected) return Item(Telemetry, ClaudeHealthLevel.Off, "Telemetry off: not connected", "Telemetry off", "Connect Claude Code in Settings → Claude to get its telemetry.");
-            if (!setUp && !view.Sample) return Item(Telemetry, ClaudeHealthLevel.Off, "Telemetry off: not set up", "Telemetry off", "Claude Code doesn't send telemetry here. Settings → Claude → Update connection turns it on; until then asked, denied and API errors are unknown.");
+            if (!links.TelemetrySetUp && !view.Sample) return Item(Telemetry, ClaudeHealthLevel.Off, "Telemetry off: not set up", "Telemetry off", "Claude Code doesn't send telemetry here. Settings → Claude → Update connection turns it on; until then asked, denied and API errors are unknown.");
             if (!view.Facts.Telemetry) return Item(Telemetry, ClaudeHealthLevel.Waiting, "Telemetry: none yet", Telemetry, "Listening. Claude Code sends telemetry while a session runs.");
             return Item(Telemetry, ClaudeHealthLevel.Ok, Telemetry, Telemetry, "Asked, denied, API errors and costs come from Claude Code's telemetry.");
         }

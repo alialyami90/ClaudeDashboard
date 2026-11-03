@@ -165,22 +165,28 @@ internal static class ShellTests
             DateTime now = DateTime.UtcNow;
             // The fixture: every source fine.
             var view = ClaudeView.Fixture(now, false);
-            var fine = ClaudeHealth.Of(view, now, false, true);
+            var fine = ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = view.TelemetryWarning });
             Assert(fine.Count == 4 && fine.Select(x => x.Name).SequenceEqual(new[] { "Hooks", "Logs", "Telemetry", "Plan" }) && fine.All(x => x.Level == ClaudeHealthLevel.Ok && x.Long == x.Name), "The sample's sources aren't all fine: " + String.Join(", ", fine.Select(x => x.Long)));
             // Each source's trouble, in words.
             view.LogsFailed = true; view.TelemetryWarning = "Telemetry off: port 43832 in use"; view.Limits.UpdatedAt = now.AddMinutes(-40);
-            var bad = ClaudeHealth.Of(view, now, false, true);
+            var bad = ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = view.TelemetryWarning });
             Assert(bad[1].Level == ClaudeHealthLevel.Failed && bad[1].Long == "Logs unreadable" && bad[1].Tip.StartsWith(ClaudeText.NoLogs), "Unreadable logs: " + bad[1].Long);
             Assert(bad[2].Level == ClaudeHealthLevel.Failed && bad[2].Long == "Telemetry off: port 43832 in use" && bad[2].Short == "Telemetry off", "A busy telemetry port: " + bad[2].Long);
             Assert(bad[3].Level == ClaudeHealthLevel.Old && bad[3].Long == "Plan 40 min old" && bad[3].Warns, "Old plan numbers: " + bad[3].Long);
             view.LogsFailed = false; view.LogsRead = false;
-            Assert(ClaudeHealth.Of(view, now, false, true)[1].Level == ClaudeHealthLevel.Waiting, "Logs still being read don't say so.");
+            Assert(ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = view.TelemetryWarning })[1].Level == ClaudeHealthLevel.Waiting, "Logs still being read don't say so.");
             view.Connected = false; view.Sample = false; view.Limits = null; view.Plan = ClaudePlanState.SignedOut; view.TelemetryWarning = "";
-            var off = ClaudeHealth.Of(view, now, false, false);
+            var off = ClaudeHealth.Of(view, now, false, new ClaudeLinks());
             Assert(off[0].Long == "Hooks off: not connected" && off[2].Long == "Telemetry off: not connected" && off[3].Long == "Plan off: not signed in" && off.All(x => !x.Warns || x.Name == "Logs"), "Off sources: " + String.Join(", ", off.Select(x => x.Long)));
             view.Connected = true;
-            Assert(ClaudeHealth.Of(view, now, false, false)[2].Long == "Telemetry off: not set up", "Telemetry that isn't sent here doesn't say so.");
-            Assert(ClaudeHealth.Of(null, now, false, false).All(x => x.Level == ClaudeHealthLevel.Waiting), "Before the first reading the sources aren't waiting.");
+            Assert(ClaudeHealth.Of(view, now, false, new ClaudeLinks())[2].Long == "Telemetry off: not set up", "Telemetry that isn't sent here doesn't say so.");
+            Assert(ClaudeHealth.Of(null, now, false, null).All(x => x.Level == ClaudeHealthLevel.Waiting), "Before the first reading the sources aren't waiting.");
+            // Widget Screen (decision 028): holding the telemetry port is neither off nor an error; holding the hooks
+            // asks for Reconnect, in Amber.
+            var shared = ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = "Telemetry goes to Widget Screen while it's open", WidgetScreenHasTelemetry = true });
+            Assert(shared[2].Long == "Telemetry with Widget Screen" && shared[2].Level == ClaudeHealthLevel.Waiting && !shared[2].Warns, "Telemetry with Widget Screen: " + shared[2].Long + " / " + shared[2].Level);
+            var taken = ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, HooksElsewhere = @"C:\Users\ali\AppData\Local\WidgetScreen\claude" });
+            Assert(taken[0].Long == "Hooks with Widget Screen · Reconnect" && taken[0].Warns, "Hooks with Widget Screen: " + taken[0].Long);
             Assert(new[] { ClaudeHealthLevel.Ok, ClaudeHealthLevel.Waiting, ClaudeHealthLevel.Old, ClaudeHealthLevel.Off, ClaudeHealthLevel.Failed }.Select(l => ClaudeHealth.Glyph(l)).Distinct().Count() == 5, "Two levels share a glyph, so colour alone tells them apart.");
 
             // Loading and unavailable look different: "≈" while counting, "—" and why when the logs can't be read.

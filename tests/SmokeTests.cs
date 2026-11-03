@@ -43,6 +43,9 @@ internal static class SmokeTests
         Environment.SetEnvironmentVariable(ClaudeAppThreads.RootsVariable, Path.Combine(directory, "claude-app-data"));
         // And the organisation's managed settings (package 3): a file that doesn't exist. No Claude notification pops up.
         Environment.SetEnvironmentVariable(ClaudeConnector.ManagedVariable, Path.Combine(directory, "claude-managed-settings.json"));
+        // And Widget Screen's bridge folder, which ClaudeHook.exe also writes to (decision 028): a throwaway one, missing
+        // until a check makes it, so the real %LOCALAPPDATA%\WidgetScreen is never written.
+        Environment.SetEnvironmentVariable(ClaudeBridge.PartnerVariable, Path.Combine(directory, "widgetscreen-bridge"));
         ClaudeToast.Enabled = false;
         ClaudeTests.Run(directory, Check);
         ClaudeSourcesTests.Run(directory, Check);

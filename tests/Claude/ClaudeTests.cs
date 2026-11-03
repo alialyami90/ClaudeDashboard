@@ -354,5 +354,50 @@ internal static class ClaudeTests
             Assert(line.Trim() == "previous-line", "The earlier status line wasn't passed on: " + line);
             Assert(watch.Elapsed < TimeSpan.FromSeconds(20), "The bridge is slow.");
         });
+
+        check("ClaudeHook.exe keeps Widget Screen's bridge folder current too, only while it exists (decision 028)", () => {
+            string partner = Environment.GetEnvironmentVariable(ClaudeBridge.PartnerVariable);
+            Assert(!String.IsNullOrEmpty(partner) && partner.StartsWith(directory, StringComparison.OrdinalIgnoreCase), "The checks don't point Widget Screen's bridge at a throwaway folder.");
+            string folder = Fresh(directory, "hook-both");
+            File.Copy(Path.Combine(directory, ClaudeBridge.HookExe), Path.Combine(folder, ClaudeBridge.HookExe));
+            Func<string, string, string> run = (mode, input) => {
+                var start = new ProcessStartInfo(Path.Combine(folder, ClaudeBridge.HookExe), mode) { UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, CreateNoWindow = true, StandardOutputEncoding = Encoding.UTF8 };
+                using (var process = Process.Start(start))
+                {
+                    var bytes = new UTF8Encoding(false).GetBytes(input); process.StandardInput.BaseStream.Write(bytes, 0, bytes.Length); process.StandardInput.Close();
+                    string output = process.StandardOutput.ReadToEnd();
+                    Assert(process.WaitForExit(15000) && process.ExitCode == 0, "ClaudeHook.exe " + mode + " didn't exit 0.");
+                    return output;
+                }
+            };
+            try
+            {
+                if (Directory.Exists(partner)) Directory.Delete(partner, true);
+                run("hook", "{\"session_id\":\"both-0\",\"cwd\":\"C:/Code/api\",\"hook_event_name\":\"UserPromptSubmit\"}");
+                Assert(ClaudeBridge.Read(ClaudeBridge.SessionPath(folder, "both-0")) != null && !Directory.Exists(partner), "Widget Screen's folder was made when it didn't exist.");
+                Directory.CreateDirectory(partner);
+                Assert(ClaudeBridge.PartnerFolder(folder) == partner && ClaudeBridge.PartnerFolder(partner) == null, "The bridge would write to itself twice.");
+                run("hook", "{\"session_id\":\"both-1\",\"cwd\":\"C:/Code/api\",\"hook_event_name\":\"UserPromptSubmit\"}");
+                var mine = ClaudeBridge.Read(ClaudeBridge.SessionPath(folder, "both-1")); var theirs = ClaudeBridge.Read(ClaudeBridge.SessionPath(partner, "both-1"));
+                Assert(mine != null && theirs != null && theirs.State == ClaudeState.Working && theirs.Project == mine.Project, "Widget Screen's folder didn't get the session.");
+                run("hook", "{\"session_id\":\"both-1\",\"cwd\":\"C:/Code/api\",\"hook_event_name\":\"Stop\"}");
+                Assert(ClaudeBridge.Read(ClaudeBridge.SessionPath(partner, "both-1")).State == ClaudeBridge.Read(ClaudeBridge.SessionPath(folder, "both-1")).State, "The two folders disagree after a turn ends.");
+                string line = run("statusline", "{\"session_id\":\"both-1\",\"context_window\":{\"used_percentage\":7},\"rate_limits\":{\"five_hour\":{\"used_percentage\":31,\"resets_at\":1893456000}}}");
+                Assert(line.EndsWith("ctx 7%\n", StringComparison.Ordinal) && line.StartsWith("5h 31%", StringComparison.Ordinal) && line.IndexOf('\n') == line.Length - 1, "Writing to both folders changed the status line: " + line);
+                Assert(File.Exists(ClaudeBridge.LimitsPath(partner)) && File.ReadAllText(ClaudeBridge.LimitsPath(partner)) == File.ReadAllText(ClaudeBridge.LimitsPath(folder)), "Widget Screen's folder didn't get the plan limits.");
+            }
+            finally { try { if (Directory.Exists(partner)) Directory.Delete(partner, true); } catch (Exception) { } }
+        });
+
+        check("Settings sees when Widget Screen's hooks have taken Claude Code's connection back (decision 028)", () => {
+            string config = Fresh(directory, "elsewhere-config"), mine = Fresh(directory, "elsewhere-mine"), theirs = Fresh(directory, "elsewhere-theirs");
+            var dashboard = new ClaudeConnector(config, mine); var widgetScreen = new ClaudeConnector(config, theirs);
+            Assert(dashboard.HookElsewhere() == null, "No settings.json counts as hooks elsewhere.");
+            widgetScreen.Connect(Path.Combine(directory, ClaudeBridge.HookExe));
+            Assert(dashboard.IsConnected() && ClaudeBridge.SameFolder(dashboard.HookElsewhere(), theirs), "Widget Screen's hooks weren't seen as another bridge's: " + dashboard.HookElsewhere());
+            Assert(widgetScreen.HookElsewhere() == null, "A bridge's own hooks count as elsewhere.");
+            dashboard.Connect(Path.Combine(directory, ClaudeBridge.HookExe));
+            Assert(dashboard.HookElsewhere() == null && ClaudeBridge.SameFolder(widgetScreen.HookElsewhere(), mine), "Reconnecting didn't bring the hooks back.");
+        });
     }
 }
