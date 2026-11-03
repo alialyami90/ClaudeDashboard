@@ -19,6 +19,24 @@ A Windows desktop app whose whole window is the Claude Code watcher: every Claud
 | Header fix | v0.47.2 | Shell |
 | Namespace `WidgetScreen` → `ClaudeDashboard` | v0.47.3 | Shell |
 
+## The lap chart (decision 030)
+
+| Package | Version | Owner |
+| --- | --- | --- |
+| A. Engine: state timeline, plan readings, ≈ limit, tool times, feed (in memory only) | v0.54.0 | Watcher |
+| B. Tab shell: six views, `IClaudeView`, Ctrl+1–6 and Ctrl+G | v0.55.0 | Shell |
+| C. Live, the lap chart | v0.56.0 | Watcher |
+| Limit reached; the views' frame clock and the header | v0.56.1 | Watcher, Shell |
+| D. Limits and History | v0.57.0 | Builder |
+| Home and End on the pages | v0.57.1 | Builder |
+| One ≈ limit everywhere, moving Live cars, archived lanes | v0.57.2 | Watcher |
+| E. Reliability and Sources | v0.58.0 | Demolition |
+| The pages' focus ring | v0.58.1 | Builder |
+| Live's rose on paper | v0.58.2 | Watcher |
+| F. Docs (decision 030, DESIGN, PRODUCT, README) | v0.58.3 | Scribe |
+
+"≈ limit" always means the engine's `LimitAtPace` (3 plan readings or more, before the reset), and "Limit reached" replaces it once the window is full. The views live in `src/widgets/` (`LiveView`, `LapChart`, `LimitsView`, `HistoryView`, `ReliabilityView`, `SourcesView`), start no timers, and get frames only through `ClaudeViewContext.Frames`.
+
 Cloud garage (package 4.3) waits on a one-time look at the Claude app's cloud thread records on Ali's PC (Watcher).
 
 Since v0.47.3 the C# namespace is `ClaudeDashboard` (the setup's is `ClaudeDashboardSetup`), and XAML is embedded as `ClaudeDashboard.<FileName>`. Strings that leave the app keep Widget Screen's name on purpose: the `WIDGETSCREEN_*` variables, the `.widgetscreen-backup` suffix, the `Local\WidgetScreen.Claude.` hook mutex and the sign-in's DPAPI entropy `WidgetScreen.ClaudeSignIn`. Since v0.46.0 settings, the sign-in and the bridge live in `%LOCALAPPDATA%\ClaudeDashboard`, and Claude Code's hooks run `...\ClaudeDashboard\claude\ClaudeHook.exe`. `%LOCALAPPDATA%\WidgetScreen` is only read, by the first run's offer to bring it over (`Migration`, `AppController.Migration.cs`); never write to it, with one exception (decision 028, Ali, 3 Nov 2026): `ClaudeHook.exe` also writes its session files and `limits.json` into `%LOCALAPPDATA%\WidgetScreen\claude` when that folder exists, so Widget Screen keeps working while Claude Dashboard is closed and the reverse. Each member touches only the files the plan gives them; the Lead writes `CHANGELOG.md`, `CLAUDE.md` and `BRANCHES.md` at each merge, and the Scribe reviews every PR.
@@ -26,9 +44,9 @@ Since v0.47.3 the C# namespace is `ClaudeDashboard` (the setup's is `ClaudeDashb
 ## The engine
 
 - `src/integrations/Claude/`: the bridge folder written by `hook/ClaudeHook.cs` (Claude Code's hooks and status line); Claude Code's `sessions\` and `projects\` logs under `%USERPROFILE%\.claude` or `CLAUDE_CONFIG_DIR`, read-only; the Claude app's thread records, read-only; the widget's own **Sign in with Claude** (PKCE, `user:profile`, DPAPI `claude-session.dat`, usage meters from `api.anthropic.com` every 5 minutes); OpenTelemetry to a loopback receiver on **127.0.0.1:43832** (next free up to 43839); `ClaudeWatch` file watchers with a 30 s fallback; alerts and `ClaudeToast`; since v0.47.0 the daily summary files (`ClaudeHistory`, `claude\history\`, kept 8 weeks, numbers only) and Copy summary and Save CSV (`ClaudeExport`, which never writes a thread name taken from its first request).
-- The card: `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs`. Small, Medium and Large by the `CardSizing.Claude` members, which live at the bottom of `ClaudeCard.cs` since v0.45.0. The window is at least 360 × 300. Settings → Claude → Show a plain list swaps the pit wall for text rows (`BuildPlain`).
+- The card: `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs`. Small, Medium and Large by the `CardSizing.Claude` members, which live at the bottom of `ClaudeCard.cs` since v0.45.0. The window is at least 360 × 300. From 640 wide a tab row shows six views (Live, Garage, Limits, History, Reliability, Sources; decision 030); below 640 it is the Garage card alone. Settings → Claude → Show a plain list swaps the pit wall for text rows (`BuildPlain`).
 - Settings → Claude → Connect merges into Claude Code's `settings.json` with five dated backups and never overwrites the user's `OTEL_*`; Disconnect takes out exactly that. `ClaudeHook.exe` and the `.widgetscreen-backup` suffix keep their names so Disconnect finds its own entries.
-- Decisions 014, 015, 016 (projects and threads), 017–020, 022 (review fixes), 023–029 are current. Everything else is in `docs/archive/`, read-only history.
+- Decisions 014, 015, 016 (projects and threads), 017–020, 022 (review fixes), 023–030 are current. Everything else is in `docs/archive/`, read-only history.
 
 ## Build, run, test (Windows, PowerShell, from the root)
 
