@@ -184,10 +184,7 @@ internal static class ReliabilitySourcesTests
                 Assert(buttons.Count == 5, "Five buttons expected, got " + buttons.Count + ".");
                 foreach (var b in buttons)
                     Assert(AutomationProperties.GetName(b).Length > 0 && b.Focusable, "Each button needs a name and the keyboard.");
-                if (SourcesView.ActOf(new ClaudeViewContext()) == null)
-                    Assert(buttons.All(b => !b.IsEnabled && (b.ToolTip as string ?? "").Contains("v0.55.0")), "Without the host's Act the buttons should be off and say why.");
-                else Assert(buttons.All(b => b.IsEnabled), "With Act the buttons should be on.");
-                foreach (var b in buttons) b.IsEnabled = true;
+                Assert(buttons.All(b => b.IsEnabled), "With Act the buttons should be on.");
                 sources.Act = name => { asked.Add(name); return name == ClaudeSources.CheckPlan ? "Couldn't reach api.anthropic.com" : null; };
                 foreach (var b in buttons) b.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                 Assert(asked.Count == 5 && asked.Contains(ClaudeSources.OpenLogs) && asked.Contains(ClaudeSources.CheckPlan), "Each button should call Act once with its action: " + String.Join(",", asked));

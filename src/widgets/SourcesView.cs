@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -150,19 +149,10 @@ namespace ClaudeDashboard
 
         private double S(double size) { return context.Scaled(size); }
 
-        // Set by the checks in place of the host's.
+        // Set by the checks in place of the host's Act (the same path as Settings → Claude's buttons, confirmations
+        // included).
         public Func<string, string> Act;
-        // The host's Act (the tab shell, v0.55.0: the same path as Settings → Claude's buttons, confirmations
-        // included), found by name so this view builds before the contract has it. Null: not there yet.
-        public static Func<string, string> ActOf(ClaudeViewContext context)
-        {
-            if (context == null) return null;
-            var field = context.GetType().GetField("Act", BindingFlags.Public | BindingFlags.Instance);
-            if (field != null) return field.GetValue(context) as Func<string, string>;
-            var property = context.GetType().GetProperty("Act", BindingFlags.Public | BindingFlags.Instance);
-            return property == null ? null : property.GetValue(context, null) as Func<string, string>;
-        }
-        private Func<string, string> Acts { get { return Act ?? ActOf(context); } }
+        private Func<string, string> Acts { get { return Act ?? context.Act; } }
 
         public FrameworkElement Build(ClaudeViewContext context, Size room)
         {
@@ -193,7 +183,6 @@ namespace ClaudeDashboard
                 c.Button = new Button { MinWidth = S(120), Padding = new Thickness(S(10), S(4), S(10), S(4)), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, FontSize = S(13) };
                 var button = c.Button;
                 button.Click += (s, e) => Run(button.Tag as string);
-                if (Acts == null) { button.IsEnabled = false; ToolTipService.SetShowOnDisabled(button, true); button.ToolTip = "Arrives with v0.55.0"; }
 
                 var namePart = new StackPanel(); namePart.Children.Add(c.Name); namePart.Children.Add(c.Where);
                 var statePart = new StackPanel();
