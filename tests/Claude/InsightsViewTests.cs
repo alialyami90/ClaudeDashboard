@@ -84,7 +84,8 @@ internal static class InsightsViewTests
             Assert(week.Change(120, 100) == "↑ 20% on before", "3 active days and 50 replies don't compare");
             week.PrevReplies = sampleBefore; week.PrevActiveDays = -1;
             Assert(InsightsModel.ModelName("claude-opus-5-5") == "Opus 5.5" && InsightsModel.ModelName("claude-fable-5-1") == "Fable 5.1" && InsightsModel.ModelName("claude-haiku-4-5-20251001") == "Haiku 4.5"
-                && InsightsModel.ModelName("claude-3-5-sonnet-20241022") == "Sonnet 3.5" && InsightsModel.ModelName("gpt-x") == "gpt-x" && InsightsModel.ModelName("claude-opus-5-5[1m]") == "claude-opus-5-5[1m]", "model names");
+                && InsightsModel.ModelName("claude-3-5-sonnet-20241022") == "Sonnet 3.5" && InsightsModel.ModelName("gpt-x") == "gpt-x" && InsightsModel.ModelName("claude-opus-5-5[1m]") == "Opus 5.5" && InsightsModel.ModelName("claude-haiku-5-5") == "Haiku 5.5"
+                && InsightsModel.ModelName("claude-nova-7-0") == "Nova 7.0" && InsightsModel.ModelName("claude-code") == "claude-code", "model names");
             Assert(InsightsModel.ToolName("mcp__hearthbot__post_message") == "hearthbot · post_message" && InsightsModel.ToolName("Bash") == "Bash"
                 && InsightsModel.ServerName("1a59c906-1234-4abc-9def-0123456789ab") == "Connector 1a59c9" && InsightsModel.ToolName("mcp__1a59c906-1234-4abc-9def-0123456789ab__search") == "Connector 1a59c9 · search", "tool and server names");
             Assert(week.ThinkingFigures().Where(f => f.Name.Contains("median")).All(f => f.Name.Contains("≈") && (f.Value == "—" || f.Value.StartsWith("≈ "))), "the thinking median from buckets has no ≈");

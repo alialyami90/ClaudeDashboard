@@ -642,21 +642,23 @@ namespace ClaudeDashboard
         public static string Count(long n) { return n.ToString("#,0", CultureInfo.InvariantCulture); }
         public static string Percent(double share) { double p = share * 100; return Double.IsNaN(p) ? "—" : p > 0 && p < 1 ? "<1%" : Math.Round(p).ToString(CultureInfo.InvariantCulture) + "%"; }
         public static string Money(double cost, long unpriced) { return cost <= 0 ? (unpriced > 0 ? "unpriced" : "—") : (unpriced > 0 ? "≥ " : "") + cost.ToString("0.00", CultureInfo.InvariantCulture); }
-        // "claude-opus-5-5" → "Opus 5.5", "claude-3-5-sonnet-20241022" → "Sonnet 3.5"; anything else as it is.
+        // "claude-<family>-<major>-<minor>" → "Family major.minor" (also the older "claude-3-5-sonnet"), dropping a "[1m]" or
+        // date suffix, so models that don't exist yet read right too; anything else as it is.
         public static string ModelName(string id)
         {
             if (String.IsNullOrEmpty(id)) return id ?? "";
-            string[] families = { "opus", "sonnet", "haiku", "fable" };
-            var parts = id.ToLowerInvariant().Split('-').ToList();
+            string bare = id.Trim();
+            int bracket = bare.IndexOf('[');
+            if (bracket > 0 && bare.EndsWith("]", StringComparison.Ordinal)) bare = bare.Substring(0, bracket);
+            var parts = bare.ToLowerInvariant().Split('-').ToList();
             if (parts.Count < 3 || parts[0] != "claude") return id;
             parts.RemoveAt(0);
             if (parts.Count > 0 && parts[parts.Count - 1].Length == 8 && parts[parts.Count - 1].All(Char.IsDigit)) parts.RemoveAt(parts.Count - 1);
-            int f = parts.FindIndex(x => families.Contains(x));
-            if (f < 0) return id;
-            var numbers = parts.Where((x, i) => i != f).ToList();
+            var words = parts.Where(x => x.Length > 0 && x.All(Char.IsLetter)).ToList();
+            if (words.Count != 1) return id;
+            var numbers = parts.Where(x => x != words[0]).ToList();
             if (numbers.Count == 0 || numbers.Count > 2 || !numbers.All(x => x.Length > 0 && x.Length <= 2 && x.All(Char.IsDigit))) return id;
-            string family = parts[f];
-            return Char.ToUpperInvariant(family[0]) + family.Substring(1) + " " + String.Join(".", numbers);
+            return Char.ToUpperInvariant(words[0][0]) + words[0].Substring(1) + " " + String.Join(".", numbers);
         }
         // An MCP server's name; a bare id (a connector's uuid) reads "Connector 1a59c9".
         public static string ServerName(string server)
