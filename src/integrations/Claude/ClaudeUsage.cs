@@ -14,6 +14,9 @@ namespace ClaudeDashboard
     {
         public DateTime At;
         public string Session = "", Folder = "", Model = "", Request = "";
+        // v0.59.0: the key the reply counts under (its request id, else its message id), so the log backfill can keep
+        // the key without the reply.
+        public string ReplyKey = "";
         // The tokens the card shows: fresh input, cache writes and output (Ali, 1 Nov 2026: counting cache reads made
         // the totals hundreds of times what the Claude app shows). Cache reads are kept in CacheRead.
         public long Tokens;
@@ -221,6 +224,16 @@ namespace ClaudeDashboard
         public Dictionary<string, string> Prompts { get { return new Dictionary<string, string>(published.Prompts); } }
         public List<ClaudeToolEntry> Tools { get { return published.Tools.ToList(); } }
         public List<ClaudeLinesEntry> Lines { get { return published.Lines.ToList(); } }
+
+        // v0.59.0: the past days' backfill from the same logs (ClaudeBackfill), stepped after a scan that asks for it:
+        // the window's background scan does, a scan on the UI thread never does.
+        public ClaudeBackfill Backfill;
+        public void Scan(DateTime now, bool backfill)
+        {
+            Scan(now);
+            var b = Backfill;
+            if (backfill && b != null) b.Step(now);
+        }
 
         public void Scan(DateTime now)
         {
@@ -447,7 +460,7 @@ namespace ClaudeDashboard
                 long hour = Math.Min(creation, Count(cache, "ephemeral_1h_input_tokens"));
                 string model = ClaudeJson.Str(message, "model") ?? "";
                 var entry = new ClaudeUsageEntry { At = at.Value, Session = id, Folder = folder ?? "", Model = model, Request = request, Tokens = tokens, Prompt = input + creation + read, CacheRead = read, Cost = ClaudePrices.Cost(model, input, output, creation - hour, hour, read),
-                    Priced = ClaudePrices.Known(model), Sidechain = sidechain };
+                    Priced = ClaudePrices.Known(model), Sidechain = sidechain, ReplyKey = key };
                 if (key.Length > 0) replies[key] = entry;
                 result.Add(entry);
             }

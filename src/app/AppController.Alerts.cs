@@ -85,7 +85,7 @@ namespace ClaudeDashboard
         // A view's action (ClaudeViewContext.Act, decision 030): each name takes exactly the path of its Settings →
         // Claude button, confirmation sheet and settings.json backups included, and is refused when that button
         // wouldn't show. Returns null when it started or worked, or why not.
-        public static readonly string[] Actions = { "Connect", "Disconnect", "Reconnect", "OpenLogs", "UpdateConnection", "CheckPlan", "SignIn", "ShowArchived", "HideArchived" };
+        public static readonly string[] Actions = { "Connect", "Disconnect", "Reconnect", "OpenLogs", "UpdateConnection", "CheckPlan", "SignIn", "ShowArchived", "HideArchived", "KeepLogs", "UndoKeepLogs" };
         public string Act(string name)
         {
             if (disposed) return "Claude Dashboard is closing.";
@@ -131,6 +131,15 @@ namespace ClaudeDashboard
                     claudeDirty = true;
                     if (claudeView != null) { claudeView.ShowArchived = settings.ClaudeShowArchived; claudeCard.Update(claudeView); }
                     return null;
+                // v0.59.0: Sources' "Keep logs a year" and its Undo (Claude Code's cleanupPeriodDays, with Connect's backups).
+                case "KeepLogs": case "UndoKeepLogs":
+                {
+                    string said;
+                    try { said = name == "KeepLogs" ? claude.Connector.KeepLogsAYear() : claude.Connector.UndoKeepLogs(); }
+                    catch (Exception e) { said = e.Message; }
+                    claude.LogsKeptChanged(); claudeDirty = true;
+                    return said;
+                }
                 default:
                     return "Unknown action: " + (name ?? "(none)") + ".";
             }

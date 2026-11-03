@@ -6,6 +6,35 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.59.0 (unreleased)
+
+Claude Dashboard: History from the logs (Ali: "I've been using claude for more than a month. I want to see the stats for that.").
+
+- **Past days built from Claude Code's logs.** History used to begin the day it was turned on and read back only a week. Pro and Max plans have no history API, and Claude Code keeps its session logs 30 days by default (`cleanupPeriodDays`), so the logs are the only record of the days before. Now each past local day in the logs that has no day file gets one (`ClaudeBackfill`): tokens, cache reads, replies, threads, ≈ $ at API prices (unpriced replies counted apart), tokens by hour and the share per project.
+  - Each reply counts once, by its request id (its message id when there is none), across every log, helpers' logs included.
+  - A day that has its file is never replaced, and today is never written.
+  - Numbers and project names only: no prompt, reply, title, model or command, and no thread name from a first request. Only request ids are held in memory while it reads, never the replies.
+  - It runs on the background log scan's thread, 32 MB of log a step, after each scan, with no timer of its own, and writes the days once every log is read. It follows Settings → Claude → History: off, it does nothing; turned on again, it starts over.
+  - Needs and the longest wait can't be rebuilt from the logs. Such a day carries `fromLogs`, and History's "Last 7 days" shows "—" and "from logs" with a one-line note, instead of 0. The live History keeps the mark when it later adds to that day.
+- **A year of day files.** `ClaudeHistory.KeptDays` goes from 56 to 365. The History calendar stays at 8 weeks (`HistoryModel.CalendarDays` = 56, decoupled). History's words say a year.
+- **Sources → History from the logs** shows:
+  - how long Claude Code keeps its logs, or "30 days (Claude Code's default)";
+  - the backfill's progress ("reading 12 of 51 logs") or its result ("24 days");
+  - the oldest day the logs hold;
+  - that Claude desktop app sessions are already exempt from the cleanup.
+- **Keep logs a year** (Ali's option C), a button on that tile. It writes only when pressed: it sets `cleanupPeriodDays` to 365 in Claude Code's `settings.json`, using Connect's merge, dated backups and atomic write.
+  - If it's already 365 or more, it says "already keeps its logs N days" and writes nothing.
+  - **Undo** puts the earlier value back, or takes the key out if there was none.
+  - Disconnect does the same, but only when the dashboard set the key and it still holds 365. A user's own value is left alone. `logs-kept.json` in the bridge folder records what was there before.
+- **Checks** (old-dated logs and a `settings.json` in throwaway folders, never the PC's own):
+  - the right days are built, in budgeted steps;
+  - existing days and today are skipped, and days past a year are left out;
+  - a duplicate request id counts once, a helper's copy included;
+  - no text, model, session or request id lands in a day file;
+  - the live History keeps `fromLogs`, and off and on starts over;
+  - History and Sources words;
+  - Keep, larger value kept, Undo, backup, no other key changed, Disconnect, and invalid JSON left alone.
+
 ## v0.58.4 (unreleased)
 
 Docs only. Ali confirmed the lap chart's six defaults on 3 Nov 2026.

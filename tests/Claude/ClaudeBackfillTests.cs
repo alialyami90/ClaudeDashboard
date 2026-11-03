@@ -1,0 +1,159 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using ClaudeDashboard;
+
+// v0.59.0, History from the logs: past days built from Claude Code's session logs (old-dated jsonl in a throwaway
+// Claude folder), and Sources' Keep logs a year (cleanupPeriodDays in a throwaway settings.json). Never the PC's own.
+internal static class ClaudeBackfillTests
+{
+    private static readonly DateTime Now = new DateTime(2026, 11, 3, 12, 0, 0, DateTimeKind.Utc);
+    private static void Assert(bool valid, string message) { if (!valid) throw new Exception(message); }
+    private static string Fresh(string directory, string name)
+    {
+        string path = Path.Combine(directory, "claude-backfill", name);
+        if (Directory.Exists(path)) Directory.Delete(path, true);
+        Directory.CreateDirectory(path);
+        return path;
+    }
+    private static string Stamp(DateTime at) { return at.ToString("yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture) + "Z"; }
+    // An assistant reply's log line: 100 fresh input, 50 output, 1000 cache reads (150 tokens as the card counts them).
+    private static string Reply(string session, DateTime at, string request, string model = "claude-opus-5-5")
+    {
+        return "{\"type\":\"assistant\",\"sessionId\":\"" + session + "\",\"cwd\":\"C:\\\\Code\\\\api\",\"timestamp\":\"" + Stamp(at) + "\",\"requestId\":\"" + request + "\",\"message\":{\"id\":\"msg_" + request + "\",\"model\":\"" + model
+            + "\",\"content\":[{\"type\":\"text\",\"text\":\"SECRET REPLY WORDS\"}],\"usage\":{\"input_tokens\":100,\"output_tokens\":50,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":1000}}}";
+    }
+    private static string Prompt(string session, DateTime at)
+    {
+        return "{\"type\":\"user\",\"sessionId\":\"" + session + "\",\"cwd\":\"C:\\\\Code\\\\api\",\"timestamp\":\"" + Stamp(at) + "\",\"message\":{\"role\":\"user\",\"content\":\"SECRET PROMPT WORDS to name the thread\"}}";
+    }
+    private static void Log(string path, IEnumerable<string> lines)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        File.WriteAllText(path, String.Join("\n", lines) + "\n", new UTF8Encoding(false));
+        File.SetLastWriteTimeUtc(path, Now);
+    }
+
+    public static void Run(string directory, Action<string, Action> check)
+    {
+        check("Claude history from the logs: past days built once, existing days and today left alone, a reply counted once, numbers only (v0.59.0)", () => {
+            string config = Fresh(directory, "config"), bridge = Fresh(directory, "bridge");
+            string project = Path.Combine(config, "projects", "C--Code-api");
+            DateTime d40 = Now.AddDays(-40), d3 = Now.AddDays(-3), d1 = Now.AddDays(-1), old = Now.AddDays(-400);
+            // Session one: a prompt, a reply 40 days ago streamed over two lines (one request id), one 3 days ago, two
+            // yesterday, one today, and one 400 days ago (past the year kept).
+            Log(Path.Combine(project, "s1.jsonl"), new[] { Prompt("s1", old), Reply("s1", old, "r0"), Reply("s1", d40, "r1"), Reply("s1", d40.AddSeconds(2), "r1"),
+                Reply("s1", d3, "r2"), Reply("s1", d1, "r3"), Reply("s1", d1.AddHours(1), "r4", "gateway-model"), Reply("s1", Now, "r5") });
+            // Session two, plus a helper's log that repeats r3 (the same reply, seen in both).
+            Log(Path.Combine(project, "s2.jsonl"), new[] { Prompt("s2", d40), Reply("s2", d40.AddHours(2), "r6") });
+            Log(Path.Combine(project, "s1", "subagents", "agent-a1.jsonl"), new[] { Reply("s1", d1, "r3") });
+            // A day that already has its file, and a big line that crosses a chunk.
+            var history = new ClaudeHistory(bridge, TimeZoneInfo.Utc);
+            var kept = new ClaudeDay { Date = d3.Date, Tokens = 7, Replies = 1, Needs = 2 };
+            ClaudeBridge.WriteAtomic(Path.Combine(ClaudeHistory.Folder(bridge), kept.Name + ".json"), ClaudeJson.Compact(kept.ToJson()));
+            string keptText = File.ReadAllText(Path.Combine(ClaudeHistory.Folder(bridge), kept.Name + ".json"));
+
+            var backfill = new ClaudeBackfill(config, history) { StepBudget = 100 };
+            Assert(!backfill.Step(Now) && !backfill.Started, "The backfill ran while History is off.");
+            backfill.Enabled = true;
+            int steps = 0;
+            while (!backfill.Done && steps < 100) { backfill.Step(Now); steps++; }
+            Assert(backfill.Done && steps > 1 && backfill.FilesTotal == 3 && backfill.FilesRead == 3, "The backfill didn't finish in budgeted steps: " + steps + " steps, " + backfill.FilesRead + " of " + backfill.FilesTotal);
+            Assert(backfill.OldestLog.HasValue && backfill.OldestLog.Value == old.Date, "The oldest log day: " + backfill.OldestLog);
+
+            var day40 = history.Read(d40.Date);
+            Assert(day40 != null && day40.FromLogs && day40.Replies == 2 && day40.Tokens == 300 && day40.CacheRead == 2000 && day40.Threads == 2, "40 days ago: " + (day40 == null ? "none" : day40.Replies + " replies, " + day40.Tokens + " tokens, " + day40.Threads + " threads"));
+            Assert(day40.Hours[12] == 150 && day40.Hours[14] == 150 && day40.Garages.Count == 1 && day40.Garages[0].Name == "api" && day40.Garages[0].Threads == 2 && day40.Cost > 0 && day40.Needs == 0 && day40.LongestWait == 0, "40 days ago's hours, garage or cost.");
+            var day1 = history.Read(d1.Date);
+            Assert(day1 != null && day1.Replies == 2 && day1.Tokens == 300 && day1.Unpriced == 1, "Yesterday counted the helper's copy of a reply, or the unpriced one: " + (day1 == null ? "none" : day1.Replies + " replies, " + day1.Unpriced + " unpriced"));
+            Assert(File.ReadAllText(Path.Combine(ClaudeHistory.Folder(bridge), kept.Name + ".json")) == keptText, "A day that had its file was replaced.");
+            Assert(history.Read(Now.Date) == null && history.Read(old.Date) == null, "Today, or a day past the year kept, was written.");
+            Assert(backfill.DaysWritten == 2, "Days written: " + backfill.DaysWritten);
+            foreach (var file in Directory.GetFiles(ClaudeHistory.Folder(bridge)))
+            {
+                string text = File.ReadAllText(file);
+                Assert(text.IndexOf("SECRET", StringComparison.Ordinal) < 0 && text.IndexOf("opus", StringComparison.OrdinalIgnoreCase) < 0 && text.IndexOf("s1", StringComparison.Ordinal) < 0 && text.IndexOf("r1", StringComparison.Ordinal) < 0, "Text, a model, a session or a request id landed in " + Path.GetFileName(file) + ": " + text);
+            }
+            // Once done it stays done; the live History keeps the day it built marked as from the logs.
+            Assert(!backfill.Step(Now.AddMinutes(1)), "A finished backfill wrote again.");
+            var later = new List<ClaudeUsageEntry> { new ClaudeUsageEntry { At = d1, Session = "s1", Folder = "C:/Code/api", Tokens = 400, Priced = true }, new ClaudeUsageEntry { At = d1.AddMinutes(5), Session = "s1", Folder = "C:/Code/api", Tokens = 400, Priced = true } };
+            history.Save(later, null, Now, true);
+            Assert(history.Read(d1.Date).Tokens == 800 && history.Read(d1.Date).FromLogs, "The live History dropped the from-logs mark.");
+            // Off and on again: it starts over (Clear deleted the files).
+            backfill.Enabled = false; history.Clear(); backfill.Enabled = true;
+            Assert(!backfill.Done && !backfill.Started, "Turning History on again didn't start the backfill over.");
+            for (int i = 0; i < 100 && !backfill.Done; i++) backfill.Step(Now);
+            Assert(history.Read(d40.Date) != null && history.Read(d40.Date).Replies == 2, "The backfill didn't rebuild the days after History came back.");
+        });
+
+        check("Claude history from the logs: History and Sources say so, and the calendar stays 8 weeks while the files keep a year (v0.59.0)", () => {
+            Assert(ClaudeHistory.KeptDays == 365 && HistoryModel.CalendarDays == 56, "Kept " + ClaudeHistory.KeptDays + " days, calendar " + HistoryModel.CalendarDays);
+            var local = Now.ToLocalTime().Date;
+            var days = new List<ClaudeDay> { new ClaudeDay { Date = local.AddDays(-2), Tokens = 900, Replies = 3, Threads = 1, FromLogs = true }, new ClaudeDay { Date = local.AddDays(-1), Tokens = 500, Replies = 2, Needs = 1, LongestWait = 60 } };
+            var m = HistoryModel.From(days, Now, false, "");
+            var fromLogs = m.Last7.First(r => r.Date == local.AddDays(-2));
+            Assert(fromLogs.FromLogs && fromLogs.Cells[4] == "—" && fromLogs.Cells[5] == HistoryModel.FromLogsCell, "A from-logs day shows 0 needs: " + String.Join(" | ", fromLogs.Cells));
+            var watched = m.Last7.First(r => r.Date == local.AddDays(-1));
+            Assert(!watched.FromLogs && watched.Cells[4] == "1", "A watched day's needs: " + watched.Cells[4]);
+            var json = ClaudeDay.FromJson(ClaudeJson.Obj(ClaudeJson.Parse(ClaudeJson.Compact(days[0].ToJson()))));
+            Assert(json.FromLogs && !ClaudeDay.FromJson(ClaudeJson.Obj(ClaudeJson.Parse(ClaudeJson.Compact(days[1].ToJson())))).FromLogs, "FromLogs doesn't survive the file.");
+
+            var view = new ClaudeView();
+            Assert(ClaudeSources.LogsKept(view) == "Claude Code keeps its logs 30 days (Claude Code's default)", "Unset: " + ClaudeSources.LogsKept(view));
+            view.LogsKeptDays = 365; view.LogsKeptByUs = true;
+            Assert(ClaudeSources.LogsKept(view).EndsWith("365 days (set by Claude Dashboard)") && ClaudeSources.LogsButton(view)[1] == ClaudeSources.UndoKeepLogs, "Set by the dashboard: " + ClaudeSources.LogsKept(view));
+            view.LogsKeptByUs = false; view.LogsKeptDays = 400;
+            Assert(ClaudeSources.LogsButton(view)[0] == "" && ClaudeSources.LogsKept(view) == "Claude Code keeps its logs 400 days", "A year already kept still offers the button.");
+            view.LogsKeptDays = 60;
+            Assert(ClaudeSources.LogsButton(view)[1] == ClaudeSources.KeepLogs, "60 days doesn't offer Keep logs a year.");
+            Assert(ClaudeSources.Backfill(view).StartsWith("History is off"), "Off: " + ClaudeSources.Backfill(view));
+            view.BackfillOn = true; view.BackfillTotal = 51; view.BackfillRead = 12; view.OldestLog = new DateTime(2026, 10, 3);
+            Assert(ClaudeSources.Backfill(view) == "Past days from the logs: reading 12 of 51 logs · logs from 3 Oct 2026", "Reading: " + ClaudeSources.Backfill(view));
+            view.BackfillDone = true; view.BackfillDays = 24;
+            Assert(ClaudeSources.Backfill(view) == "Past days built from the logs: 24 days · logs from 3 Oct 2026", "Done: " + ClaudeSources.Backfill(view));
+            Assert(ClaudeSources.Exempt.Contains("Claude desktop app") && ClaudeSources.Exempt.Contains("exempt"), "The desktop app's exemption isn't said.");
+        });
+
+        check("Claude keep logs a year: adds cleanupPeriodDays with a backup, keeps a larger value, Undo and Disconnect put back the earlier one (v0.59.0)", () => {
+            string config = Fresh(directory, "keep-config"), bridge = Fresh(directory, "keep-bridge");
+            var connector = new ClaudeConnector(config, bridge);
+            string settings = connector.SettingsPath;
+            const string original = "{\n  \"model\": \"opus\",\n  \"env\": {\n    \"KEEP_ME\": \"1\"\n  },\n  \"permissions\": {\n    \"allow\": [\n      \"Bash(ls)\"\n    ]\n  }\n}\n";
+            File.WriteAllText(settings, original, new UTF8Encoding(false));
+            Func<JsonObject> load = () => ClaudeJson.Obj(ClaudeJson.Parse(File.ReadAllText(settings)));
+            Func<JsonObject, string> others = root => { var copy = ClaudeJson.Obj(ClaudeJson.Parse(ClaudeJson.Compact(root))); copy.Remove(ClaudeConnector.CleanupKey); return ClaudeJson.Compact(copy); };
+            string before = others(load());
+            Assert(connector.CleanupDays() == null && !connector.LogsKeptByUs, "Unset reads as set.");
+
+            Assert(connector.KeepLogsAYear() == null && connector.CleanupDays() == 365 && connector.LogsKeptByUs, "The key wasn't added.");
+            Assert(others(load()) == before, "Another key changed: " + ClaudeJson.Compact(load()));
+            Assert(File.Exists(settings + ClaudeConnector.BackupSuffix) && File.ReadAllText(settings + ClaudeConnector.BackupSuffix) == original && connector.DatedBackups().Count >= 1, "No backup of the earlier settings.json.");
+            Assert(connector.KeepLogsAYear() == "Claude Code already keeps its logs 365 days." , "A second press wrote again.");
+            Assert(connector.UndoKeepLogs() == null && connector.CleanupDays() == null && !load().Contains(ClaudeConnector.CleanupKey) && !connector.LogsKeptByUs && others(load()) == before, "Undo didn't take the key out again.");
+            Assert(connector.UndoKeepLogs() != null, "Undo with nothing to undo said it worked.");
+
+            // An earlier, smaller value comes back on Undo; a larger one is kept and nothing is written.
+            var root = load(); root[ClaudeConnector.CleanupKey] = new JsonNumber(60); File.WriteAllText(settings, ClaudeJson.Write(root) + "\n");
+            Assert(connector.KeepLogsAYear() == null && connector.CleanupDays() == 365, "60 days wasn't raised to a year.");
+            Assert(connector.UndoKeepLogs() == null && connector.CleanupDays() == 60, "Undo didn't put 60 back: " + connector.CleanupDays());
+            root = load(); root[ClaudeConnector.CleanupKey] = new JsonNumber(400); File.WriteAllText(settings, ClaudeJson.Write(root) + "\n");
+            string larger = File.ReadAllText(settings); int backups = connector.DatedBackups().Count;
+            Assert(connector.KeepLogsAYear() == "Claude Code already keeps its logs 400 days." && File.ReadAllText(settings) == larger && connector.DatedBackups().Count == backups && !connector.LogsKeptByUs, "A larger value wasn't kept as it was.");
+
+            // Disconnect takes the key back out only when the dashboard put it there.
+            root = load(); root.Remove(ClaudeConnector.CleanupKey); File.WriteAllText(settings, ClaudeJson.Write(root) + "\n");
+            Assert(connector.KeepLogsAYear() == null, "Keep failed before Disconnect.");
+            connector.Disconnect();
+            Assert(connector.CleanupDays() == null && !connector.LogsKeptByUs && others(load()) == before, "Disconnect left the dashboard's 365 days or changed another key.");
+            root = load(); root[ClaudeConnector.CleanupKey] = new JsonNumber(90); File.WriteAllText(settings, ClaudeJson.Write(root) + "\n");
+            connector.Disconnect();
+            Assert(connector.CleanupDays() == 90, "Disconnect took out the user's own value.");
+            // Invalid JSON is left alone.
+            File.WriteAllText(settings, "{ not json");
+            bool refused = false; try { connector.KeepLogsAYear(); } catch (InvalidOperationException) { refused = true; }
+            Assert(refused && File.ReadAllText(settings) == "{ not json", "Invalid settings.json was written.");
+        });
+    }
+}

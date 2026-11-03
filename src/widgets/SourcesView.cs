@@ -114,6 +114,34 @@ namespace ClaudeDashboard
             return rows;
         }
 
+        // v0.59.0, History from the logs: how long Claude Code keeps its logs, how far the past days' backfill has got
+        // and the oldest day the logs hold, and the one button (Keep logs a year, or Undo).
+        public const string Exempt = "Sessions from the Claude desktop app are already exempt from Claude Code's cleanup.";
+        public const string KeepLogs = "KeepLogs", UndoKeepLogs = "UndoKeepLogs";
+        public static string LogsKept(ClaudeView view)
+        {
+            int? days = view == null ? null : view.LogsKeptDays;
+            if (!days.HasValue) return "Claude Code keeps its logs " + ClaudeConnector.LogsDefault + " days (Claude Code's default)";
+            return "Claude Code keeps its logs " + days.Value + (days.Value == 1 ? " day" : " days") + (view.LogsKeptByUs && days.Value == ClaudeConnector.LogsYear ? " (set by Claude Dashboard)" : "");
+        }
+        public static string Backfill(ClaudeView view)
+        {
+            if (view == null || view.Sample) return "";
+            var c = System.Globalization.CultureInfo.InvariantCulture;
+            string oldest = view.OldestLog.HasValue ? " · logs from " + view.OldestLog.Value.ToString("d MMM yyyy", c) : "";
+            if (!view.BackfillOn) return "History is off, so no past days are built from the logs.";
+            if (view.BackfillDone) return "Past days built from the logs: " + view.BackfillDays + (view.BackfillDays == 1 ? " day" : " days") + oldest;
+            if (view.BackfillTotal == 0) return "Past days from the logs: waiting for the next log scan";
+            return "Past days from the logs: reading " + view.BackfillRead + " of " + view.BackfillTotal + (view.BackfillTotal == 1 ? " log" : " logs") + oldest;
+        }
+        // The button: Keep logs a year, or Undo while the dashboard's 365 days are set; none when a year is already kept.
+        public static string[] LogsButton(ClaudeView view)
+        {
+            if (view != null && view.LogsKeptByUs) return new[] { "Undo", UndoKeepLogs };
+            if (view != null && view.LogsKeptDays.HasValue && view.LogsKeptDays.Value >= ClaudeConnector.LogsYear) return new[] { "", "" };
+            return new[] { "Keep logs a year", KeepLogs };
+        }
+
         private static SourceRow Row(string name, ClaudeHealthItem item, string where, string gives)
         {
             string state = item.Level == ClaudeHealthLevel.Ok ? "Live" : item.Long.StartsWith(item.Name, StringComparison.Ordinal) && item.Long.Length > item.Name.Length ? item.Long.Substring(item.Name.Length).TrimStart(':', ' ') : item.Long;
@@ -140,7 +168,13 @@ namespace ClaudeDashboard
         private ClaudeViewContext context = new ClaudeViewContext();
         private Size room;
         private Grid root;
-        private TextBlock sample, error;
+        private TextBlock sample, error, logsKept, backfill;
+        private Button logsButton;
+        private Border logsTile;
+        // For the checks: the History from the logs tile's words and button.
+        public string LogsKeptShown { get { return logsKept == null ? "" : logsKept.Text; } }
+        public string BackfillShown { get { return backfill == null ? "" : backfill.Text; } }
+        public Button LogsButton { get { return logsButton; } }
         private readonly List<Cells> cells = new List<Cells>();
         private ClaudeView last;
         // For the checks: the rows last shown.
@@ -212,7 +246,20 @@ namespace ClaudeDashboard
                 cells.Add(c);
                 stack.Children.Add(tile);
             }
-            var note = Small("The dashboard reads these and never writes Claude Code's settings itself: Connect, Disconnect and Update connection go through Settings → Claude, with dated backups.", "Muted");
+            // v0.59.0: History from the logs, and Keep logs a year.
+            var logsPart = new StackPanel();
+            var logsTitle = CardParts.Text("History from the logs", S(15), "Text"); logsTitle.FontWeight = FontWeights.SemiBold; logsPart.Children.Add(logsTitle);
+            logsKept = CardParts.Text("", S(14), "Text"); logsKept.TextWrapping = TextWrapping.Wrap; logsKept.Margin = new Thickness(0, 4, 0, 0); logsPart.Children.Add(logsKept);
+            backfill = Small("", "Muted"); logsPart.Children.Add(backfill);
+            logsPart.Children.Add(Small(ClaudeSources.Exempt, "Muted"));
+            logsButton = new Button { MinWidth = S(120), Padding = new Thickness(S(10), S(4), S(10), S(4)), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, FontSize = S(13), Template = ButtonLook() };
+            var keep = logsButton; keep.Click += (s, e) => Run(keep.Tag as string);
+            var logsRow = CardParts.Columns(CardParts.Star, CardParts.Auto); logsPart.Margin = new Thickness(0, 0, 12, 0);
+            logsRow.Children.Add(logsPart); logsRow.Children.Add(CardParts.At(logsButton, 0, 1));
+            logsTile = CardParts.Tile(logsRow, 12, new Thickness(16, 12, 16, 12)); logsTile.Margin = new Thickness(0, 0, 10, 10);
+            AutomationProperties.SetName(logsTile, "History from the logs");
+            stack.Children.Add(logsTile);
+            var note = Small("The dashboard reads these and changes Claude Code's settings only from a button: Connect, Disconnect and Update connection in Settings → Claude, and Keep logs a year here, each with dated backups.", "Muted");
             stack.Children.Add(note);
             var scroll = ClaudeReliability.Page(stack, "Sources");
             root = new Grid(); root.Children.Add(scroll);
@@ -293,6 +340,18 @@ namespace ClaudeDashboard
                 AutomationProperties.SetHelpText(c.Row, r.Tip);
                 c.Row.ToolTip = r.Tip;
             }
+            bool sample0 = context.Sample || (snapshot != null && snapshot.Sample);
+            logsKept.Text = ClaudeSources.LogsKept(snapshot);
+            backfill.Text = ClaudeSources.Backfill(snapshot);
+            backfill.Visibility = backfill.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            var b = ClaudeSources.LogsButton(snapshot);
+            logsButton.Content = b[0]; logsButton.Tag = b[1];
+            logsButton.Visibility = b[0].Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            logsButton.IsEnabled = !sample0;
+            ToolTipService.SetShowOnDisabled(logsButton, true);
+            logsButton.ToolTip = sample0 ? SampleRefusal : b[1] == ClaudeSources.KeepLogs ? "Sets cleanupPeriodDays to 365 in Claude Code's settings.json, with a dated backup. Undo puts back what was there." : "Puts back how long Claude Code kept its logs before.";
+            AutomationProperties.SetName(logsButton, b[0] + ", Claude Code's logs");
+            AutomationProperties.SetHelpText(logsTile, logsKept.Text + ". " + backfill.Text + " " + ClaudeSources.Exempt);
         }
     }
 }

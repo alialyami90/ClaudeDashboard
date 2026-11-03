@@ -97,7 +97,7 @@ namespace ClaudeDashboard
             {
                 var stack = new StackPanel();
                 stack.Children.Add(LapParts.Heading("History", S(18)));
-                var why = LapParts.Words(m.Missing.Length > 0 ? m.Missing : "No day files yet. History keeps 8 weeks of daily numbers while Claude Code runs (Settings → Claude → History).", S(15), "Text");
+                var why = LapParts.Words(m.Missing.Length > 0 ? m.Missing : "No day files yet. History keeps a year of daily numbers while Claude Code runs (Settings → Claude → History), and builds past days from Claude Code's logs.", S(15), "Text");
                 why.Margin = new Thickness(0, 12, 0, 0);
                 stack.Children.Add(why);
                 sheet.Children.Add(CardParts.Tile(stack, 12, new Thickness(16)));
@@ -126,7 +126,7 @@ namespace ClaudeDashboard
             stack.Children.Add(calendar);
             var foot = CardParts.Columns(CardParts.Star, CardParts.Auto); foot.Margin = new Thickness(0, 8, 0, 0);
             foot.Children.Add(CardParts.At(LapParts.Words(m.BusiestLine(), S(12), "Muted"), 0, 0));
-            var kept = LapParts.Words("Kept 8 weeks, numbers and project names only", S(12), "Muted"); kept.Margin = new Thickness(12, 0, 0, 0);
+            var kept = LapParts.Words("Kept a year, numbers and project names only", S(12), "Muted"); kept.Margin = new Thickness(12, 0, 0, 0);
             foot.Children.Add(CardParts.At(kept, 0, 1));
             stack.Children.Add(foot);
 
@@ -171,6 +171,7 @@ namespace ClaudeDashboard
                 }
             }
             stack.Children.Add(table);
+            if (m.Last7.Any(r => r.FromLogs)) { var logs = LapParts.Words(HistoryModel.FromLogsNote, S(12), "Muted"); logs.TextWrapping = TextWrapping.Wrap; logs.Margin = new Thickness(0, 6, 0, 0); stack.Children.Add(logs); }
             var caption = LapParts.Caption("Projects this week", S(11)); caption.Margin = new Thickness(0, 20, 0, 8);
             stack.Children.Add(caption);
             if (m.Projects.Count == 0) stack.Children.Add(LapParts.Words("No project tokens in the last 7 days.", S(13), "Muted"));
@@ -242,18 +243,21 @@ namespace ClaudeDashboard
     }
 
     // One row of the last 7 days table.
-    public sealed class HistoryRow { public DateTime Date; public string[] Cells = new string[6]; public bool WaitWarns; }
+    public sealed class HistoryRow { public DateTime Date; public string[] Cells = new string[6]; public bool WaitWarns, FromLogs; }
 
     // What the History tab shows, worked out from the day files (for the view and the checks).
     public sealed class HistoryModel
     {
-        public const int CalendarDays = ClaudeHistory.KeptDays;
+        // v0.59.0: the files are kept a year now; the calendar still shows 8 weeks.
+        public const int CalendarDays = 56;
         // A wait this long or longer is shown in amber.
         public static readonly TimeSpan LongWait = TimeSpan.FromMinutes(15);
         // The calendar's shades: none, then four steps of the accent (darker is quieter).
         public static readonly double[] Shades = { 0, 0.22, 0.42, 0.7, 1 };
 
-        public const string Off = "History is off, so there are no day files to show. Turn it on in Settings → Claude → History; it keeps 8 weeks of daily numbers and project names only.";
+        public const string Off = "History is off, so there are no day files to show. Turn it on in Settings → Claude → History; it keeps a year of daily numbers and project names only.";
+        // v0.59.0: a day built from Claude Code's logs says so where its waits would be.
+        public const string FromLogsCell = "from logs", FromLogsNote = "\"from logs\": a day built from Claude Code's logs, before the dashboard was watching, so it has no needs or waits.";
         public bool Sample, Empty;
         public string Missing = "";
         public DateTime Today, FirstMonday;
@@ -303,6 +307,8 @@ namespace ClaudeDashboard
                 row.Cells[4] = d.Needs.ToString(c);
                 row.Cells[5] = d.LongestWait > 0 ? Wait(TimeSpan.FromSeconds(d.LongestWait)) : "—";
                 row.WaitWarns = d.LongestWait >= LongWait.TotalSeconds;
+                // v0.59.0: a day built from Claude Code's logs: its needs and waits weren't seen, so no 0 is shown.
+                if (d.FromLogs) { row.FromLogs = true; row.Cells[4] = d.Needs > 0 ? d.Needs.ToString(c) : "—"; row.Cells[5] = d.LongestWait > 0 ? row.Cells[5] : FromLogsCell; }
                 m.Last7.Add(row);
                 foreach (var g in d.Garages)
                 {

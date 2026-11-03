@@ -26,6 +26,9 @@ namespace ClaudeDashboard
         public long Tokens, CacheRead;
         public int Replies, Threads, Unpriced, Needs, LongestWait;
         public double Cost;
+        // v0.59.0: built afterwards from Claude Code's logs (ClaudeBackfill), when the dashboard wasn't watching: needs
+        // and the longest wait weren't seen, so History says "from Claude Code's logs" rather than 0.
+        public bool FromLogs;
         public long[] Hours = new long[24];
         public List<ClaudeDayGarage> Garages = new List<ClaudeDayGarage>();
 
@@ -49,6 +52,7 @@ namespace ClaudeDashboard
             o["date"] = Name; o["tokens"] = new JsonNumber(Tokens); o["cacheRead"] = new JsonNumber(CacheRead);
             o["replies"] = new JsonNumber(Replies); o["threads"] = new JsonNumber(Threads); o["cost"] = new JsonNumber(Math.Round(Cost, 4));
             o["unpriced"] = new JsonNumber(Unpriced); o["needs"] = new JsonNumber(Needs); o["longestWait"] = new JsonNumber(LongestWait);
+            if (FromLogs) o["fromLogs"] = true;
             o["hours"] = Hours.Select(h => (object)new JsonNumber(h)).ToList();
             o["garages"] = Garages.Select(g => {
                 var x = new JsonObject(); x["folder"] = g.Folder; x["name"] = g.Name; x["tokens"] = new JsonNumber(g.Tokens);
@@ -65,6 +69,7 @@ namespace ClaudeDashboard
             var day = new ClaudeDay { Date = date.Date, Tokens = num(o, "tokens"), CacheRead = num(o, "cacheRead"), Replies = (int)num(o, "replies"), Threads = (int)num(o, "threads"),
                 Unpriced = (int)num(o, "unpriced"), Needs = (int)num(o, "needs"), LongestWait = (int)num(o, "longestWait") };
             double cost = ClaudeJson.Num(o, "cost"); day.Cost = Double.IsNaN(cost) ? 0 : cost;
+            day.FromLogs = ClaudeJson.Bool(o, "fromLogs");
             var hours = ClaudeJson.List(o, "hours");
             if (hours != null) for (int h = 0; h < 24 && h < hours.Count; h++) { var n = hours[h] as JsonNumber; day.Hours[h] = n == null || Double.IsNaN(n.Value) ? 0 : (long)n.Value; }
             foreach (var g in (ClaudeJson.List(o, "garages") ?? new List<object>()).OfType<JsonObject>())
@@ -78,12 +83,12 @@ namespace ClaudeDashboard
     }
 
     // The daily summary files (package 4): claude\history\YYYY-MM-DD.json beside the bridge's other files, one per local
-    // day, kept 8 weeks. Days are worked out from the log and telemetry replies the card already reads (a week of them),
+    // day, kept a year (v0.59.0; 8 weeks before). Days are worked out from the log and telemetry replies the card already reads (a week of them),
     // so a day is rewritten only while it can still grow; the needs and the longest wait come from the sessions the
     // dashboard saw. Settings → Claude → History turns it off, and Clear deletes the folder.
     public sealed class ClaudeHistory
     {
-        public const int KeptDays = 56, SparkDays = 7;
+        public const int KeptDays = 365, SparkDays = 7;
         public static readonly TimeSpan WriteEvery = TimeSpan.FromMinutes(1);
         private readonly string folder;
         private readonly TimeZoneInfo zone;
@@ -97,6 +102,7 @@ namespace ClaudeDashboard
         public static string Folder(string bridge) { return Path.Combine(bridge, "history"); }
         public DateTime LocalDate(DateTime utc) { return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone).Date; }
         private DateTime Local(DateTime utc) { return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone); }
+        public DateTime LocalTime(DateTime utc) { return Local(utc); }
         private string DayPath(DateTime date) { return Path.Combine(folder, date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ".json"); }
 
         // Follows the running sessions: a session that starts needing you counts once for its day, and how long it
@@ -167,7 +173,7 @@ namespace ClaudeDashboard
         // Whether Save would write now (once a minute), so the caller copies the replies only then.
         public bool Due(DateTime now) { return now - lastWrite >= WriteEvery; }
 
-        // Writes the days the replies cover, at most once a minute unless forced, and drops files past 8 weeks. A day
+        // Writes the days the replies cover, at most once a minute unless forced, and drops files past a year. A day
         // is replaced only when the new count isn't smaller (the scan keeps a week, so an old day's early hours fall
         // away); needs and waits keep the larger number. Returns whether anything was written.
         public bool Save(IEnumerable<ClaudeUsageEntry> replies, Func<string, string> names, DateTime now, bool force = false)
@@ -188,6 +194,8 @@ namespace ClaudeDashboard
                         try { ClaudeBridge.WriteAtomic(DayPath(stored.Date), ClaudeJson.Compact(stored.ToJson())); wrote = true; } catch (Exception) { }
                         continue;
                     }
+                    // A day the logs built keeps saying so: the needs it shows were only partly seen.
+                    day.FromLogs = stored.FromLogs;
                     if (ClaudeJson.Compact(stored.ToJson()) == ClaudeJson.Compact(day.ToJson())) continue;
                 }
                 try { ClaudeBridge.WriteAtomic(DayPath(day.Date), ClaudeJson.Compact(day.ToJson())); wrote = true; } catch (Exception) { }
@@ -197,7 +205,16 @@ namespace ClaudeDashboard
             return wrote;
         }
 
-        // Deletes day files older than 8 weeks (and stray files that aren't days).
+        // v0.59.0: whether a day has its file, and writing a day only when it has none and is before today (the log
+        // backfill: it never replaces a file and never writes today).
+        public bool Exists(DateTime date) { try { return File.Exists(DayPath(date.Date)); } catch (Exception) { return true; } }
+        public bool WriteNew(ClaudeDay day, DateTime today)
+        {
+            if (day == null || day.Date.Date >= today.Date || Exists(day.Date)) return false;
+            try { Directory.CreateDirectory(folder); ClaudeBridge.WriteAtomic(DayPath(day.Date.Date), ClaudeJson.Compact(day.ToJson())); return true; } catch (Exception) { return false; }
+        }
+
+        // Deletes day files older than a year (and stray files that aren't days).
         public void Prune(DateTime now)
         {
             DateTime oldest = LocalDate(now).AddDays(-(KeptDays - 1));

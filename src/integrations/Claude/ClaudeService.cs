@@ -220,6 +220,14 @@ namespace ClaudeDashboard
         public DateTime LogsReadAt, TelemetryAt, AppThreadsReadAt;
         public int TelemetryPort, AppThreadCount;
         public DateTime? PlanNextCheck;
+        // v0.59.0, History from the logs: the backfill's progress (logs read of all, finished, days written), the oldest
+        // local day the logs still hold, and how long Claude Code keeps its logs (cleanupPeriodDays; null: its 30-day
+        // default) and whether the dashboard set that.
+        public bool BackfillOn, BackfillDone;
+        public int BackfillRead, BackfillTotal, BackfillDays;
+        public DateTime? OldestLog;
+        public int? LogsKeptDays;
+        public bool LogsKeptByUs;
         // "Telemetry off: port 43832 in use" when the receiver couldn't listen where settings.json sends it (decision 023).
         public string TelemetryWarning = "";
         public int Stuck { get { return Sessions.Count(s => s.State == ClaudeState.Stuck); } }
@@ -456,6 +464,8 @@ namespace ClaudeDashboard
             bridge = bridgeFolder;
             Connector = new ClaudeConnector(configFolder, bridgeFolder, telemetryPort);
             Usage = new ClaudeUsage(configFolder);
+            // v0.59.0: past days from the logs, into the same day files History keeps (off until History is on).
+            Usage.Backfill = new ClaudeBackfill(configFolder, new ClaudeHistory(bridgeFolder));
             Registry = new ClaudeRegistry(configFolder);
             Account = account ?? (signInPath == null ? null : new ClaudeAccount(signInPath));
             Telemetry = new ClaudeTelemetry(telemetryPort, Receive);
@@ -1033,7 +1043,21 @@ namespace ClaudeDashboard
             view.LogsReadAt = Usage.LastScan; view.TelemetryAt = Telemetry.LastReceived; view.TelemetryPort = Telemetry.Running ? Telemetry.Port : 0;
             view.AppThreadsReadAt = appThreadsRead; view.AppThreadCount = AppThreads.Threads.Count;
             view.PlanNextCheck = Account != null && Account.SignedIn ? (DateTime?)(lastOnline == DateTime.MinValue ? now : lastOnline + NextWait) : null;
+            var backfill = Usage.Backfill;
+            if (backfill != null)
+            {
+                view.BackfillOn = backfill.Enabled; view.BackfillDone = backfill.Done; view.BackfillRead = backfill.FilesRead; view.BackfillTotal = backfill.FilesTotal;
+                view.BackfillDays = backfill.DaysWritten; view.OldestLog = backfill.OldestLog;
+            }
+            // settings.json's cleanupPeriodDays, read at most every 30 s (or at once after Keep logs a year).
+            if (logsKeptRead == DateTime.MinValue || now - logsKeptRead >= TimeSpan.FromSeconds(30) || now < logsKeptRead) { logsKept = Connector.CleanupDays(); logsKeptByUs = Connector.LogsKeptByUs; logsKeptRead = now; }
+            view.LogsKeptDays = logsKept; view.LogsKeptByUs = logsKeptByUs;
         }
+        private DateTime logsKeptRead = DateTime.MinValue;
+        private int? logsKept;
+        private bool logsKeptByUs;
+        // After Sources' Keep logs a year or Undo: the next snapshot reads settings.json again.
+        public void LogsKeptChanged() { logsKeptRead = DateTime.MinValue; }
 
         // Package 2, the cost's sources: Claude Code's own cost (telemetry) wins, then the price table; a session whose
         // replies came from a model the table doesn't know shares the rest of its status-line total between those
