@@ -49,6 +49,11 @@ namespace ClaudeDashboard
         public Func<string, string> Focus = id => null;
         // Switches the window to another tab by name (a "See Limits" link, say).
         public Action<string> Show = name => { };
+        // Runs one of Settings → Claude's actions by name, through the same path as its button there, confirmation
+        // sheet included: Connect, Disconnect, Reconnect, UpdateConnection (these change Claude Code's settings.json,
+        // with its backups), OpenLogs, CheckPlan, SignIn, ShowArchived, HideArchived. Returns null when it started or
+        // worked, or what went wrong (an unknown name says so).
+        public Func<string, string> Act = name => null;
         // A font size scaled with the text size, rounded as the card rounds it.
         public double Scaled(double size) { return Math.Round(size * TextScale, 1); }
     }

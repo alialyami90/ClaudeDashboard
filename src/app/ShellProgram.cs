@@ -8,7 +8,7 @@ namespace ClaudeDashboard
     // Claude Dashboard's start (phase 4): one ordinary window and its controller. Renders draw the window at a size in
     // pixels and a display scaling, and exit (--shell, from the weeks both windows were built, is still accepted):
     //   --render <png> [--render-size WxH] [--render-scale 1.5] [--render-claude-sample [--render-claude-needs] [--render-claude-crowded]]
-    //   [--render-settings [--render-tab Claude]]
+    //   [--render-view Live|Garage|Limits|History|Reliability|Sources] [--render-settings [--render-tab Claude]]
     public static class ShellProgram
     {
         public static int Run(string[] args)
@@ -41,6 +41,13 @@ namespace ClaudeDashboard
                         // A labelled fixture ("SAMPLE" in the header) instead of this PC's sessions.
                         if (args.Contains("--render-claude-sample")) controller.UseClaudeSample(args.Contains("--render-claude-needs"), args.Contains("--render-claude-crowded"));
                         double scale = Scale(Argument(args, "--render-scale"));
+                        // One of the lap chart's views (decision 030); from 640 wide, since narrower windows have no tabs.
+                        string view = Argument(args, "--render-view");
+                        if (view != null)
+                        {
+                            if (ClaudeViews.Clean(view) == null) throw new ArgumentException("--render-view takes one of " + String.Join(", ", ClaudeViews.Names) + ", not " + view + ".");
+                            controller.ShowView(view);
+                        }
                         if (args.Contains("--render-settings"))
                         {
                             controller.OpenSettings();

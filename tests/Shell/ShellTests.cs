@@ -78,6 +78,43 @@ internal static class ShellTests
         }
         return found;
     }
+    // Every view at 640 × 420, 1000 × 600 and 1600 × 900: the tab on screen, the area it shows, the period switch only in
+    // Garage, the source-health line in the tab row and whole, and the summary whole.
+    private static void CheckViews(AppController controller, Window window, string renders, string suffix, double textScale)
+    {
+        var tabs = (TabControl)window.FindName("ViewTabs");
+        foreach (var size in new[] { new Size(640, 420), new Size(1000, 600), new Size(1600, 900) })
+        {
+            string name = "views-" + size.Width + "x" + size.Height + suffix;
+            foreach (string view in ClaudeViews.Names)
+            {
+                controller.ShowView(view);
+                AppController.Render(window, size, 1, Path.Combine(renders, "shell-" + name + "-" + view.ToLowerInvariant() + ".png"));
+                Assert(controller.TabsShown && controller.CurrentView == view && tabs.SelectedIndex == Array.IndexOf(ClaudeViews.Names, view), name + ": " + view + " isn't the tab on screen.");
+                bool garage = view == ClaudeViews.Garage;
+                var card = (FrameworkElement)window.FindName("ClaudeCard"); var host = (Border)window.FindName("ViewHost");
+                Assert(card.Visibility == (garage ? Visibility.Visible : Visibility.Hidden) && host.Visibility == (garage ? Visibility.Collapsed : Visibility.Visible), name + ": " + view + " shows the wrong area.");
+                Assert(((StackPanel)window.FindName("PeriodSwitch")).Visibility == (garage ? Visibility.Visible : Visibility.Collapsed), name + ": the period switch shows outside Garage, or not in it.");
+                if (!garage)
+                {
+                    var shown = controller.View(view);
+                    Assert(shown.Visible && host.Child != null && host.Tag as string == view, name + ": " + view + " wasn't built or isn't Visible.");
+                    foreach (string other in ClaudeViews.Names.Where(n => n != view && n != ClaudeViews.Garage)) Assert(!controller.View(other).Visible, name + ": " + other + " is Visible behind " + view + ".");
+                    if (shown is PlaceholderView) Assert(Texts(host).Any(t => t.Text == "Coming in " + ClaudeViews.Coming(view) + "."), name + ": " + view + "'s placeholder doesn't say when it comes.");
+                }
+                var line = (FrameworkElement)window.FindName("SourceLine");
+                Assert(controller.SourcesInTabRow && line.Parent == window.FindName("TabSources"), name + ": the source-health line isn't in the tab row.");
+                Assert(((TextBlock)window.FindName("SourceSample")).Visibility == Visibility.Visible, name + ": the tab row doesn't say Sample.");
+                SourcesWhole(window, controller, name + "-" + view);
+                var row = (FrameworkElement)window.FindName("TabRow");
+                var holder = (FrameworkElement)window.FindName("TabSources");
+                Assert(holder.TranslatePoint(new Point(holder.ActualWidth, 0), row).X <= row.ActualWidth + 1, name + ": the source-health line runs past the tab row.");
+                if (!controller.SourcesUnderTabs) Assert(tabs.TranslatePoint(new Point(tabs.ActualWidth, 0), row).X <= holder.TranslatePoint(new Point(0, 0), row).X + 1, name + ": the tabs run under the source-health line.");
+                var summary = (TextBlock)window.FindName("ClaudeSummary");
+                Assert(controller.SummaryForms.Contains(summary.Text) && !Cut(summary), name + ": the summary is cut or not one of its forms: " + summary.Text);
+            }
+        }
+    }
     private static void Click(Window window, string name) { ((Button)window.FindName(name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
 
     public static void Run(string directory, Action<string, Action> check)
@@ -141,7 +178,7 @@ internal static class ShellTests
                         // The summary is never cut mid-word, and from 1000 units wide it's the whole summary (on the
                         // header's line, or on its own line under it).
                         Assert(!Cut(summary), size.Name + ": the header's summary is cut: \"" + summary.Text + "\" in " + Math.Round(summary.ActualWidth));
-                        if (Math.Round(size.W / size.Scale) >= 1000) Assert(summary.Text == ClaudeText.Summary(card.View, card.Period, true), size.Name + ": the header doesn't show the whole summary: " + summary.Text);
+                        if (Math.Round(size.W / size.Scale) >= 1000) Assert(summary.Text == controller.SummaryForms[0], size.Name + ": the header doesn't show the whole summary: " + summary.Text);
                         var content = (Grid)window.FindName("DashboardContent");
                         Assert(content.RowDefinitions[0].Height.Value == (controller.HeaderTwoLines ? 84 : 56), size.Name + ": the header's height doesn't match its lines.");
                         var edge = (Border)window.FindName("WindowEdge");
@@ -178,7 +215,7 @@ internal static class ShellTests
                         Assert(card.Current == CardSizing.Design.Small, name + " isn't Small.");
                         Assert(window.FindName("ClaudeSmallMeter") != null, name + ": Small lost its 5-hour meter (header " + (controller.HeaderTwoLines ? 84 : 56) + ").");
                         var summary = (TextBlock)window.FindName("ClaudeSummary");
-                        var forms = new[] { ClaudeText.Summary(card.View, card.Period, true), ClaudeText.ShortSummary(card.View, card.Period), ClaudeText.ShortSummary(card.View, card.Period, 1, true), ClaudeText.ShortSummary(card.View, card.Period, 1, false) };
+                        var forms = controller.SummaryForms;
                         Assert(forms.Contains(summary.Text), name + ": the summary isn't the whole one or a short form: " + summary.Text);
                         Assert(!Cut(summary), name + ": the header's summary is cut: \"" + summary.Text + "\" in " + Math.Round(summary.ActualWidth));
                         Assert(summary.TextTrimming == TextTrimming.WordEllipsis, name + ": the summary could be cut mid-word.");
@@ -274,7 +311,10 @@ internal static class ShellTests
                 AppController.Lay(window, new Size(1280, 760));
                 Click(window, "ShellPeriod0");
                 Assert(controller.ClaudeCardView.Period == ClaudePeriod.FiveHour && controller.CurrentSettings.ClaudePeriod == "FiveHour", "The header's 5 h button didn't choose the 5-hour window.");
-                Assert(((TextBlock)window.FindName("ClaudeSummary")).Text.Contains("in 5 h"), "The summary didn't follow the period.");
+                // The summary is always live (decision 030): the last 5 hours, whichever period Garage shows.
+                Click(window, "ShellPeriod2");
+                Assert(controller.ClaudeCardView.Period == ClaudePeriod.Week && ((TextBlock)window.FindName("ClaudeSummary")).Text.Contains("in 5 h"), "The summary followed Garage's period.");
+                Click(window, "ShellPeriod0");
                 Click(window, "QuietButton");
                 string warning; Assert(SettingsStore.Load(path, out warning).QuietMode && SettingsStore.Load(path, out warning).ClaudePeriod == "FiveHour", "Quiet mode or the period wasn't saved.");
                 Assert(((TextBlock)window.FindName("AppName")).Visibility == Visibility.Visible && ((StackPanel)window.FindName("PeriodSwitch")).Visibility == Visibility.Visible, "The wide header hides its name or periods.");
@@ -436,6 +476,68 @@ internal static class ShellTests
                 var words = keys.Where(t => t.Text.Contains("NO LOGS")).ToList();
                 Assert(words.Count >= 2, "The side panel doesn't say NO LOGS for the tokens and tools: " + String.Join(" / ", keys.Select(t => t.Text)));
                 foreach (var t in words) Assert(!Cut(t), "The side panel cuts \"" + t.Text + "\".");
+            }
+        });
+
+        check("Shell views: tabs from 640 wide, Garage keeps the card and its periods, the source-health line moves, Ctrl+1 to 6 and Ctrl+G", () => {
+            string renders = Renders(directory);
+            string folder = Fresh(directory, "views");
+            var window = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(window, SettingsFile(folder, new AppSettings())))
+            {
+                controller.UseClaudeSample(true, true);
+                var tabs = (TabControl)window.FindName("ViewTabs");
+                Assert(tabs.Items.Count == 6 && tabs.Items.OfType<TabItem>().Select(t => (string)t.Header).SequenceEqual(ClaudeViews.Names), "The tabs aren't Live, Garage, Limits, History, Reliability, Sources.");
+                // Live opens first once its view is in the build; until then Garage.
+                Assert(controller.ChosenView == (ClaudeViews.Create(ClaudeViews.Live) is PlaceholderView ? ClaudeViews.Garage : ClaudeViews.Live), "The first view is " + controller.ChosenView + ".");
+
+                // Below 640 wide: no tabs, the card, the period switch in the header and the source line under the card.
+                controller.ShowView(ClaudeViews.Limits);
+                AppController.Render(window, new Size(600, 420), 1, Path.Combine(renders, "shell-views-600x420.png"));
+                Assert(!controller.TabsShown && ((Grid)window.FindName("TabRow")).Visibility == Visibility.Collapsed && controller.CurrentView == ClaudeViews.Garage, "A 600-wide window shows tabs or another view.");
+                Assert(((FrameworkElement)window.FindName("ClaudeCard")).Visibility == Visibility.Visible && ((FrameworkElement)window.FindName("ViewHost")).Visibility == Visibility.Collapsed, "A 600-wide window hides the card.");
+                Assert(((FrameworkElement)window.FindName("SourceLine")).Parent == window.FindName("DashboardContent") && !controller.SourcesInTabRow, "Below 640 the source-health line left the card's foot.");
+                SourcesWhole(window, controller, "views-600x420");
+
+                // From 640 wide: the tabs, the chosen view, and the source-health line at the tab row's end (one control).
+                CheckViews(controller, window, renders, "", 1.0);
+                // The header is always live and says when the 5-hour limit comes at this pace; an Assertive live region.
+                var sample = controller.ClaudeCardView.View;
+                Assert(!Double.IsNaN(sample.LimitEtaMinutes) && controller.SummaryForms[0].Contains(" · ≈ limit ") && controller.SummaryForms[0].Contains("in 5 h"), "The header doesn't say ≈ limit: " + controller.SummaryForms[0]);
+                Assert(controller.HeaderAnnounces, "The header summary isn't an Assertive live region.");
+                Assert(AppController.LimitText(new ClaudeView(), DateTime.UtcNow, false) == "", "≈ limit shows with no pace to go by.");
+
+                // The views' contract: only the one on screen is Visible, and none while minimised; unknown names do nothing.
+                controller.ShowView(ClaudeViews.History);
+                Assert(controller.View(ClaudeViews.History).Visible && !controller.View(ClaudeViews.Limits).Visible, "History isn't the one Visible view.");
+                controller.ShowView("Pit lane");
+                Assert(controller.ChosenView == ClaudeViews.History, "An unknown view name changed the view.");
+                Assert(ClaudeViews.Create("Garage") == null && ClaudeViews.Create("Nope") == null && ClaudeViews.Create("limits").Name == ClaudeViews.Limits, "ClaudeViews.Create doesn't follow its contract.");
+                Assert(ClaudeViews.Coming(ClaudeViews.Live) == "v0.56.0" && ClaudeViews.Coming(ClaudeViews.Limits) == "v0.57.0" && ClaudeViews.Coming(ClaudeViews.Sources) == "v0.58.0", "The placeholders name the wrong versions.");
+
+                // Ctrl+G is the session that waited longest (Ctrl+1 until v0.55.0); Ctrl+1 to Ctrl+6 the views.
+                Assert(controller.OpenWaitingLongest() == controller.WaitingLongest(DateTime.UtcNow).Thread.Id, "Ctrl+G's target moved.");
+
+                // Views' actions: each known name answers (here the fixture's "nothing to change"), an unknown one is an error.
+                foreach (string action in AppController.Actions) Assert(controller.Act(action) != null, action + " ran against the sample.");
+                Assert(controller.Act("FormatDisk").StartsWith("Unknown action") && controller.Act(null).StartsWith("Unknown action"), "An unknown action didn't say so.");
+            }
+            // The same at 140% text.
+            string bigFolder = Fresh(directory, "views-140");
+            var bigWindow = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(bigWindow, SettingsFile(bigFolder, new AppSettings { TextScale = 1.4 })))
+            {
+                controller.UseClaudeSample(true, true);
+                CheckViews(controller, bigWindow, renders, "-140", 1.4);
+            }
+            // A live (not sample) controller: an unknown action is still an error, and Disconnect refuses while not connected.
+            string liveFolder = Fresh(directory, "views-live");
+            var liveWindow = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(liveWindow, SettingsFile(liveFolder, new AppSettings())))
+            {
+                Assert(controller.Act("Nope") == "Unknown action: Nope.", "An unknown action crashed or ran.");
+                Assert(controller.Act("Disconnect") == "Claude Code isn't connected.", "Disconnect ran without a connection.");
+                Assert(controller.Act("ShowArchived") == null && controller.CurrentSettings.ClaudeShowArchived && controller.Act("HideArchived") == null && !controller.CurrentSettings.ClaudeShowArchived, "Show and hide archived didn't change the setting.");
             }
         });
 

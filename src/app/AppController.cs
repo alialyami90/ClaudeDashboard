@@ -43,6 +43,12 @@ namespace ClaudeDashboard
         private const double SourceOverlap = 16;
         private List<ClaudeHealthItem> sources = new List<ClaudeHealthItem>();
         private static readonly ClaudePeriod[] HeaderPeriods = { ClaudePeriod.FiveHour, ClaudePeriod.Today, ClaudePeriod.Week };
+        // The lap chart's views (decision 030): the tab chosen, the views made so far and what each was built for,
+        // and whether the window is wide enough for tabs (below ClaudeViews.TabsFrom it is the Garage card alone).
+        private string viewChosen = ClaudeViews.Garage;
+        private readonly Dictionary<string, IClaudeView> views = new Dictionary<string, IClaudeView>();
+        private readonly Dictionary<string, string> viewBuilt = new Dictionary<string, string>();
+        private bool tabsShown, choosingTab, sourcesUnderTabs;
 
         public AppSettings CurrentSettings { get { return settings; } }
         public Window MainWindow { get { return window; } }
@@ -81,6 +87,13 @@ namespace ClaudeDashboard
             Button("SettingsButton", OpenSettings);
             Button("QuietButton", ToggleQuiet);
             for (int i = 0; i < HeaderPeriods.Length; i++) { var period = HeaderPeriods[i]; Button("ShellPeriod" + i, () => claudeCard.ShowPeriod(period)); }
+            // Live opens first once its package is in this build; until then Garage, the pit wall as before.
+            viewChosen = View(ClaudeViews.Live) is PlaceholderView ? ClaudeViews.Garage : ClaudeViews.Live;
+            var tabs = Control<TabControl>("ViewTabs");
+            for (int i = 0; i < ClaudeViews.Names.Length; i++) AutomationProperties.SetAcceleratorKey(Control<TabItem>("ViewTab" + i), "Ctrl+" + (i + 1));
+            tabs.SelectionChanged += (sender, e) => { if (choosingTab || e.OriginalSource != tabs || tabs.SelectedIndex < 0) return; ShowView(ClaudeViews.Names[tabs.SelectedIndex]); };
+            Control<Border>("ViewHost").SizeChanged += (sender, e) => RefreshView();
+            window.StateChanged += (sender, e) => ApplyView();
             // The card follows its own size, and the header folds its words away as the window narrows.
             Control<Border>("ClaudeCard").SizeChanged += (sender, e) => FitCard();
             Control<Grid>("Dashboard").SizeChanged += (sender, e) => { headerHeight = e.NewSize.Height; FitHeader(e.NewSize.Width); };
@@ -144,8 +157,10 @@ namespace ClaudeDashboard
         private void KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape && windowConfirm.IsOpen) { windowConfirm.Cancel(); e.Handled = true; }
-            // Ctrl+1 opens the session that has waited longest (observability critique, issue 5).
-            else if ((e.Key == Key.D1 || e.Key == Key.NumPad1) && Keyboard.Modifiers == ModifierKeys.Control) { OpenWaitingLongest(); e.Handled = true; }
+            // Ctrl+G opens the session that has waited longest (observability critique, issue 5; Ctrl+1 until v0.55.0).
+            else if (e.Key == Key.G && Keyboard.Modifiers == ModifierKeys.Control) { OpenWaitingLongest(); e.Handled = true; }
+            // Ctrl+1 to Ctrl+6 choose the views in tab order (decision 030).
+            else if (Keyboard.Modifiers == ModifierKeys.Control && ViewKey(e.Key) >= 0) { ChooseViewByKey(ViewKey(e.Key)); e.Handled = true; }
         }
 
         // ----- Appearance -----
@@ -174,7 +189,7 @@ namespace ClaudeDashboard
             appearanceScale = textScale;
             // The source-health line's words follow the text size, and its row grows with them.
             sourceHeight = Math.Ceiling(16 * textScale) + 8;
-            Control<Grid>("DashboardContent").RowDefinitions[2].Height = new GridLength(sourceHeight - SourceOverlap);
+            SetSourceRow();
             foreach (var name in new[] { "SourceSample", "SourceText0", "SourceText1", "SourceText2", "SourceText3", "SourceGlyph0", "SourceGlyph1", "SourceGlyph2", "SourceGlyph3" })
                 Control<TextBlock>(name).FontSize = Math.Round(12 * textScale, 1);
             claudeCard.Restyle();
@@ -199,7 +214,9 @@ namespace ClaudeDashboard
             Control<TextBlock>("AppName").Visibility = width >= 900 ? Visibility.Visible : Visibility.Collapsed;
             var words = width >= 620 ? Visibility.Visible : Visibility.Collapsed;
             Control<TextBlock>("QuietLabel").Visibility = words; Control<TextBlock>("SettingsLabel").Visibility = words;
-            Control<StackPanel>("PeriodSwitch").Visibility = width >= 480 ? Visibility.Visible : Visibility.Collapsed;
+            FitTabs(width);
+            // The period switch is Garage's (decision 030): it shows only while the Garage card does.
+            Control<StackPanel>("PeriodSwitch").Visibility = width >= 480 && GarageShown ? Visibility.Visible : Visibility.Collapsed;
             // The summary is never cut mid-word (Lead's review of package 4): in full beside the name, the flag and the
             // buttons when it fits there, else on a line of its own under them, in full or in its short form.
             var summary = Control<TextBlock>("ClaudeSummary"); var flag = Control<TextBlock>("ClaudeFlag");
@@ -255,8 +272,13 @@ namespace ClaudeDashboard
         public bool HeaderTwoLines { get; private set; }
         // For the checks: the source-health line's height and the four sources it shows.
         public double SourceLineHeight { get { return sourceHeight; } }
-        // The rows the line takes from the card: its height less the padding it overlaps.
-        public double SourceRow { get { return sourceHeight - SourceOverlap; } }
+        // The units under the header that the card doesn't get: the tab row from 640 wide (the source-health line is in
+        // it), otherwise the source-health line's row less the padding it overlaps.
+        public double SourceRow { get { return tabsShown ? Control<Grid>("TabRow").ActualHeight : sourceHeight - SourceOverlap; } }
+        private void SetSourceRow() { Control<Grid>("DashboardContent").RowDefinitions[3].Height = new GridLength(tabsShown ? 0 : sourceHeight - SourceOverlap); }
+        // Whether the source-health line is in the tab row, and on a line of its own under the tabs (for the checks).
+        public bool SourcesInTabRow { get { return tabsShown; } }
+        public bool SourcesUnderTabs { get { return tabsShown && sourcesUnderTabs; } }
         public List<ClaudeHealthItem> Sources { get { return sources; } }
 
         // The source-health line (observability critique, issue 3): each source's glyph and colour by its level, its
@@ -283,16 +305,25 @@ namespace ClaudeDashboard
         private void FitSources(double width)
         {
             if (sources.Count < 4 || width <= 0) return;
+            PlaceSources();
             double room = width - 6 - 48;
             var sample = Control<TextBlock>("SourceSample");
             double fixedWidth = sample.Visibility == Visibility.Visible ? Measure(sample, sample.Text) + 16 : 0;
-            int tiers = 5, chosen = tiers - 1;
-            for (int tier = 0; tier < tiers; tier++)
+            int tiers = 5;
+            Func<int, double> used = tier => { double sum = fixedWidth; for (int i = 0; i < 4; i++) sum += SourceWidth(i, SourceWords(sources[i], tier)) + (i < 3 ? 16 : 0); return sum; };
+            // From 640 wide the line sits at the tab row's right end, beside the tabs; when even its shortest form has no
+            // room there, it takes a line of its own under them, right-aligned, with the row's whole width.
+            if (tabsShown)
             {
-                double used = fixedWidth;
-                for (int i = 0; i < 4; i++) used += SourceWidth(i, SourceWords(sources[i], tier)) + (i < 3 ? 16 : 0);
-                if (used <= room) { chosen = tier; break; }
+                double beside = room - Desired(Control<TabControl>("ViewTabs")) - 16;
+                sourcesUnderTabs = used(tiers - 1) > beside;
+                if (!sourcesUnderTabs) room = beside;
+                var holder = Control<Border>("TabSources");
+                Grid.SetRow(holder, sourcesUnderTabs ? 1 : 0); Grid.SetColumn(holder, sourcesUnderTabs ? 0 : 1); Grid.SetColumnSpan(holder, sourcesUnderTabs ? 2 : 1);
+                holder.Margin = new Thickness(sourcesUnderTabs ? 0 : 16, sourcesUnderTabs ? 4 : 0, 0, 0);
             }
+            int chosen = tiers - 1;
+            for (int tier = 0; tier < tiers; tier++) if (used(tier) <= room) { chosen = tier; break; }
             for (int i = 0; i < 4; i++)
             {
                 string words = SourceWords(sources[i], chosen);
@@ -339,9 +370,12 @@ namespace ClaudeDashboard
             var view = claudeCard.View;
             var summary = Control<TextBlock>("ClaudeSummary"); var dot = Control<Ellipse>("ClaudeSummaryDot"); var flag = Control<TextBlock>("ClaudeFlag");
             bool needs = view != null && view.NeedsYou > 0;
-            fullSummary = view == null ? "Reading Claude Code…" : ClaudeText.Summary(view, claudeCard.Period, true);
-            shortSummary = view == null ? fullSummary : ClaudeText.ShortSummary(view, claudeCard.Period);
-            shorterSummaries = view == null ? new string[0] : new[] { ClaudeText.ShortSummary(view, claudeCard.Period, 1, true), ClaudeText.ShortSummary(view, claudeCard.Period, 1, false) };
+            // Always live (decision 030): the states now and the threads of the last 5 hours, whichever view or period
+            // is chosen, with when the 5-hour limit is reached at this pace ("≈ limit 4:12 PM") when it is before the reset.
+            string limit = view == null ? "" : LimitText(view, DateTime.UtcNow, settings.Use24HourClock);
+            fullSummary = view == null ? "Reading Claude Code…" : ClaudeText.Summary(view, ClaudePeriod.FiveHour, true) + limit;
+            shortSummary = view == null ? fullSummary : ClaudeText.ShortSummary(view, ClaudePeriod.FiveHour) + limit;
+            shorterSummaries = view == null ? new string[0] : new[] { ClaudeText.ShortSummary(view, ClaudePeriod.FiveHour, 1, true) + limit, ClaudeText.ShortSummary(view, ClaudePeriod.FiveHour, 1, true), ClaudeText.ShortSummary(view, ClaudePeriod.FiveHour, 1, false) };
             summary.SetResourceReference(TextBlock.ForegroundProperty, needs ? "Warning" : "Text");
             dot.SetResourceReference(Shape.FillProperty, needs ? "Warning" : view != null && view.Working > 0 ? "Accent" : "Muted");
             flag.Text = view == null ? "" : ClaudeText.Flag(view, DateTime.UtcNow, settings.Use24HourClock, true);
@@ -359,6 +393,110 @@ namespace ClaudeDashboard
             if (title != shownTitle) { shownTitle = title; window.Title = title; }
             FitHeader(0);
             Announce(summary, needs ? view.NeedsYou : 0);
+            RefreshView();
+        }
+        // " · ≈ limit 4:12 PM": when the 5-hour window fills at the last half hour's pace, if that's before its reset.
+        public static string LimitText(ClaudeView view, DateTime now, bool use24)
+        {
+            return view == null || Double.IsNaN(view.LimitEtaMinutes) ? "" : " · ≈ limit " + ClaudeText.Clock(now.AddMinutes(view.LimitEtaMinutes), use24);
+        }
+        // For the checks: the header summary's forms, longest first.
+        public string[] SummaryForms { get { var forms = new List<string> { fullSummary, shortSummary }; forms.AddRange(shorterSummaries); return forms.ToArray(); } }
+
+        // ----- The views (decision 030) -----
+
+        // The view on screen: the chosen tab from 640 wide, else Garage.
+        public string CurrentView { get { return tabsShown ? viewChosen : ClaudeViews.Garage; } }
+        public string ChosenView { get { return viewChosen; } }
+        public bool TabsShown { get { return tabsShown; } }
+        private bool GarageShown { get { return CurrentView == ClaudeViews.Garage; } }
+        // A tab's view, made the first time it's asked for (null for Garage, which is the card).
+        public IClaudeView View(string name)
+        {
+            name = ClaudeViews.Clean(name);
+            if (name == null || name == ClaudeViews.Garage) return null;
+            IClaudeView view;
+            if (!views.TryGetValue(name, out view)) { view = ClaudeViews.Create(name); views[name] = view; }
+            return view;
+        }
+        // Chooses a view by name (the tabs, Ctrl+1 to Ctrl+6, --render-view, a view's own link). Unknown names do nothing.
+        public void ShowView(string name)
+        {
+            name = ClaudeViews.Clean(name);
+            if (name == null) return;
+            viewChosen = name;
+            ApplyView();
+        }
+        private static int ViewKey(Key key)
+        {
+            if (key >= Key.D1 && key <= Key.D6) return key - Key.D1;
+            if (key >= Key.NumPad1 && key <= Key.NumPad6) return key - Key.NumPad1;
+            return -1;
+        }
+        private void ChooseViewByKey(int index)
+        {
+            ShowView(ClaudeViews.Names[index]);
+            if (!tabsShown && viewChosen != ClaudeViews.Garage) Notify(viewChosen + " shows when the window is at least " + ClaudeViews.TabsFrom + " wide.");
+        }
+        // Tabs from 640 wide; below, the window is the Garage card alone, as before v0.55.0.
+        private void FitTabs(double width)
+        {
+            bool shown = width >= ClaudeViews.TabsFrom;
+            if (shown == tabsShown) return;
+            tabsShown = shown;
+            Control<Grid>("TabRow").Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+            SetSourceRow();
+            ApplyView();
+        }
+        // The source-health line is one control: at the tab row's right end from 640 wide, under the card below that.
+        private void PlaceSources()
+        {
+            var line = Control<StackPanel>("SourceLine"); var holder = Control<Border>("TabSources"); var content = Control<Grid>("DashboardContent");
+            if (tabsShown && line.Parent != holder) { content.Children.Remove(line); holder.Child = line; }
+            else if (!tabsShown && line.Parent == holder) { holder.Child = null; content.Children.Add(line); Grid.SetRow(line, 3); }
+            line.Margin = tabsShown ? new Thickness(0) : new Thickness(24, -16, 24, 4);
+        }
+        // Shows the current view: the card for Garage (the other views' card is hidden but keeps its size), or the view in
+        // ViewHost. Only the view on screen is Visible, and none while the window is minimised.
+        private void ApplyView()
+        {
+            var tabs = Find<TabControl>("ViewTabs");
+            if (tabs == null || claudeCard == null) return;
+            choosingTab = true;
+            try { tabs.SelectedIndex = Array.IndexOf(ClaudeViews.Names, viewChosen); } finally { choosingTab = false; }
+            bool garage = GarageShown, minimised = window.WindowState == WindowState.Minimized;
+            Control<Border>("ClaudeCard").Visibility = garage ? Visibility.Visible : Visibility.Hidden;
+            var host = Control<Border>("ViewHost");
+            host.Visibility = garage ? Visibility.Collapsed : Visibility.Visible;
+            if (!garage) View(CurrentView);
+            foreach (var pair in views) pair.Value.Visible = !garage && !minimised && pair.Key == CurrentView;
+            UpdateClaudeLive();
+            FitHeader(0);
+            RefreshView();
+        }
+        // Builds the view on screen when it's new or its room or text size changed, then fills it in from the snapshot the
+        // card reads. Runs with every fill of the card (the heartbeat and the watchers), never while hidden.
+        private void RefreshView()
+        {
+            if (GarageShown || claudeCard == null) return;
+            var view = View(CurrentView);
+            if (view == null || !view.Visible) return;
+            var host = Control<Border>("ViewHost");
+            double width = host.ActualWidth - host.Padding.Left - host.Padding.Right, height = host.ActualHeight - host.Padding.Top - host.Padding.Bottom;
+            if (width <= 0 || height <= 0) return;
+            string key = view.Name + "|" + Math.Round(width) + "x" + Math.Round(height) + "|" + appearanceScale + "|" + settings.Use24HourClock + "|" + claudeSample;
+            string built;
+            if (!viewBuilt.TryGetValue(view.Name, out built) || built != key || host.Tag as string != view.Name)
+            {
+                viewBuilt[view.Name] = key;
+                host.Child = view.Build(ViewContext(), new Size(width, height));
+                host.Tag = view.Name;
+            }
+            if (claudeCard.View != null) view.Refresh(claudeCard.View, DateTime.UtcNow);
+        }
+        private ClaudeViewContext ViewContext()
+        {
+            return new ClaudeViewContext { TextScale = appearanceScale, Use24Hour = settings.Use24HourClock, Sample = claudeSample, Focus = id => FocusClaudeSession(id), Show = ShowView, Act = Act };
         }
 
         // The header summary is an assertive live region: when a session starts needing you, a screen reader reads it
