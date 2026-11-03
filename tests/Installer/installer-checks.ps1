@@ -39,6 +39,27 @@ try {
         Assert ($entry.UninstallString -like '*Uninstall Claude Dashboard.exe" /uninstall*' -and $entry.QuietUninstallString -like '*/S') 'The uninstall commands are wrong.'
         Assert ($entry.InstallLocation -eq $installDir -and $entry.EstimatedSize -gt 0 -and $entry.NoModify -eq 1) 'The entry details are wrong.'
     }
+    Check "Setup points out another startup shortcut to Claude Dashboard, but not Widget Screen's" {
+        # The setup exe's own rule (Installer.OtherStartupShortcuts) on the sandbox's Startup folder.
+        $fixtures = Join-Path $root 'ShortcutTargets'
+        New-Item -ItemType Directory -Path (Join-Path $fixtures 'Widget Screen'), (Join-Path $fixtures 'Copy') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $fixtures 'Widget Screen\WidgetScreen.exe') -Value 'fixture'
+        Set-Content -LiteralPath (Join-Path $fixtures 'Copy\ClaudeDashboard.exe') -Value 'fixture'
+        $shell = New-Object -ComObject WScript.Shell
+        $folder = Split-Path -Parent $startup
+        foreach ($pair in @(@('Widget Screen.lnk', 'Widget Screen\WidgetScreen.exe'), @('Old copy.lnk', 'Copy\ClaudeDashboard.exe'))) {
+            $link = $shell.CreateShortcut((Join-Path $folder $pair[0])); $link.TargetPath = (Join-Path $fixtures $pair[1]); $link.Save()
+        }
+        try {
+            $assembly = [Reflection.Assembly]::LoadFrom($Setup)
+            $installer = [Activator]::CreateInstance($assembly.GetType('ClaudeDashboardSetup.Installer'), @([string]$root))
+            $found = @($installer.OtherStartupShortcuts() | ForEach-Object { [IO.Path]::GetFileName($_) })
+            Assert ($found.Count -eq 1 -and $found[0] -eq 'Old copy.lnk') "Setup pointed out: $($found -join ', ')"
+        }
+        finally {
+            Remove-Item -LiteralPath (Join-Path $folder 'Widget Screen.lnk'), (Join-Path $folder 'Old copy.lnk') -Force -ErrorAction SilentlyContinue
+        }
+    }
     Check 'An update removes the hardware sensors an older install added' {
         New-Item -ItemType Directory -Path (Join-Path $installDir 'sensors') -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $installDir 'sensors\LibreHardwareMonitorLib.dll') -Value 'fixture'

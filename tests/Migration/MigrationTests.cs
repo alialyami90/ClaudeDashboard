@@ -156,7 +156,9 @@ internal static class MigrationTests
             var all = new Migration.Found { Settings = true, SignIn = true, Bridge = true, Connected = true };
             string text = AppController.MoveDetail(all, @"C:\Users\ali\AppData\Local\WidgetScreen");
             Assert(text.StartsWith("Copies your Claude settings and theme, your Claude sign-in and Claude Code's sessions from C:\\Users\\ali\\AppData\\Local\\WidgetScreen.", StringComparison.Ordinal), "The list is wrong: " + text);
-            Assert(text.Contains("backed up first") && text.Contains("quit Widget Screen, then uninstall it from Installed apps and keep its settings when asked") && text.EndsWith("until you connect it here.", StringComparison.Ordinal), "The connection or Start fresh isn't explained: " + text);
+            Assert(text.Contains("backed up first") && text.Contains("Claude Code can feed only one of the two apps") && text.Contains("Widget Screen's Claude card stops updating while the rest of Widget Screen keeps working") && text.EndsWith("until you connect it here.", StringComparison.Ordinal), "The connection or Start fresh isn't explained: " + text);
+            // The two apps are independent (Ali, 3 Nov 2026): keeping or uninstalling Widget Screen is the user's choice.
+            Assert(text.Contains("keep using Widget Screen or uninstall it whenever you like") && text.IndexOf("quit", StringComparison.OrdinalIgnoreCase) < 0, "The words tell the user to quit or uninstall Widget Screen: " + text);
             string signIn = AppController.MoveDetail(new Migration.Found { SignIn = true }, "old");
             Assert(signIn.StartsWith("Copies your Claude sign-in from old.", StringComparison.Ordinal) && !signIn.Contains("backed up") && signIn.EndsWith("copies nothing.", StringComparison.Ordinal), "The sign-in-only words are wrong: " + signIn);
         });

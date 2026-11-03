@@ -6,6 +6,15 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.47.4 (3 Nov 2026)
+
+Claude Dashboard and Widget Screen are independent apps (Ali, 3 Nov 2026). Since v0.46.0 they have their own folders, so nothing asks you to close or remove Widget Screen any more.
+
+- **Setup leaves Widget Screen alone.** It no longer warns about Widget Screen's startup shortcut or a running Widget Screen. It still points out another startup shortcut that opens Claude Dashboard itself, so two copies don't open.
+- **Reinstall.** When the installed version is the setup's own, setup says "Reinstall Claude Dashboard" instead of offering to replace a version with the same one.
+- **The first run's question.** Keeping or uninstalling Widget Screen is up to you. The sheet now says plainly that Claude Code can feed only one of the two apps: after **Bring it over**, Widget Screen's Claude card stops updating while the rest of Widget Screen keeps working.
+- **Checks.** A setup check that Widget Screen's shortcut isn't pointed out but a second Claude Dashboard shortcut is, and the migration check now covers the new words.
+
 ## v0.47.3 (unreleased)
 
 Claude Dashboard: the code's namespace is renamed.
