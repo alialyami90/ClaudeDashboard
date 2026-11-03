@@ -18,6 +18,7 @@ Claude Dashboard: the lap chart's tab shell (decision 030, package B).
 - **Ctrl+G** opens the session that has waited longest (Ctrl+1 until now).
 - **For the views:** a view-host contract (`IClaudeView` in `ClaudeViews.cs`) that the next packages build on, with actions that take the same path as their Settings → Claude buttons, confirmations included.
 - **`--render-view <name>`** renders one view.
+
 ## v0.54.0 (unreleased)
 
 Claude Dashboard: the lap chart's engine (package A of the lap chart plan). Nothing on screen changes yet; the Live, Limits, Reliability and Sources views read these. Everything is in memory only and holds names, states and times, never prompts, replies, commands or file contents. No new polling.
