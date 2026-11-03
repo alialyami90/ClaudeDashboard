@@ -46,7 +46,7 @@ namespace ClaudeDashboard
         private readonly Dictionary<string, Call> calls = new Dictionary<string, Call>(StringComparer.Ordinal);
         // Results seen before their call (a helper's log read first): when, and whether it failed.
         private readonly Dictionary<string, Tuple<DateTime, bool>> early = new Dictionary<string, Tuple<DateTime, bool>>(StringComparer.Ordinal);
-        // Per day and session: the first and last line.
+        // Per session (kept in memory only, never written): its first and last line.
         private readonly Dictionary<string, DateTime[]> spans = new Dictionary<string, DateTime[]>(StringComparer.Ordinal);
         // The folder each session started in.
         private readonly Dictionary<string, string> folders = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -97,7 +97,7 @@ namespace ClaudeDashboard
                 DateTime date = localDate(at.Value);
                 string id = ClaudeJson.Str(o, "sessionId") ?? session ?? "";
                 if (cwd && !folders.ContainsKey(id) && !String.IsNullOrEmpty(ClaudeJson.Str(o, "cwd"))) folders[id] = ClaudeUsage.Key(ClaudeJson.Str(o, "cwd"));
-                Span(date, id, at.Value);
+                if (type == "user" || type == "assistant" || type == "system") Span(id, at.Value);
                 if (assistant && type == "assistant") Reply(o, date, at.Value);
                 else if (type == "user")
                 {
@@ -108,12 +108,12 @@ namespace ClaudeDashboard
             }
         }
 
-        private void Span(DateTime date, string session, DateTime at)
+        // A session's first and last line, whatever their days: it counts once, on the day of its first line.
+        private void Span(string session, DateTime at)
         {
             if (session.Length == 0) return;
-            string key = date.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + session;
             DateTime[] span;
-            if (!spans.TryGetValue(key, out span)) { spans[key] = new[] { at, at }; return; }
+            if (!spans.TryGetValue(session, out span)) { spans[session] = new[] { at, at }; return; }
             if (at < span[0]) span[0] = at;
             if (at > span[1]) span[1] = at;
         }
@@ -246,10 +246,11 @@ namespace ClaudeDashboard
             else if (decision == "ask") day.PermAsked++;
             else if (decision == "allow" || decision == "allowed" || decision == "accept")
             {
-                // Allowed by a rule in settings, or without a rule (the mode, a hook, or the person answering yes).
-                if (source.Contains("rule") || source.Contains("config") || source.Contains("setting")) day.PermRule++;
-                else if (source.Contains("user") || source.Contains("prompt")) day.PermAsked++;
-                else day.PermAuto++;
+                // Claude Code's sources: "config" (a rule in settings), "hook", and "user_temporary" and the like (the
+                // person answered yes). Anything else counts as asked.
+                if (source.Contains("hook")) day.PermHook++;
+                else if (source.Contains("config") || source.Contains("rule") || source.Contains("setting")) day.PermRule++;
+                else day.PermAsked++;
             }
         }
 
@@ -259,7 +260,13 @@ namespace ClaudeDashboard
             if (uuid.Length > 0 && !lines.Add("s" + uuid, date)) return;
             string subtype = ClaudeJson.Str(o, "subtype") ?? "";
             if (subtype == "compact_boundary") Day(date).Compactions++;
-            else if (subtype == "api_error") Day(date).Retries++;
+            else if (subtype == "api_error")
+            {
+                // An API error; a retry when the line says one follows.
+                var day = Day(date);
+                day.ApiErrors++;
+                if (!Double.IsNaN(ClaudeJson.Num(o, "retryAttempt")) || !Double.IsNaN(ClaudeJson.Num(o, "retryInMs")) || !Double.IsNaN(ClaudeJson.Num(o, "maxRetries"))) day.Retries++;
+            }
         }
 
         private static long Count(JsonObject o, string key) { double v = ClaudeJson.Num(o, key); return Double.IsNaN(v) || v < 0 ? 0 : (long)v; }
@@ -270,20 +277,27 @@ namespace ClaudeDashboard
         public ClaudeDayDetail For(DateTime date)
         {
             ClaudeDayDetail d; days.TryGetValue(date.Date, out d);
-            string prefix = date.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|";
-            var minutes = spans.Where(p => p.Key.StartsWith(prefix, StringComparison.Ordinal)).Select(p => (int)Math.Round((p.Value[1] - p.Value[0]).TotalMinutes)).ToList();
-            if (d == null && minutes.Count == 0) return null;
+            var started = spans.Where(p => localDate(p.Value[0]) == date.Date).ToList();
+            if (d == null && started.Count == 0) return null;
             var copy = new ClaudeDayDetail();
             copy.Add(d);
-            copy.SessionMinutes = minutes.OrderByDescending(m => m).ToList();
+            copy.Revision = ClaudeDayDetail.CurrentRevision;
+            copy.SessionMinutes = started.Select(p => (int)Math.Round((p.Value[1] - p.Value[0]).TotalMinutes)).OrderByDescending(m => m).ToList();
+            copy.ProjectSessions = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in started)
+            {
+                string folder; folders.TryGetValue(p.Key, out folder);
+                ClaudeDayDetail.Count(copy.ProjectSessions, String.IsNullOrEmpty(folder) ? "" : folder);
+            }
+            copy.ProjectSessions.Remove("");
             return copy;
         }
         // Drops the days before a date (and their sessions), keeping what's needed to count the rest once.
         public void Forget(DateTime before)
         {
             foreach (var date in days.Keys.Where(k => k < before).ToList()) days.Remove(date);
-            string edge = before.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
-            foreach (var key in spans.Keys.Where(k => String.CompareOrdinal(k.Substring(0, 8), edge) < 0).ToList()) spans.Remove(key);
+            // A session stays while it has lines on the days kept, so its later lines never count it again.
+            foreach (var key in spans.Where(p => localDate(p.Value[1]) < before).Select(p => p.Key).ToList()) spans.Remove(key);
             foreach (var key in calls.Where(p => p.Value.Day < before).Select(p => p.Key).ToList()) calls.Remove(key);
             foreach (var key in early.Where(p => p.Value.Item1.Date < before.AddDays(-1)).Select(p => p.Key).ToList()) early.Remove(key);
             foreach (var set in new[] { replies, stops, thinking, thought, results, lines }) set.Forget(before);

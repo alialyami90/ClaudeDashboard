@@ -237,7 +237,8 @@ namespace ClaudeDashboard
             if (day.Replies <= stored.Replies)
             {
                 // v0.60.0: a whole day kept before v2 gets its detail from the logs; its counts, needs and waits stay.
-                if (stored.Detail != null || day.Detail == null) return false;
+                // v0.60.1: so does a day whose detail came from an older tally (its sessions were counted per day).
+                if (day.Detail == null || (stored.Detail != null && stored.Detail.Revision >= ClaudeDayDetail.CurrentRevision)) return false;
                 stored.Detail = day.Detail;
                 try { ClaudeBridge.WriteAtomic(DayPath(stored.Date), ClaudeJson.Compact(stored.ToJson())); return true; } catch (Exception) { return false; }
             }
