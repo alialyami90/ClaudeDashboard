@@ -72,9 +72,9 @@ namespace ClaudeDashboard
 
     public static class ClaudeViews
     {
-        public const string Live = "Live", Garage = "Garage", Limits = "Limits", History = "History", Reliability = "Reliability", Sources = "Sources";
-        // Tab order, which is also Ctrl+1 to Ctrl+6.
-        public static readonly string[] Names = { Live, Garage, Limits, History, Reliability, Sources };
+        public const string Live = "Live", Garage = "Garage", Limits = "Limits", History = "History", Reliability = "Reliability", Sources = "Sources", Insights = "Insights";
+        // Tab order, which is also Ctrl+1 to Ctrl+7 (Insights, decision 031, comes last).
+        public static readonly string[] Names = { Live, Garage, Limits, History, Reliability, Sources, Insights };
         // Tabs show from this window width (units); below it the window is the Garage card alone.
         public const double TabsFrom = 640;
 
@@ -86,6 +86,7 @@ namespace ClaudeDashboard
                 case Live: return "v0.56.0";
                 case Limits: case History: return "v0.57.0";
                 case Reliability: case Sources: return "v0.58.0";
+                case Insights: return "v0.61.0";
                 default: return "";
             }
         }

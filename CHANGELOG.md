@@ -6,6 +6,24 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.61.0 (unreleased)
+
+The Insights tab (decision 031, part B): a detailed view of Claude Code's logs.
+
+- **A 7th tab, Insights (Ctrl+7).** It has a range row (7 days, 30 days or All), and each total says how it changed against the previous 7 or 30 days. Switching range is instant: the engine works out all three ranges after each scan, and the tab only picks one.
+- **Models:** a share bar by tokens; a table of replies, tokens, ≈ $, thinking tokens and share; and tokens per day stacked by model.
+- **Effort and thinking:** replies by effort level for each model, the share of replies with thinking, and the ≈ median and longest thinking time.
+- **Tools:** the 10 most used and the 5 least used, with calls, errors, error % and ≈ median time, and a filter by model that shows that model's own calls, errors and ≈ times. MCP servers, skills and plugins are listed underneath.
+- **Projects:** ranked by tokens, with replies, ≈ $, sessions and lines + and −, and the most and least active.
+- **Comparisons** show only when the period before has at least 3 active days and 50 replies. Otherwise they say "too little before".
+- **Names:** models read "Opus 5.5" or "Fable 5.1", an unknown id stays as it is. MCP tools read "server · tool" and wrap, with the full name in the spoken name. A connector's bare id reads "Connector 1a59c9". The models table has both share of tokens and share of replies.
+- **When:** an hour × weekday heat grid of tokens, and sessions per day.
+- **Health:** API errors, retries and compactions against the period before, how permissions were decided, and how replies ended.
+- **From the engine (v0.60.1):** sessions are counted once, on the day they started. Permissions are split into rule, hook, asked and denied. The footer carries the engine's note (today's detail still pending, days kept before v0.60.0). Thinking share and share of replies divide by the replies with detail.
+- One scrolling page with the shared focus ring and Home and End, drawn in code with the palette's colours. Amber is kept for warnings. Every estimate says ≈, and each missing figure says why. Numbers and names only.
+- **Shell's tab list** (flagged for Shell): `ClaudeViews.Insights` and the 7th name, `Coming`, Ctrl+7 and NumPad 7 in `AppController.ViewKey`, `ViewTab6` in `ShellWindow.xaml`, and the tab count in `ShellTests`.
+- **Checks** (`tests/Claude/InsightsViewTests.cs`): the model from the engine's ranges, the comparison words, the range row and model filter, the missing states, and layouts that stay inside the width. Renders at 1600 × 900 and 1100 × 700 in Midnight and Claude.
+
 ## v0.60.1 (unreleased)
 
 Claude Dashboard: Insights engine fixes, from rendering the Insights tab on a copy of Ali's logs.
