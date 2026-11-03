@@ -74,8 +74,8 @@ internal static class InsightsEngineTests
             var bash = d.Tools["Bash"];
             Assert(bash.Calls == 1 && bash.Errors == 1 && bash.Timed == 1 && bash.TimeMs == 4000 && bash.ByModel["claude-opus-5-5"] == 1 && ClaudeDayDetail.Median(bash.Buckets) == 10000, "Bash: " + bash.Calls + " calls, " + bash.Errors + " errors, " + bash.TimeMs + " ms");
             Assert(bash.ErrorsByModel["claude-opus-5-5"] == 1 && ClaudeDayDetail.Median(bash.BucketsByModel["claude-opus-5-5"]) == 10000, "Bash's errors and ≈ time per model.");
-            var back = ClaudeDayDetail.FromJson(ClaudeJson.Parse(ClaudeJson.Compact(d.ToJson())) as JsonObject).Tools["Bash"];
-            Assert(back.ErrorsByModel["claude-opus-5-5"] == 1 && back.BucketsByModel["claude-opus-5-5"].Sum() == 1, "Per-model errors and buckets didn't survive the file.");
+            var bashBack = ClaudeDayDetail.FromJson(ClaudeJson.Parse(ClaudeJson.Compact(d.ToJson())) as JsonObject).Tools["Bash"];
+            Assert(bashBack.ErrorsByModel["claude-opus-5-5"] == 1 && bashBack.BucketsByModel["claude-opus-5-5"].Sum() == 1, "Per-model errors and buckets didn't survive the file.");
             Assert(!d.Tools.ContainsKey("Write"), "The request blob's tool was counted.");
             var pr = d.Tools["mcp__github__create_pull_request"];
             Assert(pr.Calls == 1 && pr.Errors == 0 && pr.TimeMs == 2000 && d.Mcp["github"] == 1, "MCP call.");
