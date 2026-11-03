@@ -131,6 +131,47 @@ internal static class LimitsHistoryTests
             Assert(brush != null && brush.Color == amber.Color, "Limit reached isn't amber");
         });
 
+        check("Lap chart: Tab reaches the Limits and History pages, which keep focus and scroll through a redraw", () => {
+            foreach (var view in new IClaudeView[] { new LimitsView(), new HistoryView() })
+            {
+                var before = new Button { Content = "Tabs" };
+                var panel = new DockPanel();
+                DockPanel.SetDock(before, Dock.Top);
+                panel.Children.Add(before);
+                var context = new ClaudeViewContext { Sample = true };
+                panel.Children.Add(view.Build(context, new Size(1000, 560)));
+                var window = new Window { Width = 1000, Height = 600, Content = panel, ShowActivated = true, WindowStyle = WindowStyle.None, ShowInTaskbar = false, Left = -4000, Top = -4000 };
+                Palettes.Apply(window.Resources, "Midnight", "Lime", 1);
+                try
+                {
+                    window.Show();
+                    view.Visible = true;
+                    var snapshot = ClaudeView.Fixture(Now, true);
+                    view.Refresh(snapshot, Now);
+                    window.UpdateLayout();
+                    var page = view is LimitsView ? ((LimitsView)view).Page : ((HistoryView)view).Page;
+                    Assert(page.Focusable && page.IsTabStop && System.Windows.Automation.AutomationProperties.GetName(page) == view.Name + " page", view.Name + ": the page isn't a named tab stop");
+                    before.Focus();
+                    before.MoveFocus(new System.Windows.Input.TraversalRequest(System.Windows.Input.FocusNavigationDirection.Next));
+                    var focused = System.Windows.Input.FocusManager.GetFocusedElement(window);
+                    Assert(focused == page, view.Name + ": Tab from the tab strip went to " + (focused == null ? "nothing" : focused.GetType().Name));
+                    page.ScrollToVerticalOffset(120); window.UpdateLayout();
+                    double offset = page.VerticalOffset;
+                    snapshot.MadeAt = snapshot.MadeAt.AddSeconds(5);
+                    view.Refresh(snapshot, Now.AddMinutes(1)); window.UpdateLayout();
+                    Assert(System.Windows.Input.FocusManager.GetFocusedElement(window) == page, view.Name + ": a redraw took the focus away");
+                    Assert(Math.Abs(page.VerticalOffset - offset) < 1, view.Name + ": a redraw scrolled the page from " + offset + " to " + page.VerticalOffset);
+                }
+                finally { window.Close(); }
+            }
+        });
+
+        check("Lap chart: the week's laps show whole percents and <1% for a little use", () => {
+            Assert(LimitsModel.LapPct(7.4) == "7%" && LimitsModel.LapPct(20) == "20%" && LimitsModel.LapPct(0.3) == "<1%" && LimitsModel.LapPct(0) == "0%", "lap percents");
+            var m = LimitsModel.From(ClaudeView.Fixture(Now, true), Now, true);
+            Assert(!m.LapWords().Contains("."), "lap words with decimals: " + m.LapWords());
+        });
+
         check("Lap chart: heavy use's onset is where the readings start climbing at twice the window's pace", () => {
             var slowThenFast = Readings(-120, 5, -100, 8, -80, 11, -60, 14, -40, 17, -30, 27, -20, 37, -10, 47, 0, 57);
             Assert(LimitsModel.OnsetOf(slowThenFast) == Now.AddMinutes(-40), "onset: " + LimitsModel.OnsetOf(slowThenFast));

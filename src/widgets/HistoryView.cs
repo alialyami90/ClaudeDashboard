@@ -27,6 +27,10 @@ namespace ClaudeDashboard
         private ClaudeViewContext context = new ClaudeViewContext();
         private Size room;
         private Border root;
+        // The page: one tab stop that scrolls with the arrow, Page and Home/End keys. It lives as long as the build, so
+        // a redraw keeps its focus and where it was scrolled to.
+        private ScrollViewer page;
+        public ScrollViewer Page { get { return page; } }
         private string shownKey;
         private List<ClaudeDay> days;
         private string readKey;
@@ -43,6 +47,8 @@ namespace ClaudeDashboard
             shownKey = null; readAt = DateTime.MinValue;
             root = new Border();
             AutomationProperties.SetName(root, "History");
+            page = LapParts.Page("History page");
+            root.Child = page;
             return root;
         }
 
@@ -74,7 +80,9 @@ namespace ClaudeDashboard
             shownKey = drawKey;
             var model = HistoryModel.From(days, now, sample, missing);
             Shown = model;
-            root.Child = Draw(model);
+            double offset = page.VerticalOffset;
+            page.Content = Draw(model);
+            page.ScrollToVerticalOffset(offset);
         }
 
         // ---- Drawing ----
@@ -83,8 +91,8 @@ namespace ClaudeDashboard
 
         private FrameworkElement Draw(HistoryModel m)
         {
-            var page = new StackPanel { Margin = new Thickness(20, 12, 20, 16) };
-            if (m.Sample) page.Children.Add(LapParts.SampleFlag(S(12)));
+            var sheet = new StackPanel { Margin = new Thickness(20, 12, 20, 16) };
+            if (m.Sample) sheet.Children.Add(LapParts.SampleFlag(S(12)));
             if (m.Missing.Length > 0 || m.Empty)
             {
                 var stack = new StackPanel();
@@ -92,7 +100,7 @@ namespace ClaudeDashboard
                 var why = LapParts.Words(m.Missing.Length > 0 ? m.Missing : "No day files yet. History keeps 8 weeks of daily numbers while Claude Code runs (Settings → Claude → History).", S(15), "Text");
                 why.Margin = new Thickness(0, 12, 0, 0);
                 stack.Children.Add(why);
-                page.Children.Add(CardParts.Tile(stack, 12, new Thickness(16)));
+                sheet.Children.Add(CardParts.Tile(stack, 12, new Thickness(16)));
             }
             else
             {
@@ -101,9 +109,9 @@ namespace ClaudeDashboard
                 var left = WeeksTile(m); var right = DaysTile(m);
                 if (wide) { right.Margin = new Thickness(16, 0, 0, 0); grid.Children.Add(CardParts.At(left, 0, 0)); grid.Children.Add(CardParts.At(right, 0, 1)); }
                 else { right.Margin = new Thickness(0, 16, 0, 0); grid.Children.Add(CardParts.At(left, 0)); grid.Children.Add(CardParts.At(right, 1)); }
-                page.Children.Add(grid);
+                sheet.Children.Add(grid);
             }
-            return new ScrollViewer { Content = page, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
+            return sheet;
         }
 
         private Border WeeksTile(HistoryModel m)

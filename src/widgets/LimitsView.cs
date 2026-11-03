@@ -26,6 +26,10 @@ namespace ClaudeDashboard
         private ClaudeViewContext context = new ClaudeViewContext();
         private Size room;
         private Border root;
+        // The page: one tab stop that scrolls with the arrow, Page and Home/End keys. It lives as long as the build, so
+        // a redraw keeps its focus and where it was scrolled to.
+        private ScrollViewer page;
+        public ScrollViewer Page { get { return page; } }
         private string shownKey;
         // For the checks: the model last drawn.
         public LimitsModel Shown { get; private set; }
@@ -37,6 +41,8 @@ namespace ClaudeDashboard
             shownKey = null;
             root = new Border();
             AutomationProperties.SetName(root, "Limits");
+            page = LapParts.Page("Limits page");
+            root.Child = page;
             return root;
         }
 
@@ -49,7 +55,9 @@ namespace ClaudeDashboard
             shownKey = key;
             var model = LimitsModel.From(snapshot, now, sample);
             Shown = model;
-            root.Child = Draw(model);
+            double offset = page.VerticalOffset;
+            page.Content = Draw(model);
+            page.ScrollToVerticalOffset(offset);
         }
 
         // ---- Drawing ----
@@ -68,10 +76,10 @@ namespace ClaudeDashboard
             if (wide) { right.Margin = new Thickness(16, 0, 0, 0); grid.Children.Add(CardParts.At(left, 0, 0)); grid.Children.Add(CardParts.At(right, 0, 1)); }
             else { right.Margin = new Thickness(0, 16, 0, 0); grid.Children.Add(CardParts.At(left, 0)); grid.Children.Add(CardParts.At(right, 1)); }
 
-            var page = new StackPanel { Margin = new Thickness(20, 12, 20, 16) };
-            if (m.Sample) page.Children.Add(LapParts.SampleFlag(S(12)));
-            page.Children.Add(grid);
-            return new ScrollViewer { Content = page, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
+            var sheet = new StackPanel { Margin = new Thickness(20, 12, 20, 16) };
+            if (m.Sample) sheet.Children.Add(LapParts.SampleFlag(S(12)));
+            sheet.Children.Add(grid);
+            return sheet;
         }
 
         private Border WindowTile(LimitsModel m)
@@ -266,7 +274,7 @@ namespace ClaudeDashboard
                 double h = Math.Max(2, (bottom - top) * d.Percent / most);
                 if (d.Today) dc.DrawRoundedRectangle(c.AccentInk, null, new Rect(x, bottom - h, width, h), 4, 4);
                 else { dc.PushOpacity(0.45); dc.DrawRoundedRectangle(c.AccentInk, null, new Rect(x, bottom - h, width, h), 4, 4); dc.Pop(); }
-                var value = LapParts.Ink(c, LimitsModel.Pct(d.Percent), label, d.Today ? c.TextInk : c.MutedInk, false);
+                var value = LapParts.Ink(c, LimitsModel.LapPct(d.Percent), label, d.Today ? c.TextInk : c.MutedInk, false);
                 dc.DrawText(value, new Point(x + (width - value.Width) / 2, Math.Max(0, bottom - h - value.Height - 2)));
             }
         }
@@ -321,6 +329,8 @@ namespace ClaudeDashboard
         public List<LapRow> Windows = new List<LapRow>();
         public List<LapShare> Projects = new List<LapShare>();
 
+        // A lap's share: whole numbers, "<1%" for a little use, "0%" for none.
+        public static string LapPct(double percent) { return Double.IsNaN(percent) ? "—" : percent <= 0 ? "0%" : percent < 1 ? "<1%" : Math.Round(percent).ToString(CultureInfo.InvariantCulture) + "%"; }
         public static string Pct(double percent) { return Double.IsNaN(percent) ? "—" : (percent < 10 ? percent.ToString("0.0", CultureInfo.InvariantCulture) : Math.Round(percent).ToString(CultureInfo.InvariantCulture)) + "%"; }
 
         public static LimitsModel From(ClaudeView view, DateTime now, bool sample)
@@ -525,7 +535,7 @@ namespace ClaudeDashboard
 
         public string LapWords()
         {
-            return "Week laps: " + String.Join(", ", Days.Select(d => d.Label + (d.Today ? " (today)" : "") + " " + (d.Future ? "to come" : Double.IsNaN(d.Percent) ? "unknown" : "≈ " + Pct(d.Percent))));
+            return "Week laps: " + String.Join(", ", Days.Select(d => d.Label + (d.Today ? " (today)" : "") + " " + (d.Future ? "to come" : Double.IsNaN(d.Percent) ? "unknown" : "≈ " + LapPct(d.Percent))));
         }
 
         // ---- The labelled sample ----
@@ -584,6 +594,14 @@ namespace ClaudeDashboard
             words.HorizontalAlignment = HorizontalAlignment.Right; words.Margin = new Thickness(0, 0, 0, 8);
             AutomationProperties.SetName(words, "Sample: fixture numbers, not this PC's");
             return words;
+        }
+        // A view's page: a tab stop with a spoken name that scrolls from the keyboard (the ScrollViewer's own keys).
+        public static ScrollViewer Page(string name)
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = true, IsTabStop = true };
+            AutomationProperties.SetName(scroll, name);
+            AutomationProperties.SetHelpText(scroll, "Arrow keys, Page Up, Page Down, Home and End scroll the page.");
+            return scroll;
         }
         public static FormattedText Ink(Visual visual, string text, double size, Brush brush, bool semibold)
         {
