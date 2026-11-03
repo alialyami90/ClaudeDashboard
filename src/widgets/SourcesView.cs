@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 
 namespace ClaudeDashboard
@@ -182,7 +183,7 @@ namespace ClaudeDashboard
                 c.State = CardParts.Text("", S(14), "Text"); c.State.TextWrapping = TextWrapping.Wrap;
                 c.Fresh = Small("", "Muted");
                 c.Gives = Small("", "Muted");
-                c.Button = new Button { MinWidth = S(120), Padding = new Thickness(S(10), S(4), S(10), S(4)), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, FontSize = S(13) };
+                c.Button = new Button { MinWidth = S(120), Padding = new Thickness(S(10), S(4), S(10), S(4)), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, FontSize = S(13), Template = ButtonLook() };
                 var button = c.Button;
                 button.Click += (s, e) => Run(button.Tag as string);
 
@@ -216,6 +217,40 @@ namespace ClaudeDashboard
             var scroll = ClaudeReliability.Page(stack, "Sources");
             root = new Grid(); root.Children.Add(scroll);
             return root;
+        }
+
+        // The app's button (ShellStyles), except that an off button keeps its words at Muted's contrast with a Muted
+        // outline instead of fading the whole button to 35%, which was too faint on the Claude palette.
+        private static ControlTemplate look;
+        public static ControlTemplate ButtonLook()
+        {
+            if (look != null) return look;
+            var chrome = new FrameworkElementFactory(typeof(Border), "Chrome");
+            chrome.SetValue(Border.CornerRadiusProperty, new CornerRadius(10));
+            chrome.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+            chrome.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding("BorderBrush") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+            chrome.SetBinding(Border.BorderThicknessProperty, new System.Windows.Data.Binding("BorderThickness") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+            chrome.SetBinding(Border.PaddingProperty, new System.Windows.Data.Binding("Padding") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+            var grid = new FrameworkElementFactory(typeof(Grid));
+            var hover = new FrameworkElementFactory(typeof(Border), "Hover");
+            hover.SetResourceReference(Border.BackgroundProperty, "Text");
+            hover.SetValue(UIElement.OpacityProperty, 0.0); hover.SetValue(Border.CornerRadiusProperty, new CornerRadius(6)); hover.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            var words = new FrameworkElementFactory(typeof(ContentPresenter), "Words");
+            words.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center); words.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            grid.AppendChild(hover); grid.AppendChild(words); chrome.AppendChild(grid);
+            var template = new ControlTemplate(typeof(Button)) { VisualTree = chrome };
+            var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true }; over.Setters.Add(new Setter(UIElement.OpacityProperty, 0.06, "Hover"));
+            var pressed = new Trigger { Property = System.Windows.Controls.Primitives.ButtonBase.IsPressedProperty, Value = true }; pressed.Setters.Add(new Setter(UIElement.OpacityProperty, 0.13, "Hover"));
+            var focused = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
+            focused.Setters.Add(new Setter(Border.BorderBrushProperty, new DynamicResourceExtension("Text"), "Chrome")); focused.Setters.Add(new Setter(Border.BorderThicknessProperty, new Thickness(2), "Chrome"));
+            var off = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+            off.Setters.Add(new Setter(Border.BackgroundProperty, Brushes.Transparent, "Chrome"));
+            off.Setters.Add(new Setter(Border.BorderBrushProperty, new DynamicResourceExtension("Muted"), "Chrome"));
+            off.Setters.Add(new Setter(TextElement.ForegroundProperty, new DynamicResourceExtension("Muted"), "Words"));
+            template.Triggers.Add(over); template.Triggers.Add(pressed); template.Triggers.Add(focused); template.Triggers.Add(off);
+            template.Seal();
+            look = template;
+            return look;
         }
 
         private TextBlock Small(string text, string brush)

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using System.Windows.Media;
@@ -106,12 +107,14 @@ internal static class ReliabilitySourcesTests
                 Errors = new List<ClaudeApiError> { new ClaudeApiError { At = now.AddMinutes(-70), Status = 500 }, new ClaudeApiError { At = now.AddMinutes(-20), Status = 429 }, new ClaudeApiError { At = now.AddMinutes(-10), Status = 429, Attempt = 2 }, new ClaudeApiError { At = now.AddMinutes(-5), Status = 529 } },
                 Compactions = new List<ClaudeCompaction> { new ClaudeCompaction { Session = "s1", At = now.AddMinutes(-30) } } };
             var f = ClaudeReliability.Figures(input, now).ToDictionary(x => x.Key);
-            Assert(f[ClaudeReliability.Failures].Value == "4.2%" && f[ClaudeReliability.Failures].Note.StartsWith("13 of 312 runs, 2 of them Bash"), "Failures read: " + f[ClaudeReliability.Failures].Value + " / " + f[ClaudeReliability.Failures].Note);
+            Assert(f[ClaudeReliability.Failures].Value == "100%" && f[ClaudeReliability.Failures].Note.StartsWith("3 failed of 3 runs, 2 of them Bash"), "Failures read: " + f[ClaudeReliability.Failures].Value + " / " + f[ClaudeReliability.Failures].Note);
             Assert(f[ClaudeReliability.Errors].Value == "3" && f[ClaudeReliability.Errors].Note == "last hour · 429 ×2, 529 ×1" && f[ClaudeReliability.Errors].Brush == "Rose", "API errors read: " + f[ClaudeReliability.Errors].Note);
-            Assert(f[ClaudeReliability.Asked].Value == "41" && f[ClaudeReliability.Asked].Note == "38 allowed · 3 denied", "Asked read wrong.");
+            Assert(f[ClaudeReliability.Asked].Value == "41" && f[ClaudeReliability.Asked].Note == "all asks: 38 allowed · 3 denied", "Asked read wrong.");
             Assert(f[ClaudeReliability.Compactions].Value == "1" && f[ClaudeReliability.Edits].Value == "196" && f[ClaudeReliability.Edits].Note == "188 accepted · 8 rejected", "Compactions or edits read wrong.");
-            input.Facts.FailuresFromHooks = true;
-            Assert(ClaudeReliability.Figures(input, now)[0].Value.StartsWith("≈ "), "Failures from the hooks should say ≈.");
+            // Without telemetry's runs, the facts' counts (the hooks' are ≈).
+            input.Runs = null; input.Facts.FailuresFromHooks = true;
+            var hooks = ClaudeReliability.Figures(input, now)[0];
+            Assert(hooks.Value == "≈ 4.2%" && hooks.Note.StartsWith("13 failed of 312 runs"), "Failures from the hooks read: " + hooks.Value + " / " + hooks.Note);
 
             var off = new ReliabilityInput { Telemetry = false, Facts = new ClaudeFacts { Tools = 57 } };
             foreach (var x in ClaudeReliability.Figures(off, now).Where(x => x.Key != ClaudeReliability.Compactions))
@@ -149,6 +152,50 @@ internal static class ReliabilitySourcesTests
                 int asked; view.AskedToday.TryGetValue(t.Name, out asked);
                 Assert(t.Asked == asked, t.Name + " asked " + t.Asked + ", the engine says " + asked + ".");
             }
+        });
+
+        check("Reliability's Tool failures card and the tools table count the same runs, on every sample", () => {
+            foreach (bool needs in new[] { false, true })
+                foreach (bool crowded in new[] { false, true })
+                {
+                    var now = DateTime.UtcNow;
+                    var view = ClaudeView.Fixture(now, needs, crowded);
+                    var input = ReliabilityInput.From(view, now);
+                    var tools = ClaudeReliability.Tools(input.Runs, input.AskedByTool, now);
+                    var card = ClaudeReliability.Figures(input, now).First(x => x.Key == ClaudeReliability.Failures);
+                    int runs = tools.Sum(t => t.Runs), failed = tools.Sum(t => t.Failed);
+                    Assert(runs > 0, "The sample should have tool runs today.");
+                    Assert(card.Note.StartsWith(failed + " failed of " + runs + " runs") && card.Value == ClaudeReliability.Percent(failed, runs), "The card says " + card.Value + " · " + card.Note + " but the table has " + failed + " failed of " + runs + ".");
+                }
+        });
+
+        check("Reliability's and Sources' pages show the app's 2-unit focus ring", () => {
+            var style = CardParts.PageFocus;
+            var template = (ControlTemplate)((Setter)style.Setters.First(x => ((Setter)x).Property == Control.TemplateProperty)).Value;
+            var host = new Control { Template = template };
+            host.ApplyTemplate();
+            var ring = (Border)VisualTreeHelper.GetChild(host, 0);
+            Assert(ring.BorderThickness == new Thickness(2), "The page's ring isn't 2 units.");
+            foreach (var view in new IClaudeView[] { new ReliabilityView(), new SourcesView() })
+                Host(view, ClaudeView.Fixture(DateTime.UtcNow, false), new Size(1000, 600), 1, "Midnight", (window, root) => {
+                    var page = Descendants(root).OfType<ScrollViewer>().First(v => v.IsTabStop);
+                    Assert(page.FocusVisualStyle == CardParts.PageFocus, view.Name + "'s page doesn't use the app's focus ring.");
+                });
+        });
+
+        check("Sources' off buttons keep their words at Muted on every palette", () => {
+            foreach (string theme in new[] { "Midnight", "Slate", "Warm", "Claude" })
+                Host(new SourcesView(), ClaudeView.Fixture(DateTime.UtcNow, false), new Size(1000, 600), 1, theme, (window, root) => {
+                    foreach (var b in Descendants(root).OfType<Button>())
+                    {
+                        Assert(!b.IsEnabled, "The sample's buttons should be off.");
+                        Assert(b.Opacity == 1 && Descendants(b).OfType<Border>().First().Opacity == 1, theme + ": an off button is faded.");
+                        var words = Descendants(b).OfType<ContentPresenter>().First();
+                        var muted = (SolidColorBrush)window.Resources["Muted"];
+                        var ink = TextElement.GetForeground(words) as SolidColorBrush;
+                        Assert(ink != null && ink.Color == muted.Color, theme + ": an off button's words aren't Muted.");
+                    }
+                });
         });
 
         check("Reliability never shows a turn's own words", () => {

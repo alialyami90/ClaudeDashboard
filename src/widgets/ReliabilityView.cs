@@ -218,6 +218,13 @@ namespace ClaudeDashboard
         public sealed class Figure { public string Key = "", Label = "", Value = "", Note = "", Brush = "Text"; }
         public const string Failures = "failures", Errors = "errors", Asked = "asked", Compactions = "compactions", Edits = "edits";
 
+        // "4.2%", "0.4%", "0%": one decimal below 10%, else whole.
+        public static string Percent(int part, int whole)
+        {
+            double p = whole <= 0 ? 0 : 100.0 * part / whole;
+            return (p > 0 && p < 10 ? p.ToString("0.0", CultureInfo.InvariantCulture) : Math.Round(p).ToString(CultureInfo.InvariantCulture)) + "%";
+        }
+
         public static List<Figure> Figures(ReliabilityInput input, DateTime now)
         {
             var f = input.Facts ?? new ClaudeFacts();
@@ -225,13 +232,22 @@ namespace ClaudeDashboard
             const string needs = "needs telemetry";
             // Tool failures: telemetry's tool results, else the hooks' failure counts over the logs' calls (≈).
             var failure = new Figure { Key = Failures, Label = "Tool failures" };
-            if (f.Runs > 0)
+            // Telemetry's runs today, the same ones the table lists, when the engine has them.
+            var today = input.Runs == null ? null : Tools(input.Runs, null, now);
+            int todayRuns = today == null ? 0 : today.Sum(t => t.Runs), todayFailed = today == null ? 0 : today.Sum(t => t.Failed);
+            if (todayRuns > 0)
             {
-                failure.Value = (f.FailuresFromHooks ? "≈ " : "") + (100.0 * f.RunFailures / f.Runs).ToString(f.RunFailures * 1000 < f.Runs * 10 && f.RunFailures > 0 ? "0.0" : "0.#", CultureInfo.InvariantCulture) + "%";
-                failure.Note = f.RunFailures + " of " + f.Runs + " runs";
-                var worst = input.Runs == null ? null : Tools(input.Runs, null, now).Where(t => t.Failed > 0).OrderByDescending(t => t.Failed).FirstOrDefault();
-                if (worst != null && worst.Failed < f.RunFailures) failure.Note += ", " + worst.Failed + " of them " + worst.Name;
-                else if (worst != null && f.RunFailures > 0) failure.Note += ", all " + worst.Name;
+                failure.Value = Percent(todayFailed, todayRuns);
+                failure.Note = todayFailed + " failed of " + todayRuns + " runs";
+                var worst = today.Where(t => t.Failed > 0).OrderByDescending(t => t.Failed).FirstOrDefault();
+                if (worst != null && worst.Failed < todayFailed) failure.Note += ", " + worst.Failed + " of them " + worst.Name;
+                else if (worst != null) failure.Note += ", all " + worst.Name;
+                if (todayFailed > 0) failure.Brush = "Warning";
+            }
+            else if (f.Runs > 0)
+            {
+                failure.Value = (f.FailuresFromHooks ? "≈ " : "") + Percent(f.RunFailures, f.Runs);
+                failure.Note = f.RunFailures + " failed of " + f.Runs + " runs";
                 if (f.FailuresFromHooks) failure.Note += " · from the hooks";
                 if (f.RunFailures > 0) failure.Brush = "Warning";
             }
@@ -254,7 +270,7 @@ namespace ClaudeDashboard
             if (input.Telemetry)
             {
                 asked.Value = (f.AskedPartial ? "≈ " : "") + f.Asked.ToString(CultureInfo.InvariantCulture);
-                asked.Note = Math.Max(0, f.Asked - f.Denied) + " allowed · " + f.Denied + " denied" + (f.AskedPartial ? " · partial" : "");
+                asked.Note = "all asks: " + Math.Max(0, f.Asked - f.Denied) + " allowed · " + f.Denied + " denied" + (f.AskedPartial ? " · partial" : "");
             }
             else { asked.Value = "—"; asked.Note = needs; asked.Brush = "Muted"; }
             figures.Add(asked);
@@ -285,7 +301,7 @@ namespace ClaudeDashboard
         // arrows, Page Up and Down, and Home and End scroll it (ScrollViewer's own keys). Controls inside come after it.
         public static ScrollViewer Page(UIElement content, string name)
         {
-            var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = true, IsTabStop = true };
+            var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = true, IsTabStop = true, FocusVisualStyle = CardParts.PageFocus };
             KeyboardNavigation.SetTabNavigation(scroll, KeyboardNavigationMode.Continue);
             AutomationProperties.SetName(scroll, name);
             AutomationProperties.SetHelpText(scroll, "Arrow keys, Page Up, Page Down, Home and End scroll the page.");
@@ -497,6 +513,14 @@ namespace ClaudeDashboard
             {
                 var more = CardParts.Text("+" + (ToolsShown.Count - shown) + " more tools", S(12), "Muted"); more.Margin = new Thickness(0, 6, 0, 0);
                 tools.Children.Add(CardParts.At(more, shown + 1, 0, heads.Length));
+            }
+            // The card's Asked you is every ask; this column is the asks that named their tool.
+            if (ToolsShown.Any(t => t.Asked >= 0))
+            {
+                tools.RowDefinitions.Add(new RowDefinition { Height = CardParts.Auto });
+                var key = CardParts.Text("Asked you here counts the asks that named their tool; the card above counts every ask.", S(12), "Muted");
+                key.TextWrapping = TextWrapping.Wrap; key.Margin = new Thickness(0, 6, 0, 0);
+                tools.Children.Add(CardParts.At(key, tools.RowDefinitions.Count - 1, 0, heads.Length));
             }
             AutomationProperties.SetName(tools, "Tools today: " + String.Join("; ", ToolsShown.Take(shown).Select(t => t.Name + ", " + t.Runs + " runs, typical " + ClaudeReliability.Time(t.Typical) + ", longest " + ClaudeReliability.Time(t.Longest) + ", " + t.Failed + " failed" + (t.Asked >= 0 ? ", asked you " + t.Asked : ""))));
         }
