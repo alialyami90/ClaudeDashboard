@@ -6,9 +6,9 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
-## v0.58.1 (unreleased)
+## v0.58.2 (unreleased)
 
-Docs for the lap chart (decision 030). Docs only. It lands after v0.58.0.
+Docs for the lap chart (decision 030). Docs only. It lands last, after v0.58.1.
 
 - **Decision 030:** the lap chart. It covers the six views and their keys (Ctrl+1 to Ctrl+6, and Ctrl+G for the session waiting longest), the lanes and how each state is drawn, rose for Retrying, the sizes, the in-memory engine, and the six defaults that hold until Ali changes them.
 - **DESIGN.md:** the six views and the tab row from 640 wide, Live's lap chart (lanes in urgency order, how each state is drawn, the wall, the time row, the key, the panel and drawer), Limits, History, Reliability and Sources, rose for API errors and Retrying (deeper on paper), the one "≈ limit" and "Limit reached", Ctrl+1 to Ctrl+6 and Ctrl+G, and the views' frame clock.

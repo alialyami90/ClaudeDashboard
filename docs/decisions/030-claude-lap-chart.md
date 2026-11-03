@@ -1,6 +1,6 @@
 # 030: The lap chart: six views, with Live as home
 
-Status: decided (Ali, 3 Nov 2026), when he asked the team to build the lap chart from "Claude Dashboard app: lap chart build brief". It ships in steps, v0.54.0 to v0.58.1. Windows only. The six defaults below hold until Ali changes them.
+Status: decided (Ali, 3 Nov 2026), when he asked the team to build the lap chart from "Claude Dashboard app: lap chart build brief". It ships in steps, v0.54.0 to v0.58.2. Windows only. The six defaults below hold until Ali changes them.
 
 > Draft by the Scribe, written before packages A to E landed. Sections marked *(fill at F)* are completed from the merged PRs.
 
@@ -86,7 +86,8 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
    - v0.57.1: Home and End on the Limits and History pages, and the meter's own percent at the limit (Builder);
    - v0.57.2: one "≈ limit" everywhere (the Garage tank, Medium and Small move to `LimitAtPace`), the moving Live cars, the time row and trail key, and archived lanes (Watcher). Main already had v0.57.0, so this went out as v0.57.2 rather than v0.56.2;
    - v0.58.0: Reliability and Sources (Demolition);
-   - v0.58.1: these docs (Scribe).
+   - v0.58.1: the keyboard focus ring on the Limits and History pages (Builder);
+   - v0.58.2: these docs (Scribe).
 5. **The garage pit wall stays** as its own Garage tab, keeping 5 h / Today / Week. Ali can drop it after he has seen Live.
 6. **Keys:** Ctrl+1 to Ctrl+6 switch views in tab order, and "open the session that waited longest" moves from Ctrl+1 to Ctrl+G. The brief says Ctrl+1 to Ctrl+5 because it has no Garage tab.
 
