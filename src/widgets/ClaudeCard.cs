@@ -687,6 +687,14 @@ namespace ClaudeDashboard
         private double Scaled(double size) { return Math.Round(size * textScale); }
         private new TextBlock Caption(string text) { return Text(text, Scaled(13), "Muted"); }
         private static Run Colored(string text, string brush) { var run = new Run(text); run.SetResourceReference(TextElement.ForegroundProperty, brush); return run; }
+        // Whether words fit a width at a block's font, measured as WPF would lay them out.
+        private static bool Fits(TextBlock block, string text, double room)
+        {
+            if (String.IsNullOrEmpty(text)) return true;
+            var probe = new TextBlock { Text = text, FontFamily = block.FontFamily, FontSize = block.FontSize, FontWeight = block.FontWeight };
+            probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
+            return probe.DesiredSize.Width <= room;
+        }
         private TextBlock Trimmed(TextBlock block) { block.TextTrimming = TextTrimming.CharacterEllipsis; return block; }
         private static TextBlock Right(TextBlock block) { block.TextAlignment = TextAlignment.Right; block.HorizontalAlignment = HorizontalAlignment.Stretch; block.VerticalAlignment = VerticalAlignment.Center; return block; }
         private static TextBlock Upper(string text, double size) { var block = Text(text.ToUpperInvariant(), size, "Muted"); block.TextTrimming = TextTrimming.CharacterEllipsis; return block; }
@@ -882,12 +890,20 @@ namespace ClaudeDashboard
                 index++;
             }
             // The rows are buttons that take focus, and a focused row scrolls itself into view, so the list itself
-            // needn't be a tab stop.
-            return new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
+            // needn't be a tab stop. Like the ledger, it shows whole rows only and scrolls to the rest.
+            var scroll = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false, VerticalAlignment = VerticalAlignment.Top };
+            var area = new Grid(); area.Children.Add(scroll);
+            area.SizeChanged += (sender, e) => {
+                var heights = list.Children.OfType<FrameworkElement>().Select(r => r.ActualHeight + r.Margin.Top + r.Margin.Bottom).ToList();
+                double fit = CardSizing.ClaudeWholeRows(heights, area.ActualHeight);
+                if (Double.IsNaN(scroll.Height) || Math.Abs(scroll.Height - fit) > 0.5) scroll.Height = fit;
+            };
+            return area;
         }
         private FrameworkElement PlainRow(ClaudeSession thread, double width, string name)
         {
-            var grid = Columns(new GridLength(Math.Min(130, Math.Max(96, width * 0.16))), Star, Auto);
+            // The chip's column grows with the text size, so "NEEDS YOU" stays whole at 140%.
+            var grid = Columns(new GridLength(Math.Min(Scaled(130), Math.Max(Scaled(96), width * 0.16))), Star, Auto);
             grid.Margin = new Thickness(0, 2, 0, 2);
             var chip = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 2, 8, 2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
             var chipText = Text("", Scaled(12), "Text"); chip.Child = chipText; grid.Children.Add(chip);
@@ -1473,7 +1489,11 @@ namespace ClaudeDashboard
                     if (working > 0) parts.Add("+" + working + " working");
                     if (others > 0) parts.Add(others + " more " + (others == 1 ? "thread" : "threads"));
                     if (view.Sessions.Any(x => x.Id != id && x.State == ClaudeState.NeedsYou)) parts.Insert(0, "another needs you");
-                    more.Text = String.Join(" · ", parts);
+                    // The longest form that fits beside the car: every part, then the first, then nothing (never "5 more th…").
+                    double beside = Math.Max(0, width - size - 12);
+                    string text = String.Join(" · ", parts);
+                    if (!Fits(more, text, beside)) text = parts.Count > 0 && Fits(more, parts[0], beside) ? parts[0] : "";
+                    more.Text = text;
                 });
             }
             if (view.Sample) side.Children.Add(names.Add(Caption("SAMPLE"), "ClaudeFlag"));

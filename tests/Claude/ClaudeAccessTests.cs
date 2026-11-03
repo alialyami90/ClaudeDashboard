@@ -131,6 +131,32 @@ internal static class ClaudeAccessTests
                 }
         });
 
+        check("Claude at 140%: the plain list's chips stay whole and rows aren't cut; Small's count line drops parts instead of cutting", () => {
+            With(directory, "plain140", new Size(592, 324), 1.4, true, true, (window, controller) => {
+                var card = (FrameworkElement)window.FindName("ClaudeCard");
+                var scroll = Descendants(card).OfType<ScrollViewer>().FirstOrDefault();
+                Assert(scroll != null, "The plain list has no scroller.");
+                foreach (var row in Descendants(card).OfType<Button>().Where(b => b.ActualHeight > 0))
+                {
+                    var box = row.TransformToAncestor(scroll).TransformBounds(new Rect(0, 0, row.ActualWidth, row.ActualHeight));
+                    Assert(box.Bottom <= scroll.ViewportHeight + 0.5 || box.Top >= scroll.ViewportHeight - 0.5, "A plain row is cut at the bottom: " + box + " in " + scroll.ViewportHeight + ".");
+                    foreach (var chip in Descendants(row).OfType<TextBlock>().Where(t => t.Text.Length > 0 && t.Text == t.Text.ToUpperInvariant() && t.Text.Any(Char.IsLetter)))
+                    {
+                        chip.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
+                        Assert(chip.ActualWidth >= chip.DesiredSize.Width - 0.5, "A plain chip is cut: " + chip.Text);
+                    }
+                }
+            });
+            foreach (var size in new[] { new Size(312, 252), new Size(260, 200) })
+                With(directory, "small140-" + size.Width, size, 1.4, false, false, (window, controller) => {
+                    var more = window.FindName("ClaudeMore") as TextBlock;
+                    if (more == null || more.Visibility != Visibility.Visible || more.Text.Length == 0) return;
+                    var probe = new TextBlock { Text = more.Text, FontFamily = more.FontFamily, FontSize = more.FontSize, FontWeight = more.FontWeight };
+                    probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
+                    Assert(probe.DesiredSize.Width <= more.ActualWidth + 0.5, "Small's count line is cut at " + size + ": " + more.Text);
+                });
+        });
+
         check("Claude's palettes keep Amber, Glacier and Muted at 4.5:1 on Raised and the surface", () => {
             foreach (string theme in Palettes.Themes)
             {
