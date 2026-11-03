@@ -114,7 +114,7 @@ internal static class ClaudeCockpitTests
                 using (var controller = new AppController(window, path))
                 {
                     var card = (FrameworkElement)window.FindName("ClaudeCard"); card.Width = 1216; card.Height = 576;
-                    controller.UseClaudeSample(true);
+                    controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(true);
                     var dashboard = (FrameworkElement)window.FindName("Dashboard");
                     for (int i = 0; i < 3; i++) { dashboard.Measure(new Size(1920, 720)); dashboard.Arrange(new Rect(0, 0, 1920, 720)); dashboard.UpdateLayout(); }
                     var view = controller.ClaudeCardView;
@@ -165,7 +165,7 @@ internal static class ClaudeCockpitTests
                     {
                         using (var controller = new AppController(window, path))
                         {
-                            controller.UseClaudeSample(plain);
+                            controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(plain);
                             string png = Path.Combine(renders, name + ".png");
                             AppController.Render(window, size, 1, png);
                             Assert(File.Exists(png) && new FileInfo(png).Length > 0, name + " wasn't rendered.");

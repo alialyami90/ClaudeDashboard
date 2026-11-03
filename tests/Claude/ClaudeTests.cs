@@ -310,7 +310,7 @@ internal static class ClaudeTests
                         using (var controller = new AppController(window, path))
                         {
                             var sized = (FrameworkElement)window.FindName("ClaudeCard"); sized.Width = size.Width; sized.Height = size.Height;
-                            controller.UseClaudeSample(false);
+                            controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(false);
                             foreach (var pair in views)
                             {
                                 controller.ClaudeCardView.Update(pair.Value());

@@ -90,7 +90,7 @@ internal static class ClaudeReviewTests
                 {
                     using (var controller = Open(window, Settings(folder, "medium-" + needs, 472, 310, 1)))
                     {
-                        controller.UseClaudeSample(needs); Lay(window);
+                        controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(needs); Lay(window);
                         var card = (FrameworkElement)window.FindName("ClaudeCard");
                         Assert(controller.ClaudeCardView.Current == CardSizing.Design.Medium, "The 472 × 310 card isn't Medium.");
                         var cut = Descendants(card).OfType<TextBlock>().Where(Cut).Select(t => "\"" + t.Text + "\" (" + Math.Round(t.ActualWidth) + ")").ToList();
@@ -115,7 +115,7 @@ internal static class ClaudeReviewTests
                 {
                     using (var controller = Open(window, Settings(folder, "large-" + size.Width, size.Width, size.Height, 1.4)))
                     {
-                        controller.UseClaudeSample(false); Lay(window);
+                        controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(false); Lay(window);
                         var titles = Enumerable.Range(0, 4).SelectMany(i => Enumerable.Range(0, 4).Select(j => window.FindName("ClaudeThreadTitle" + i + "_" + j) as TextBlock)).Where(t => t != null && t.ActualWidth > 0).ToList();
                         Assert(titles.Count > 0, "No thread titles at " + size + ".");
                         Assert(titles.All(t => t.ActualWidth >= CardSizing.ClaudeTitleMin(1.4) - 2), "A thread title is squeezed at 140% on " + size + ": " + String.Join(", ", titles.Select(t => Math.Round(t.ActualWidth))));
@@ -138,7 +138,7 @@ internal static class ClaudeReviewTests
             {
                 using (var controller = Open(window, Settings(folder, "min", 1216, 576, 1)))
                 {
-                    controller.UseClaudeSample(false);
+                    controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(false);
                     window.ShowActivated = false; window.WindowStartupLocation = WindowStartupLocation.Manual; window.Left = -5000; window.Top = 0; window.Width = 1920; window.Height = 720;
                     window.Show(); Wait(400);
                     var card = controller.ClaudeCardView;
@@ -205,7 +205,7 @@ internal static class ClaudeReviewTests
                     {
                         using (var controller = Open(window, Settings(folder, "rows-" + size.Width + needs, size.Width, size.Height, 1)))
                         {
-                            controller.UseClaudeSample(needs); Lay(window);
+                            controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(needs); Lay(window);
                             var scroll = (ScrollViewer)window.FindName("ClaudeLedger");
                             var list = (StackPanel)scroll.Content;
                             double used = 0; var ends = new List<double>();
