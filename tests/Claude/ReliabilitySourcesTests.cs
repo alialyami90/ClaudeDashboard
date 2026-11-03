@@ -286,7 +286,16 @@ internal static class ReliabilitySourcesTests
                         if (page.ScrollableHeight > 0)
                         {
                             var source = PresentationSource.FromVisual(page);
-                            Action<Key> press = key => { page.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = Keyboard.KeyDownEvent }); page.UpdateLayout(); };
+                            Action<Key> press = key => {
+                                var down = new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                                page.RaiseEvent(down);
+                                if (!down.Handled) page.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = Keyboard.KeyDownEvent });
+                                page.UpdateLayout();
+                            };
+                            press(Key.Down);
+                            Assert(page.VerticalOffset > 0, "Down didn't scroll " + name + ".");
+                            press(Key.Home);
+                            Assert(page.VerticalOffset == 0, "Home didn't go back to the top of " + name + ".");
                             press(Key.PageDown);
                             Assert(page.VerticalOffset > 0, "Page Down didn't scroll " + name + ".");
                             press(Key.End);

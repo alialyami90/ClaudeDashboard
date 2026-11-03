@@ -289,6 +289,13 @@ namespace ClaudeDashboard
             KeyboardNavigation.SetTabNavigation(scroll, KeyboardNavigationMode.Continue);
             AutomationProperties.SetName(scroll, name);
             AutomationProperties.SetHelpText(scroll, "Arrow keys, Page Up, Page Down, Home and End scroll the page.");
+            // ScrollViewer's own Home and End go to the left and right ends; on a page that only scrolls down they go
+            // to the top and the bottom.
+            scroll.PreviewKeyDown += (sender, e) => {
+                if (e.Handled || Keyboard.Modifiers != ModifierKeys.None || (e.Key != Key.Home && e.Key != Key.End)) return;
+                if (e.Key == Key.Home) scroll.ScrollToTop(); else scroll.ScrollToBottom();
+                e.Handled = true;
+            };
             return scroll;
         }
 
