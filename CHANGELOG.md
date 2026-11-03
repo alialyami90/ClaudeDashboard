@@ -11,10 +11,19 @@ Nothing yet.
 Claude Dashboard: the attention rail (observability critique, issue 1). In 5 h and Today the window says first what's waiting on you, and nothing that is hides off the bottom.
 
 - **Projects are ranked by what waits on you:** Needs you, then Stuck, then Your turn, then Working, then the rest, most recent first within each. Before, only Needs you jumped the queue.
-- **The pit stop strip is a short queue.** It holds every running thread that needs you, is stuck, has been your turn for 10 minutes or more, or is working with no hook event or log reply for 5 minutes ("Silent"). It shows one at a time with "1 of 4" and Next. Needs you and Stuck stay Amber; Your turn and Silent are calm, and Go to it is Amber only for the first two. Silent is honest about what it knows: a long tool run looks the same.
+- **The pit stop strip is a short queue.** It holds every running thread that needs you, is stuck, has been your turn for 10 minutes or more, or is working with no hook event or log reply for 5 minutes ("Silent"). It shows one at a time with "1 of 4" and Next. Needs you and Stuck stay Amber; Your turn and Silent are calm, and Go to it is Amber only for the first two. Silent goes by a new `heard` time in the session file that only hook events set, so the status line's refresh (which runs while a turn's clock does) can't make a hung turn look alive; when the car is in a long tool run it reads "In a tool for 8 min" instead.
 - **A clipped ledger keeps a footer.** When the Large ledger's rows don't all fit, a line under it that never scrolls away says "+7 below · 1 stuck · 2 your turn" (or "↑ 3 above" at the bottom), Amber when a hidden row needs you or is stuck. Pressing it scrolls to the first hidden row that waits on you, else the next row below. Its room is taken only while rows are hidden.
 - **Medium counts what it can't show:** a last row "+3 more projects · 1 your turn", and its Needs-you line says how long ("Needs you 4 min · Fix login").
-- **A crowded sample** of 25 threads over eight projects (`--render-claude-crowded`, with one of each kind of attention) for the checks and renders. Three new checks; renders at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900, calm and with Needs you, go to `artifacts\renders`.
+- **A crowded sample** of 25 threads over eight projects (`--render-claude-crowded`, with one of each kind of attention) for the checks and renders. Four new checks; renders at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900, calm and with Needs you, go to `artifacts\renders`.
+
+## v0.48.0 (unreleased)
+
+Claude Dashboard and Widget Screen both watch Claude Code, so closing either leaves the other working ([decision 028](docs/decisions/028-claude-both-apps-watch.md)).
+
+- **One bridge feeds both apps.** `ClaudeHook.exe` writes each Claude Code event and status-line reading into Claude Dashboard's bridge folder and, when it exists, into Widget Screen's `%LOCALAPPDATA%\WidgetScreen\claude`, in the files Widget Screen 0.41.0 reads. Hooks run without either app open, so whichever app was closed is current the moment it opens.
+- **Telemetry goes to whichever app is open.** Both apps take the telemetry port within about 10 seconds when the other closes. While Widget Screen holds it, the card says "Telemetry goes to Widget Screen while it's open" instead of "Telemetry off", and Settings → Claude no longer offers Update connection for it.
+- **Widget Screen taking the hooks back is shown.** If Widget Screen's Settings → Claude → Update connection points Claude Code's hooks at its own bridge, the card says "Live updates go to Widget Screen: reconnect in Settings → Claude", and Settings → Claude names that bridge and offers Reconnect, which keeps both apps current again.
+- **Checks:** the hook writes to both folders only while Widget Screen's exists, and never twice to one; Settings sees hooks run by another bridge and gets them back on Reconnect. Widget Screen's folder is a throwaway one in the checks (`WIDGETSCREEN_CLAUDE_BRIDGE`).
 
 ## v0.47.3 (unreleased)
 

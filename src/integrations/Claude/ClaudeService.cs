@@ -413,7 +413,18 @@ namespace ClaudeDashboard
         public string BridgeFolder { get { return bridge; } }
         public string ConfigFolder { get { return Connector.ConfigFolder; } }
         public bool Connected { get; private set; }
-        public void CheckConnected() { Connected = Connector.IsConnected(); }
+        // Read with the connection every 10 s (decision 028): the bridge Claude Code's hooks run when it isn't this one
+        // (Widget Screen took them back), and whether Widget Screen is open while the telemetry port isn't ours.
+        public string HooksElsewhere { get; private set; }
+        public bool WidgetScreenOpen { get; private set; }
+        public void CheckConnected()
+        {
+            Connected = Connector.IsConnected();
+            HooksElsewhere = Connected ? Connector.HookElsewhere() : null;
+            WidgetScreenOpen = false;
+            if (Connected && !Telemetry.Running)
+                try { var open = System.Diagnostics.Process.GetProcessesByName("WidgetScreen"); WidgetScreenOpen = open.Length > 0; foreach (var p in open) p.Dispose(); } catch (Exception) { }
+        }
         public List<ClaudeSessionFile> Sessions { get { return files.Values.Select(c => c.Session).Where(s => s != null).ToList(); } }
         // Set when telemetry brought something new; the dashboard clears it after refreshing the card.
         public volatile bool TelemetryChanged;
@@ -596,12 +607,20 @@ namespace ClaudeDashboard
             bool bound = Telemetry.StartFirstFree(Connector.TelemetryPort);
             Connector.Connect(hookSource, bound ? Telemetry.Port : Connector.TelemetryPort);
         }
-        // "Telemetry off: port 43832 in use", while connected and the receiver can't listen where telemetry is sent.
+        // "Telemetry off: port 43832 in use", while connected and the receiver can't listen where telemetry is sent. With
+        // Widget Screen open it's Widget Screen that has the port, and the heartbeat takes it back once it closes.
         public string TelemetryWarning()
         {
             if (!Connected || Telemetry.Running || Telemetry.Problem == null) return "";
             int port = Connector.ConfiguredPort();
-            return port > 0 ? "Telemetry off: port " + port + " in use" : "";
+            if (port <= 0) return "";
+            return WidgetScreenOpen ? "Telemetry goes to Widget Screen while it's open" : "Telemetry off: port " + port + " in use";
+        }
+        // The card's one line about the connection: Widget Screen holding Claude Code's hooks comes before telemetry.
+        public string ConnectionWarning()
+        {
+            if (Connected && HooksElsewhere != null) return "Live updates go to Widget Screen: reconnect in Settings → Claude";
+            return TelemetryWarning();
         }
 
         // The plan limits Claude Code's status line last wrote. Returns whether they changed.
@@ -906,7 +925,7 @@ namespace ClaudeDashboard
             foreach (var pair in lastSeen) { string folder; if (folders.TryGetValue(pair.Key, out folder)) remember(folder, pair.Value); }
             foreach (var t in list) remember(t.Project, t.LastActive);
             view.Sessions = ClaudeView.Order(list.Where(s => s.Running));
-            view.TelemetryWarning = TelemetryWarning();
+            view.TelemetryWarning = ConnectionWarning();
             foreach (var pair in starts) view.Starts[pair.Key] = pair.Value;
             if (usage != null) foreach (var pair in starts) view.Usage[pair.Key] = ClaudeUsage.ByProject(usage, pair.Value, 6, folderOf, shown);
             PitWall(view, now, usage, perSession, folderOf, shown);

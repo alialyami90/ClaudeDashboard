@@ -224,6 +224,26 @@ namespace ClaudeDashboard
         public static string PreviousStatusLinePath(string bridge) { return Path.Combine(bridge, "previous-statusline.json"); }
         public static string SessionPath(string bridge, string id) { return Path.Combine(SessionsFolder(bridge), SafeName(id) + ".json"); }
 
+        // Widget Screen's bridge folder (decision 028). Claude Dashboard's hook writes every event and status-line reading
+        // there too, in the files v0.41.0 reads, so either app stays current while the other is closed. Only when the
+        // folder exists and isn't this bridge; the checks point it at a throwaway folder with WIDGETSCREEN_CLAUDE_BRIDGE.
+        public const string PartnerVariable = "WIDGETSCREEN_CLAUDE_BRIDGE";
+        public static string PartnerFolder(string bridge)
+        {
+            try
+            {
+                string partner = Environment.GetEnvironmentVariable(PartnerVariable);
+                if (String.IsNullOrWhiteSpace(partner)) partner = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WidgetScreen", "claude");
+                if (!Directory.Exists(partner)) return null;
+                return SameFolder(partner, bridge) ? null : partner;
+            }
+            catch (Exception) { return null; }
+        }
+        public static bool SameFolder(string a, string b)
+        {
+            return String.Equals(Path.GetFullPath(a).TrimEnd('\\', '/'), Path.GetFullPath(b).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+        }
+
         public static long Epoch(DateTime time) { return (long)Math.Round((time.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds); }
         public static DateTime FromEpoch(double ms) { return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMilliseconds(ms); }
 
