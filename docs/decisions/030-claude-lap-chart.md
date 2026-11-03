@@ -26,7 +26,7 @@ The prototype is the bottom artboard of "Claude Dashboard app layouts". Its numb
 | Ctrl+6 | **Sources** | Hooks, Logs, Telemetry, Plan meters and Claude app threads: each with its state, freshness, what it gives, and one action | Connector, watcher, telemetry and sign-in states |
 
 - **The header** always carries the live summary, including "≈ limit 3:21 am". It is an assertive live region.
-- **The source-health line** from decision 029 sits at the right end of the tab row from 640 wide, showing the four source ages, so a missing source can be seen from every view. It is one control, moved there rather than copied, and belongs to no single view. Below 640, where there are no tabs, it stays under the card.
+- **The source-health line** from decision 029 sits at the right end of the tab row from 640 wide, showing the four source ages, so a missing source can be seen from every view. It is one control, moved there rather than copied, and belongs to no single view. Below 640, where there are no tabs, it stays under the card. "Sample" stays first in both places.
 - **Ctrl+G** opens the session that has waited longest, in the attention queue's order. It was Ctrl+1 in v0.52.0 and moves to make room for the views.
 
 ### The lap chart (Live)
@@ -90,6 +90,7 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
 - **In memory only.** The timeline, the plan ring, tool times and the feed hold names, states and times. They never hold prompts, replies, commands or file contents, and nothing new is written to disk.
 - **No new polling.** Everything arrives on the existing watchers, the 1 s heartbeat and the 5-minute plan check. Nothing redraws while hidden or minimised, and the frame clock runs only while a visible car moves.
 - **Honest states.** No projection from fewer than 3 readings, and the reason is shown. "≈" goes on every estimate, "Sample" is visible at every size, and the watch-start edge is labelled.
+- **Views start no timers.** Each view implements Shell's `IClaudeView` (Build, Refresh with the snapshot and the time, Visible), and `ClaudeViews.Create(name)` finds it by name.
 - **Never answers** a permission prompt (decision 027). Go to it, Enter on a lane, and Ctrl+G only bring a session forward.
 - **Colours.** Amber is only for Needs you and warnings, and rose is only for API errors and Retrying. Use Segoe UI and MDL2, draw cars in code, and use no shadows.
 - **Accessibility.** Lanes are buttons in tab order, and Enter opens the panel. Each lane has a name, such as "Fix the login timeout, needs you 4 minutes, api-server". Every size follows the text setting, and no text is faded by whole-row opacity.
