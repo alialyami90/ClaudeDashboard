@@ -218,5 +218,6 @@ internal static class ClaudeInstantTests
         ReliabilitySourcesTests.Run(directory, check);
         ClaudeAttentionTests.Run(directory, check);
         ClaudeLiveTests.Run(directory, check);
+        ClaudeTimelineTests.Run(directory, check);
     }
 }

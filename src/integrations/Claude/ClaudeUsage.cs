@@ -113,7 +113,9 @@ namespace ClaudeDashboard
                 if (ClaudeJson.Str(block, "type") != "tool_use") continue;
                 string id = ClaudeJson.Str(block, "id");
                 if (String.IsNullOrEmpty(id) || Tools.ContainsKey(id)) continue;
-                Tools[id] = new ClaudeToolEntry { At = at.Value, Session = session };
+                // The tool's name only (v0.54.0: the log counts per tool when telemetry is off), never its input.
+                string name = ClaudeJson.Str(block, "name") ?? "";
+                Tools[id] = new ClaudeToolEntry { At = at.Value, Session = session, Tool = name.Length > 80 ? name.Substring(0, 80) : name };
             }
         }
 
@@ -173,6 +175,8 @@ namespace ClaudeDashboard
         private readonly object gate = new object();
         public bool Failed { get; private set; }
         public bool Scanned { get; private set; }
+        // When a scan last finished (the Sources view's freshness; v0.54.0), whether or not it found anything new.
+        public DateTime LastScan { get; private set; }
         // No session logs at all: a fresh install, before Claude Code's first session (or its projects folder isn't
         // there yet). Not a failure; the source-health line says "Logs: none yet".
         public bool Empty { get; private set; }
@@ -224,7 +228,7 @@ namespace ClaudeDashboard
             {
                 try
                 {
-                    if (!Directory.Exists(projects)) { Failed = false; Empty = true; Publish(); Scanned = true; return; }
+                    if (!Directory.Exists(projects)) { Failed = false; Empty = true; Publish(); Scanned = true; LastScan = now; return; }
                     DateTime oldest = now - Kept;
                     long budget = ScanBudget;
                     // Whether a log still has bytes this scan didn't reach (the budget ran out).
@@ -262,6 +266,7 @@ namespace ClaudeDashboard
                 catch (Exception) { Failed = true; }
                 Publish();
                 Scanned = true;
+                LastScan = now;
             }
         }
 
