@@ -47,7 +47,7 @@ internal static class ClaudeAccessTests
             using (var controller = new AppController(window, path))
             {
                 var sized = (FrameworkElement)window.FindName("ClaudeCard"); sized.Width = card.Width; sized.Height = card.Height;
-                controller.UseClaudeSample(needs); Lay(window);
+                controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(needs); Lay(window);
                 body(window, controller);
             }
         }
@@ -171,7 +171,7 @@ internal static class ClaudeAccessTests
             With(directory, "announce", new Size(1216, 576), 1, false, false, (window, controller) => {
                 Assert(controller.HeaderAnnounces, "The header summary isn't an assertive live region.");
                 Assert(controller.AnnouncedNeeds == 0, "The calm sample counted " + controller.AnnouncedNeeds + " needing you.");
-                controller.UseClaudeSample(true); Lay(window);
+                controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(true); Lay(window);
                 Assert(controller.AnnouncedNeeds > 0, "A session needing you wasn't noted for announcing.");
             });
         });
@@ -189,7 +189,7 @@ internal static class ClaudeAccessTests
                     {
                         using (var controller = new AppController(window, path))
                         {
-                            controller.UseClaudeSample(true);
+                            controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(true);
                             string png = Path.Combine(renders, name + ".png");
                             AppController.Render(window, size, 1, png);
                             Assert(File.Exists(png) && new FileInfo(png).Length > 0, name + " wasn't rendered.");

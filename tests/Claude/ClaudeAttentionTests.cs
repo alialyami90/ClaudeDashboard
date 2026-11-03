@@ -125,7 +125,7 @@ internal static class ClaudeAttentionTests
                     {
                         using (var controller = new AppController(window, path))
                         {
-                            controller.UseClaudeSample(needs, true);
+                            controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(needs, true);
                             string png = Path.Combine(renders, name + ".png");
                             AppController.Render(window, size, 1, png);
                             Assert(File.Exists(png) && new FileInfo(png).Length > 0, name + " wasn't rendered.");

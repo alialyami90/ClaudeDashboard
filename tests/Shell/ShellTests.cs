@@ -312,7 +312,7 @@ internal static class ShellTests
             var window = AppController.LoadWindow("ShellWindow");
             using (var controller = new AppController(window, path))
             {
-                controller.UseClaudeSample(false);
+                controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(false);
                 AppController.Lay(window, new Size(1280, 760));
                 Click(window, "ShellPeriod0");
                 Assert(controller.ClaudeCardView.Period == ClaudePeriod.FiveHour && controller.CurrentSettings.ClaudePeriod == "FiveHour", "The header's 5 h button didn't choose the 5-hour window.");

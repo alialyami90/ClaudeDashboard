@@ -81,6 +81,8 @@ namespace ClaudeDashboard
         public ClaudeLaneState Lane = ClaudeLaneState.Idle;
         public DateTime LaneSince;
         public List<ClaudeToolTime> ToolTimes = new List<ClaudeToolTime>();
+        // v0.56.0, the Live panel's "asks": times this session asked you today (telemetry's tool decisions).
+        public int AskedToday;
         // Your turn as the header counts it (a running thread whose car is parked done), so the footer and the queue agree.
         public bool YourTurn { get { return Running && Pit == PitState.Done; } }
         public string Shown { get { return String.IsNullOrWhiteSpace(Title) ? ProjectName : Title; } }
@@ -1125,6 +1127,8 @@ namespace ClaudeDashboard
             foreach (var t in view.Threads) { List<ClaudeToolRun> own; t.ToolTimes = runsBySession.TryGetValue(t.Id, out own) ? ClaudeTimeline.ToolTimes(own) : new List<ClaudeToolTime>(); }
             DateTime todayFrom; if (!view.Starts.TryGetValue(ClaudePeriod.Today, out todayFrom)) todayFrom = now.Date;
             view.ToolRunsToday = shownRuns.Where(r => r.At >= todayFrom && r.At <= now).OrderBy(r => r.At).ToList();
+            var askedBySession = toolList.Where(e => !e.Result && e.Asked && ids.Contains(e.Session) && e.At >= todayFrom && e.At <= now).GroupBy(e => e.Session).ToDictionary(g => g.Key, g => g.Count());
+            foreach (var t in view.Threads) { int asked; t.AskedToday = askedBySession.TryGetValue(t.Id, out asked) ? asked : 0; }
             view.AskedToday = toolList.Where(e => !e.Result && e.Asked && !String.IsNullOrEmpty(e.Tool) && ids.Contains(e.Session) && e.At >= todayFrom && e.At <= now)
                 .GroupBy(e => e.Tool, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
             view.ApiErrors = errorList.Where(a => ids.Contains(a.Session) && a.At > now - TimeSpan.FromHours(24) && a.At <= now).OrderBy(a => a.At).ToList();

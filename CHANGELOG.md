@@ -15,6 +15,17 @@ The lap chart's package D (decision 030): the Limits and History tabs.
 - Both draw in code with the palette's brushes, say Sample over the fixture at every size, start no timers, and redraw only when the snapshot or the minute changes.
 - **Checks** (`tests/Claude/LimitsHistoryTests.cs`): both tabs at 640 × 420, 1000 × 600 and 1600 × 900, at 100% and 140%; no projection under 3 readings; the engine's projections taken as they are and marked ≈; the onset rule; honest weekly-window rows; the History model; and reading the day files once a minute.
 
+## v0.56.0 (unreleased)
+
+Claude Dashboard: the Live tab, the lap chart (package C of the lap chart plan). From 640 wide, Live is the first tab.
+
+- **One time axis** from the last 100 minutes to the 5-hour reset (an hour ahead when the reset isn't known). After now, the future region is in the Input colour. Before the app began watching, the lanes stay empty behind a dashed edge.
+- **A lane per session**, running or ended within the axis, in urgency order: Needs you, Stuck, Retrying, Silent, Your turn, Compacting, Working, Idle, then Ended. Each car sits on the now line with its trail behind it: solid project colour while working, an Amber block while it needs you, a hollow Glacier outline on your turn, a thin grey line when idle or silent, stripes while compacting, and rose marks for API errors. Silent's words are Amber and Retrying's are rose. Lanes are buttons named like "Fix the login timeout, needs you 4 minutes, api-server". The cars are still for now; they move in v0.56.1.
+- **The 5-hour curve** above the lanes, with its dashed projection at the last 30 minutes' pace. When that reaches 100% before the reset, an Amber wall drops through every lane at "≈ limit 3:21 pm". With fewer than 3 plan readings there's no projection, and the line says why. Its tip gives "≈ limit" at today's average and says that one is converted from today's tokens.
+- **What just happened**: the newest lines of the feed, with names and times only.
+- **The selected session** sits beside the chart from 1000 wide, showing the most urgent session until you choose a lane. From 640 to 1000 it's a drawer that a lane opens and Esc or ✕ closes. It shows what it asks, Go to it (which only opens the session), last sign of life, Now (or the last tool), tasks and helpers, context with 60, 80 and 95% ticks, today's tokens, lines and asks, and its tool runs with typical and longest times.
+- **Checks:** `tests/Claude/LapChartTests.cs`, including renders at 640, 1000 and 1600 wide, at 100% and 140%. The older checks that mean the Garage card now choose it.
+
 ## v0.55.0 (unreleased)
 
 Claude Dashboard: the lap chart's tab shell (decision 030, package B).

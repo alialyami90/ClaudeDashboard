@@ -236,7 +236,7 @@ internal static class ClaudeTreeTests
                         using (var controller = new AppController(window, path))
                         {
                             var sized = (FrameworkElement)window.FindName("ClaudeCard"); sized.Width = size.Width; sized.Height = size.Height;
-                            controller.UseClaudeSample(false);
+                            controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(false);
                             var card = (FrameworkElement)window.FindName("ClaudeCard"); var dashboard = (FrameworkElement)window.FindName("Dashboard");
                             Action layout = () => { dashboard.Measure(new Size(1920, 720)); dashboard.Arrange(new Rect(0, 0, 1920, 720)); dashboard.UpdateLayout(); };
                             layout();
