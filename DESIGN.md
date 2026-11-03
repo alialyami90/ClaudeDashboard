@@ -27,7 +27,7 @@ Each state has a still frame and, when motion is on, a stepped 8-frame cycle. A 
 
 Two plan states sit on top of any car: a fuel lamp that blinks at 90% of the 5-hour limit, and glowing brake discs at the redline. A context ring appears at 60%, 80% and 95% of the context window.
 
-**The one state allowed to shout is Needs you.** The window's own 3-unit edge turns Amber (Glacier, the `Turn` colour, while a thread waits for your reply), the title bar says "Claude needs you · Claude Dashboard" so the taskbar shows it, and the pit stop strip names the thread with Go to it.
+**The one state allowed to shout is Needs you.** The window's own 3-unit edge turns Amber (Glacier, the `Turn` colour, once a thread has waited 10 minutes for your reply), the title bar says "Claude needs you · Claude Dashboard" so the taskbar shows it, and the pit stop strip names the thread with Go to it. Since v0.52.0 the taskbar button also carries an Amber dot with the count (drawn in code: a 16-unit circle, the digits in OnWarning) and flashes once per new Needs you, never in Quiet mode. Ctrl+1 opens the session waiting longest.
 
 ## Window sizes
 

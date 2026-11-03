@@ -551,7 +551,7 @@ namespace ClaudeDashboard
                 case ClaudeFactKinds.Cache:
                     return new[] { Percent(f.CacheHit), "CACHE HITS", ClaudeUsage.Format(f.CacheRead) + " tokens read from the cache " + lower + " (not counted in the token totals)" };
                 case ClaudeFactKinds.Tools:
-                    return new[] { counted ? f.Tools.ToString(c) : view.LogsFailed ? "—" : "≈" + f.Tools.ToString(c), view.LogsFailed ? "TOOLS · LOGS UNREADABLE" : ToolsKey(f), view.LogsFailed ? NoLogs : ToolsTip(f) };
+                    return new[] { counted ? f.Tools.ToString(c) : view.LogsFailed ? "—" : "≈" + f.Tools.ToString(c), view.LogsFailed ? "TOOLS · NO LOGS" : ToolsKey(f), view.LogsFailed ? NoLogs : ToolsTip(f) };
                 case ClaudeFactKinds.Lines:
                     return new[] { f.Added > 0 || f.Removed > 0 ? Added(f.Added) : "—", f.Added > 0 || f.Removed > 0 ? Removed(f.Removed) + " · " + Threads(f.LinesThreads).ToUpperInvariant() : "LINES", "Lines added and removed " + lower + ", from Claude Code's logs" };
                 case ClaudeFactKinds.Slowest:
@@ -573,7 +573,8 @@ namespace ClaudeDashboard
                     string unknown = Unpriced(view.UnpricedFor(period));
                     // While the logs are still being read the count so far shows with "≈"; when they can't be read, "—" and
                     // why, so loading and unavailable look different (observability critique, issue 3).
-                    if (view.LogsFailed) return new[] { "—", when + " · LOGS UNREADABLE", NoLogs };
+                    // "NO LOGS", short, so the words fit the side panel's column as "TODAY · 12 REPLIES" does.
+                    if (view.LogsFailed) return new[] { "—", when + " · NO LOGS", NoLogs };
                     return new[] { Tokens(f.Tokens, counted), !counted ? when + " · COUNTING" : showApi ? when + " · " + unknown + "$" + Dollars(f.Cost) + " API VALUE" : when + " · " + f.Replies + " REPLIES", showApi ? ApiValue(view, period) : TokensTip };
             }
         }
@@ -1884,8 +1885,9 @@ namespace ClaudeDashboard
             if (view == null || rolling != null) return;
             DateTime now = DateTime.UtcNow;
             // The one state allowed to shout: the window's frame turns Amber while a session needs you, and Glacier
-            // while one waits for your reply. The frame keeps its thickness, so nothing moves.
-            Edge = view.NeedsYou > 0 ? "Warning" : view.Sessions.Any(s => s.Pit == PitState.Done) ? "Turn" : null;
+            // once a reply you owe has waited 10 minutes (the attention queue's Your turn), so a turn that just ended
+            // doesn't light it (observability critique, issue 5). The frame keeps its thickness, so nothing moves.
+            Edge = view.NeedsYou > 0 ? "Warning" : view.Attention(now).Any(a => a.Kind == ClaudeAttention.Turn) ? "Turn" : null;
             if (Edge != null) card.SetResourceReference(Border.BorderBrushProperty, Edge); else card.BorderBrush = Brushes.Transparent;
             foreach (var fill in fills) fill(now);
             var threads = view.Threads.ToDictionary(t => t.Id);

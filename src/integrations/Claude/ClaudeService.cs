@@ -148,6 +148,8 @@ namespace ClaudeDashboard
     public sealed class ClaudeView
     {
         public bool Connected, Sample, LogsFailed, LogsRead;
+        // Claude Code hasn't written a session log on this PC yet (ClaudeUsage.Empty): calm, not a failure.
+        public bool LogsEmpty;
         public ClaudePlanState Plan;
         // The running sessions (the critters Small shows and the pill counts), and every thread of the last week,
         // running or ended, that the projects group.
@@ -774,7 +776,7 @@ namespace ClaudeDashboard
         public static readonly TimeSpan ResolvedSlack = TimeSpan.FromMinutes(2);
         public ClaudeView View(DateTime now, List<ClaudeUsageEntry> usage, Func<string, bool> shown = null)
         {
-            var view = new ClaudeView { Connected = Connected, Limits = Limits, LogsFailed = Usage.Failed, LogsRead = Usage.Scanned, Plan = Plan };
+            var view = new ClaudeView { Connected = Connected, Limits = Limits, LogsFailed = Usage.Failed, LogsEmpty = Usage.Empty && !Usage.Failed, LogsRead = Usage.Scanned, Plan = Plan };
             // Package 2: replies no price is known for take their share of the session's total from Claude Code's status line.
             usage = Fill(usage, Sessions.Where(f => !Double.IsNaN(f.CostUsd)).GroupBy(f => f.Id).ToDictionary(g => g.Key, g => g.First().CostUsd));
             var starts = new Dictionary<ClaudePeriod, DateTime>();

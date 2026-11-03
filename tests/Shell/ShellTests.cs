@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -56,6 +57,26 @@ internal static class ShellTests
         TextOptions.SetTextFormattingMode(probe, TextOptions.GetTextFormattingMode(block));
         probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
         return probe.DesiredSize.Width > block.ActualWidth + 1;
+    }
+    // Whether an element and every parent are Visible (IsVisible needs a shown window, and the checks never show one).
+    private static bool Shown(DependencyObject element, DependencyObject root)
+    {
+        for (var e = element; e != null && e != root; e = VisualTreeHelper.GetParent(e))
+            if (e is UIElement && ((UIElement)e).Visibility != Visibility.Visible) return false;
+        return true;
+    }
+    private static List<TextBlock> Texts(DependencyObject root)
+    {
+        var found = new List<TextBlock>();
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            var text = child as TextBlock;
+            if (text != null) found.Add(text);
+            found.AddRange(Texts(child));
+        }
+        return found;
     }
     private static void Click(Window window, string name) { ((Button)window.FindName(name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
 
@@ -200,7 +221,7 @@ internal static class ShellTests
             Assert(ClaudeText.Fact(ClaudeFactKinds.Tokens, counting, ClaudePeriod.Today, false, false)[0].StartsWith("≈"), "Tokens being counted don't say ≈.");
             var failed = ClaudeView.Fixture(now, false); failed.LogsFailed = true;
             var tokens = ClaudeText.Fact(ClaudeFactKinds.Tokens, failed, ClaudePeriod.Today, false, false);
-            Assert(tokens[0] == "—" && tokens[1].EndsWith("LOGS UNREADABLE") && tokens[2] == ClaudeText.NoLogs, "Unreadable logs look like a count in progress: " + String.Join(" / ", tokens));
+            Assert(tokens[0] == "—" && tokens[1].EndsWith(" · NO LOGS") && tokens[2] == ClaudeText.NoLogs, "Unreadable logs look like a count in progress: " + String.Join(" / ", tokens));
             // One meaning for "running": the header counts working sessions as working.
             Assert(!ClaudeText.Summary(ClaudeView.Fixture(now, false), ClaudePeriod.Today, true).Contains("running"), "The header still says running for working sessions.");
 
@@ -307,6 +328,115 @@ internal static class ShellTests
             var again = AppController.LoadWindow("ShellWindow");
             using (var controller = new AppController(again, path))
                 Assert(ColorOf(again.Resources["Accent"]) == Hex(Palettes.AccentColor("Claude", "Terracotta")), "The next start forgot the palette.");
+        });
+
+        check("Shell alerts: Glacier only after 10 minutes, the taskbar dot and one flash for Needs you, Ctrl+1 and Keep on top", () => {
+            string renders = Renders(directory);
+            string folder = Fresh(directory, "alerts");
+            var window = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(window, SettingsFile(folder, new AppSettings())))
+            {
+                // The fixture's Your-turn thread has waited 12 minutes: Glacier. Turns that ended moments ago don't light it.
+                controller.UseClaudeSample(false);
+                // The card fills in once it's laid out, so each state is rendered before it's checked.
+                AppController.Render(window, new Size(1000, 600), 1, Path.Combine(renders, "shell-alerts-1000x600-old-turn.png"));
+                var card = controller.ClaudeCardView;
+                var view = card.View;
+                DateTime now = DateTime.UtcNow;
+                Assert(view.Attention(now).Any(a => a.Kind == ClaudeAttention.Turn) && card.Edge == "Turn", "A reply owed for 12 minutes doesn't turn the edge Glacier: " + card.Edge);
+                foreach (var turn in view.Sessions.Where(x => x.YourTurn)) turn.Since = now.AddMinutes(-3);
+                card.Update(view);
+                foreach (var size in new[] { new Size(360, 300), new Size(640, 420), new Size(1000, 600), new Size(1600, 900) })
+                {
+                    AppController.Render(window, size, 1, Path.Combine(renders, "shell-alerts-" + size.Width + "x" + size.Height + "-recent-turn.png"));
+                    Assert(card.Edge == null && ColorOf(((Border)window.FindName("WindowEdge")).BorderBrush) == Colors.Transparent, size + ": a turn that ended 3 minutes ago lights the edge: " + card.Edge);
+                }
+                foreach (var turn in view.Sessions.Where(x => x.YourTurn)) turn.Since = now.AddMinutes(-(ClaudeAttention.TurnWaits.TotalMinutes + 1));
+                card.Update(view);
+                AppController.Render(window, new Size(1000, 600), 1, Path.Combine(renders, "shell-alerts-1000x600-turn-11min.png"));
+                Assert(card.Edge == "Turn", "The edge didn't turn Glacier at 10 minutes.");
+                // No dot while nothing needs you.
+                Assert(window.TaskbarItemInfo == null || window.TaskbarItemInfo.Overlay == null, "The taskbar shows a dot with nothing needing you.");
+                Assert(!controller.FlashForNeeds(new List<ClaudeAlert> { new ClaudeAlert { Kind = "done" } }) && controller.TaskbarFlashes == 0, "A finished turn flashed the taskbar.");
+
+                controller.UseClaudeSample(true, true);
+                view = card.View; now = DateTime.UtcNow;
+                int needing = view.NeedsYou;
+                Assert(needing > 0 && window.TaskbarItemInfo != null && window.TaskbarItemInfo.Overlay is DrawingImage, "The taskbar has no dot while " + needing + " need you.");
+                Assert(window.TaskbarItemInfo.Description == (needing == 1 ? "1 session needs you" : needing + " sessions need you"), "The taskbar's words are wrong: " + window.TaskbarItemInfo.Description);
+                var badge = (DrawingImage)AppController.Badge(12, Colors.Orange, Colors.Black);
+                Assert(badge.IsFrozen && Math.Abs(badge.Width - 16) < 0.5 && Math.Abs(badge.Height - 16) < 0.5, "The dot isn't a 16-unit circle: " + badge.Width + " × " + badge.Height);
+                var dot = new Window { Content = new Border { Background = Brushes.White, Child = new System.Windows.Controls.Image { Source = window.TaskbarItemInfo.Overlay, Width = 64, Height = 64 } } };
+                AppController.Render(dot, new Size(64, 64), 1, Path.Combine(renders, "shell-alerts-taskbar-dot.png"));
+
+                // One flash for each view that brings a new Needs you (the window isn't in front in the checks).
+                var need = new List<ClaudeAlert> { new ClaudeAlert { Kind = "need" }, new ClaudeAlert { Kind = "need" } };
+                Assert(controller.FlashForNeeds(need) && controller.TaskbarFlashes == 1, "A new Needs you didn't flash the taskbar once.");
+
+                // Ctrl+1: the attention queue's first, Needs you waiting longest.
+                var queue = view.Attention(now);
+                var first = controller.WaitingLongest(now);
+                Assert(first != null && first.Kind == ClaudeAttention.Need && first.Thread.Id == queue[0].Thread.Id, "Ctrl+1 doesn't open the queue's first.");
+                var longest = view.Sessions.Where(s => s.Running && s.State == ClaudeState.NeedsYou).OrderBy(s => s.Since).ThenBy(s => s.Id, StringComparer.Ordinal).First();
+                Assert(first.Thread.Id == longest.Id, "Ctrl+1 doesn't open the Needs you that has waited longest: " + first.Thread.Id + ", not " + longest.Id);
+                Assert(controller.OpenWaitingLongest() == first.Thread.Id, "Ctrl+1 opened another session.");
+                foreach (var size in new[] { new Size(360, 300), new Size(640, 420), new Size(1000, 600), new Size(1600, 900) })
+                    AppController.Render(window, size, 1, Path.Combine(renders, "shell-alerts-" + size.Width + "x" + size.Height + "-needs.png"));
+
+                // Keep on top: off by default, kept by Save, and on the window.
+                Assert(!window.Topmost, "The window starts on top.");
+                controller.OpenSettings();
+                var box = (CheckBox)controller.SettingsWindow.FindName("KeepOnTopChoice");
+                Assert(box != null && box.IsChecked == false, "Settings → Window has no Keep on top, or it's ticked.");
+                box.IsChecked = true;
+                controller.SaveSettings();
+                string warning;
+                Assert(SettingsStore.Load(Path.Combine(folder, "settings.xml"), out warning).KeepOnTop && window.Topmost, "Keep on top wasn't saved or didn't put the window on top.");
+            }
+            // Quiet mode: no flash.
+            string quietFolder = Fresh(directory, "alerts-quiet");
+            var quietWindow = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(quietWindow, SettingsFile(quietFolder, new AppSettings { QuietMode = true, KeepOnTop = true })))
+            {
+                controller.UseClaudeSample(true);
+                Assert(!controller.FlashForNeeds(new List<ClaudeAlert> { new ClaudeAlert { Kind = "need" } }) && controller.TaskbarFlashes == 0, "The taskbar flashed in Quiet mode.");
+                Assert(quietWindow.TaskbarItemInfo != null && quietWindow.TaskbarItemInfo.Overlay != null, "Quiet mode took the dot away; it only stops the flash.");
+                Assert(quietWindow.Topmost, "Keep on top didn't apply at start.");
+            }
+        });
+
+        check("Shell logs: no logs yet is calm, not a failure, and an unreadable log's words fit the side panel", () => {
+            // A fresh install: no projects folder, then an empty one. Neither is a failure.
+            string config = Fresh(directory, "logs-none");
+            var usage = new ClaudeUsage(config);
+            usage.Scan(DateTime.UtcNow);
+            Assert(usage.Scanned && !usage.Failed && usage.Empty, "A missing projects folder reads as a failure.");
+            Directory.CreateDirectory(Path.Combine(config, "projects", "C--Code-app"));
+            usage.Scan(DateTime.UtcNow);
+            Assert(!usage.Failed && usage.Empty, "An empty projects folder reads as a failure.");
+            File.WriteAllText(Path.Combine(config, "projects", "C--Code-app", "s1.jsonl"), "");
+            usage.Scan(DateTime.UtcNow);
+            Assert(!usage.Failed && !usage.Empty, "A log doesn't end \"none yet\".");
+            DateTime now = DateTime.UtcNow;
+            var none = ClaudeView.Fixture(now, false); none.Sample = false; none.LogsEmpty = true;
+            var logs = ClaudeHealth.Of(none, now, false, null)[1];
+            Assert(logs.Level == ClaudeHealthLevel.Waiting && !logs.Warns && logs.Long == "Logs: none yet" && logs.Short == "Logs", "No logs yet: " + logs.Level + " " + logs.Long);
+
+            // Unreadable logs at 1280 wide: the side panel's words are whole.
+            string folder = Fresh(directory, "logs-unreadable");
+            var window = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(window, SettingsFile(folder, new AppSettings { ClaudeFacts = new[] { ClaudeFactKinds.Tokens, ClaudeFactKinds.Tools, ClaudeFactKinds.Lines, ClaudeFactKinds.Cache } })))
+            {
+                controller.UseClaudeSample(false);
+                var view = controller.ClaudeCardView.View; view.LogsFailed = true;
+                controller.ClaudeCardView.Update(view);
+                AppController.Render(window, new Size(1280, 760), 1, Path.Combine(Renders(directory), "shell-logs-unreadable-1280x760.png"));
+                Assert(window.FindName("ClaudeSide") is FrameworkElement, "No side panel at 1280 × 760 (" + controller.ClaudeCardView.Current + ").");
+                var keys = Enumerable.Range(0, 4).Select(i => window.FindName("ClaudeFact" + i) as Panel).Where(f => f != null).Select(f => f.Children.OfType<TextBlock>().Last()).ToList();
+                var words = keys.Where(t => t.Text.Contains("NO LOGS")).ToList();
+                Assert(words.Count >= 2, "The side panel doesn't say NO LOGS for the tokens and tools: " + String.Join(" / ", keys.Select(t => t.Text)));
+                foreach (var t in words) Assert(!Cut(t), "The side panel cuts \"" + t.Text + "\".");
+            }
         });
 
         check("Shell window place: a saved place opens only where a screen can still show its title bar", () => {

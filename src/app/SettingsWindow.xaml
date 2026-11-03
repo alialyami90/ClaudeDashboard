@@ -116,6 +116,8 @@
             <TextBlock Text="It still watches your sessions and notifies you; the pit wall shows when you open the window." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
             <CheckBox x:Name="RememberWindowChoice" Content="Open where I last closed it"/>
             <TextBlock Text="The same monitor, place and size. If that monitor is gone, the window opens on your main screen. Off: it opens in the middle of your main screen." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+            <CheckBox x:Name="KeepOnTopChoice" Content="Keep on top"/>
+            <TextBlock Text="The pit wall stays above other windows, so a session that needs you is always in view." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
           </StackPanel></ScrollViewer>
         </TabItem>
       </TabControl>

@@ -78,6 +78,7 @@ namespace ClaudeDashboard
             claudeView = ClaudeView.Fixture(DateTime.UtcNow, needsYou, crowded);
             ClaudeChoices(claudeView);
             claudeCard.Update(claudeView);
+            UpdateTaskbar();
             UpdateHeader();
         }
 
@@ -201,12 +202,15 @@ namespace ClaudeDashboard
             ClaudeChoices(claudeView);
             ClaudeDays(claudeView, DateTime.UtcNow);
             claudeCard.Update(claudeView);
-            NotifyClaude(claudeAlerts.Update(claudeView.Sessions, DateTime.UtcNow));
+            var alerts = claudeAlerts.Update(claudeView.Sessions, DateTime.UtcNow);
+            NotifyClaude(alerts);
+            FlashForNeeds(alerts);
             KeepClaudeHistory(DateTime.UtcNow);
             var needing = claudeView.Sessions.Where(s => s.State == ClaudeState.NeedsYou).Select(s => s.Id).ToList();
             bool fresh = needing.Any(id => !claudeNeeding.Contains(id));
             claudeNeeding.Clear(); foreach (var id in needing) claudeNeeding.Add(id);
             if (fresh && settings.ClaudeChime && !settings.QuietMode) Chime();
+            UpdateTaskbar();
             UpdateHeader();
         }
 
