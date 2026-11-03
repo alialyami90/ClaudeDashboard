@@ -301,7 +301,7 @@ namespace ClaudeDashboard
         // arrows, Page Up and Down, and Home and End scroll it (ScrollViewer's own keys). Controls inside come after it.
         public static ScrollViewer Page(UIElement content, string name)
         {
-            var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = true, IsTabStop = true, FocusVisualStyle = CardParts.PageFocus };
+            var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = true, IsTabStop = true, FocusVisualStyle = CardParts.PageFocus, Padding = CardParts.PageInset };
             KeyboardNavigation.SetTabNavigation(scroll, KeyboardNavigationMode.Continue);
             AutomationProperties.SetName(scroll, name);
             AutomationProperties.SetHelpText(scroll, "Arrow keys, Page Up, Page Down, Home and End scroll the page.");

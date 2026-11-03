@@ -13,7 +13,23 @@ Docs for the lap chart (decision 030). Docs only. It lands last, after v0.58.2.
 - **Decision 030:** the lap chart. It covers the six views and their keys (Ctrl+1 to Ctrl+6, and Ctrl+G for the session waiting longest), the lanes and how each state is drawn, rose for Retrying, the sizes, the in-memory engine, and the six defaults that hold until Ali changes them.
 - **DESIGN.md:** the six views and the tab row from 640 wide, Live's lap chart (lanes in urgency order, how each state is drawn, the wall, the time row, the key, the panel and drawer), Limits, History, Reliability and Sources, rose for API errors and Retrying (deeper on paper), the one "≈ limit" and "Limit reached", Ctrl+1 to Ctrl+6 and Ctrl+G, and the views' frame clock.
 - **PRODUCT.md and README:** the views, what the lap chart keeps in memory only, and "≈ limit" in place of "≈ empty".
+- **CLAUDE.md:** the lap chart's package table (v0.54.0 to v0.58.3), decision 030 among the current decisions, and the views in the card's notes.
 - **Decision 030's Verified section:** the checks, what each render on Ali's PC found and where it was fixed (v0.56.0, v0.57.0, v0.57.2, v0.58.0 and its second render), and what wasn't verified live.
+
+## v0.58.2 (unreleased)
+
+Claude Dashboard: Live's rose reads on paper.
+
+- **Live's Retrying and API-error marks and words use `ClaudeReliability.Rose`**, the Reliability tab's helper. That's #F09A9A on the dark palettes and #A93B35 on the light Claude palette, so they read at 4.5:1 there too. This covers the lane's state words, the panel's state, the feed's lines, the trails' rose ticks and the key's API-error swatch.
+- **Checks:** rose is at least 4.5:1 on Page, Surface and Raised on every palette, Claude and Warm included, and Live's Retrying words take the light palette's rose.
+
+## v0.58.1 (unreleased)
+
+The lap chart's pages get the app's focus ring.
+
+- **Limits and History** pages use the shared `CardParts.PageFocus`, the app's 2-unit ring in Text, instead of WPF's dashed near-black rectangle, which didn't show on the dark page.
+- **Clear of the heading on all four pages.** The ring now sits just inside the page's edge, and the pages pad their content by `CardParts.PageInset` (6 units). On the v0.58.0 render, the ring touched the "R" of "Reliability today"; content now starts 4 units clear of it. Limits and History trim their own margins by the same amount, so they look as before.
+- **Check:** Limits, History, Reliability and Sources each use `PageFocus`, and each page's content starts at least 4 units from the corner.
 
 ## v0.58.0 (unreleased)
 
