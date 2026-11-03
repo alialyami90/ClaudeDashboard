@@ -4,7 +4,7 @@ A Windows desktop app whose whole window is the Claude Code watcher: every Claud
 
 **Stack:** native **WPF on .NET Framework 4.8, x64**, C#, built with the Framework's `csc.exe`. No `.csproj`, no NuGet, no WebView, no browser frontend, no server. The setup exe (`installer/`) is built the same way.
 
-**Windows only** (Ali, 2 Nov 2026). The Android app and the phone link left the tree in v0.44.0 and stay in history at the `v0.41.0` tag. A Claude-only phone companion is a roadmap item after v0.47.0, started from that tag. Package 4.3, the cloud garage, waits on a look at the Claude app's cloud thread records.
+**Windows only** (Ali, 2 Nov 2026). The Android app and the phone link left the tree in v0.44.0 and stay in history at the `v0.41.0` tag. A Claude-only phone companion is a roadmap item after v0.47.0, started from that tag.
 
 ## The agreed plan (decision 026)
 
@@ -17,7 +17,9 @@ A Windows desktop app whose whole window is the Claude Code watcher: every Claud
 | 6. Watcher package 4 (the Cockpit; answering permission prompts dropped, decision 027) | v0.47.0 | Watcher |
 | Docs catch up with v0.46.0 and v0.47.0 | v0.47.1 | Scribe |
 | Header fix | v0.47.2 | Shell |
-| Namespace `WidgetScreen` → `ClaudeDashboard` | v0.47.3 | Lead |
+| Namespace `WidgetScreen` → `ClaudeDashboard` | v0.47.3 | Shell |
+
+Cloud garage (package 4.3) waits on a one-time look at the Claude app's cloud thread records on Ali's PC (Watcher).
 
 The C# namespace stays `WidgetScreen` until its own rename PR at v0.47.3 (it moved out of phase 4; that PR also updates `make-icon.ps1`, which loads `WidgetScreen.PitArt` by name). Since v0.46.0 settings, the sign-in and the bridge live in `%LOCALAPPDATA%\ClaudeDashboard`, and Claude Code's hooks run `...\ClaudeDashboard\claude\ClaudeHook.exe`. `%LOCALAPPDATA%\WidgetScreen` is only read, by the first run's offer to bring it over (`Migration`, `AppController.Migration.cs`); never write to it. Each member touches only the files the plan gives them; the Lead writes `CHANGELOG.md`, `CLAUDE.md` and `BRANCHES.md` at each merge, and the Scribe reviews every PR.
 
