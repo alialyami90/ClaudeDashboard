@@ -47,6 +47,10 @@ namespace ClaudeDashboard
         public int ErrorStatus, ErrorAttempt;
         public DateTime ErrorAt;
         public bool? Revving;
+        // v0.53.0, the live rows' Now: the tool a running call is in, by name only ("Bash", "Edit"), and since when,
+        // from telemetry's open tool calls. Empty when none is open or telemetry names no calls.
+        public string Tool = "";
+        public DateTime ToolSince;
         public readonly Dictionary<ClaudePeriod, long> HelperTokens = new Dictionary<ClaudePeriod, long>();
         public long HelperTokensFor(ClaudePeriod period) { long value; return HelperTokens.TryGetValue(period, out value) ? value : 0; }
         public PitState Pit = PitState.Idle;
@@ -330,10 +334,15 @@ namespace ClaudeDashboard
             // The last sign of life: seconds ago for a working thread, except the crowd's silent one (8 minutes).
             foreach (var t in threads) t.LastSign = t.Running && t.State == ClaudeState.Working ? now.AddSeconds(-12) : t.LastActive;
             if (crowded) threads.First(t => t.Id == "crowd-3").LastSign = now.AddMinutes(-8);
+            // What the working threads are in now (the live rows' Now): one in Bash for 2 minutes, one editing.
+            var bash = threads.First(t => t.Id == "sample-2"); bash.Tool = "Bash"; bash.ToolSince = now.AddMinutes(-2);
+            if (crowded) { var edit = threads.First(t => t.Id == "crowd-4"); edit.Tool = "Edit"; edit.ToolSince = now.AddSeconds(-4); }
             foreach (var t in threads) t.Pit = ClaudePace.State(t, now, DateTime.MinValue, DateTime.MinValue, DateTime.MinValue, DateTime.MinValue);
             view.Threads = threads;
             view.Sessions = Order(threads.Where(t => t.Running));
             view.Limits = new ClaudeLimits { FiveHour = new ClaudeLimitWindow { Percent = needsYou ? 84 : 23, ResetsAt = now.AddMinutes(100) }, Week = new ClaudeLimitWindow { Percent = 41, ResetsAt = now.AddDays(3).AddHours(5) }, UpdatedAt = now.AddMinutes(-1), Source = "online" };
+            // The crowd runs the tank down: at the last half hour's pace it's empty 37 minutes before it resets.
+            if (crowded) { view.Limits.FiveHour.Percent = 72; view.LimitEtaMinutes = 63; }
             view.Limits.Extra.Add(new KeyValuePair<string, ClaudeLimitWindow>("Opus week", new ClaudeLimitWindow { Percent = 18, ResetsAt = now.AddDays(3).AddHours(5) }));
             view.Usage[ClaudePeriod.FiveHour] = new List<ClaudeProjectUsage> { P("widget-screen", 1830000, 2.01), P("api-server", 412000, 0.45), P("photo-manager", 96400, 0.11) };
             view.Usage[ClaudePeriod.Today] = new List<ClaudeProjectUsage> { P("widget-screen", 3660000, 4.03), P("api-server", 824000, 0.91), P("photo-manager", 192800, 0.21), P("Other", 54000, 0.06) };
@@ -997,9 +1006,13 @@ namespace ClaudeDashboard
                 t.Car = ClaudePace.Car(t.MixFor(ClaudePeriod.Week), t.Model);
                 DateTime[] m; if (!times.TryGetValue(t.Id, out m)) m = new DateTime[4];
                 List<KeyValuePair<DateTime, string>> calls;
-                t.Revving = null;
+                t.Revving = null; t.Tool = ""; t.ToolSince = DateTime.MinValue;
                 if (opens.TryGetValue(t.Id, out calls))
+                {
                     t.Revving = calls.Any(c => { List<double> past; usual.TryGetValue(c.Value ?? "", out past); return now - c.Key >= ClaudePace.RevAfter(past); });
+                    var oldest = calls.Where(c => !String.IsNullOrEmpty(c.Value)).OrderBy(c => c.Key).FirstOrDefault();
+                    if (t.Running && !String.IsNullOrEmpty(oldest.Value)) { t.Tool = oldest.Value.Length > 40 ? oldest.Value.Substring(0, 40) : oldest.Value; t.ToolSince = oldest.Key; }
+                }
                 t.Pit = ClaudePace.State(t, now, m[Decided], m[Finished], m[Failed], m[Requested], t.Revving);
                 // The API error telemetry saw last, while no request has gone through since (the car's tip says it).
                 if (m[Failed] > m[Requested])

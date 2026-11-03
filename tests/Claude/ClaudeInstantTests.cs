@@ -215,5 +215,6 @@ internal static class ClaudeInstantTests
         // Package 4's checks run from here, so the shared test list (tests/SmokeTests.cs) doesn't change.
         ClaudeCockpitTests.Run(directory, check);
         ClaudeAttentionTests.Run(directory, check);
+        ClaudeLiveTests.Run(directory, check);
     }
 }

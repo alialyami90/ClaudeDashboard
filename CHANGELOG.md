@@ -6,6 +6,17 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.53.0 (unreleased)
+
+Claude Dashboard: in 5 h and Today the window is a live status board, and Week is the ledger (observability critique, issue 2).
+
+- **Live thread rows.** In 5 h and Today every thread row has labelled time columns. **For** is how long it has been in its state. **Last sign** is the last hook event or reply: "just now" or "3 min ago" in grey, then "silent 8 min" once a working thread has been quiet for 5 minutes. **Now** is the tool it's in, by name only ("Bash · 2 min"), from telemetry's open tool calls; it shows "—" when no tool is known. A thin context bar sits under every title, empty with a tip until the status line reports the context, and Amber from 80%. Beside the title is only where it runs; the age that used to sit there unlabelled is the For column. Now steps aside first on a narrow window, then Lines.
+- **Cache reads, Models and Replies (or API value) are Week's.** The live periods show Tokens and Lines with the live columns.
+- **The plan row speaks in time.** The tank says "≈ empty 3:21 am, 37 min before reset" when the last half hour's pace runs it dry before the reset, else "≈ 84% by reset". When the long form doesn't fit, it shortens to "≈ empty 3:21 am", and the reset line shortens to "resets 9:54 am". The week says "≈ 126% by reset".
+- **The rev dial is gone.** Its tile keeps tokens a minute, the last hour's sparkline and the 7-day bars in a 200-unit column. The tank and the week share the rest, so their words fit at 140% at 1000 × 600.
+- **The pit stop strip** names the tool a silent thread is in ("In Bash for 9 min").
+- **Checks:** three new checks for the live words, the time wording and the live ledger. Renders `claude-live-{today,week}-{100,140}-{1000x600,1600x900}.png` check that the time words aren't cut.
+
 ## v0.49.0 (unreleased)
 
 Claude Dashboard: the attention rail (observability critique, issue 1). In 5 h and Today the window says first what's waiting on you, and nothing that is hides off the bottom.
