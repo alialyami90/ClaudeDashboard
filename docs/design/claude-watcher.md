@@ -2,6 +2,18 @@
 
 The Claude Code widget on both apps, built from the design brief below (kept as Ali approved it). The technical choices are in [decision 014](../decisions/014-claude-code-bridge.md), [decision 015](../decisions/015-claude-sign-in-and-telemetry.md) (the fix that made it work with the Claude app's Code tab) [decision 016](../decisions/016-claude-projects-and-threads.md) (projects with their threads, and the refresh intervals) [decision 023](../decisions/023-claude-trust-the-sources.md) (which sessions are alive, Stuck, the plan check and the telemetry port) [decision 024](../decisions/024-claude-honest-numbers.md) (where costs come from, the side panel facts, and Windows first for packages 2–4) and [decision 025](../decisions/025-claude-instant-and-everywhere.md) (watchers, notifications, phone alerts, helpers on the car, resolved without the app).
 
+## Live status board (decision 029, v0.49.0–v0.53.0)
+
+The observability critique (3 Nov 2026) scored the window 24/40. Five releases answered its five priority issues. Since then, 5 h and Today are a live status board and Week is the ledger:
+
+- the attention rail (v0.49.0);
+- the source-health line (v0.50.0);
+- keyboard and low vision (v0.51.0);
+- alerts that respect attention (v0.52.0);
+- live rows with the plan in time (v0.53.0).
+
+[DESIGN.md](../../DESIGN.md) describes the window as it is now, and [decision 029](../decisions/029-claude-live-status-board.md) has the record and what's left. The sections below are earlier history. Where they mention the rev counter, "on pace for", "LIVE · AS OF" or ended rows at 62%, the current wording is the one in DESIGN.md.
+
 ## Cockpit (package 4, decision 027, v0.47.0)
 
 Package 4 of the Watcher action plan, the last one, Windows only. It lands after the Claude Dashboard transformation (phase 6 of the transformation plan) and is built for its single window. The list as the action plan wrote it (4.1–4.6), fitted to the new app on 2 Nov 2026:

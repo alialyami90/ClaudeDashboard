@@ -85,6 +85,22 @@ internal static class ClaudeTimelineTests
             Assert(ClaudeTimeline.ErrorDetail(529, 2) == "HTTP 529 · attempt 2" && ClaudeTimeline.ErrorDetail(0, 0) == "", "The API error's detail reads wrongly.");
         });
 
+        check("Claude timeline: a hidden project's lines never take the feed's 50 slots (v0.54.0, decision 020)", () => {
+            var timeline = new ClaudeTimeline(Now.AddHours(-1));
+            // 60 lines from a session the view doesn't show, newer than the 5 it does: the 5 still show.
+            for (int i = 0; i < 5; i++) timeline.Event(Now.AddMinutes(-30 + i), "shown", ClaudeFeedItem.ToolFailed, "Bash");
+            for (int i = 0; i < 60; i++) timeline.Event(Now.AddSeconds(-i), "other", ClaudeFeedItem.ToolFailed, "Read");
+            var view = new ClaudeView { Threads = new List<ClaudeSession> { new ClaudeSession { Id = "shown", Title = "Fix the login timeout", ProjectName = "api-server", Running = true } } };
+            timeline.Fill(view, Now, Double.NaN);
+            Assert(view.Feed.Count == 5 && view.Feed.All(f => f.Session == "shown" && f.Title == "Fix the login timeout" && f.Project == "api-server"), "A hidden project's lines pushed the shown ones out: " + view.Feed.Count);
+            // Once the service says a session is hidden, its lines don't even enter the feed.
+            timeline.Hide(new[] { "secret" });
+            for (int i = 0; i < 600; i++) timeline.Event(Now.AddSeconds(i), "secret", ClaudeFeedItem.ApiError, "HTTP 529");
+            timeline.Fill(view, Now, Double.NaN);
+            Assert(!timeline.Feed.Any(f => f.Session == "secret") && view.Feed.Count == 5, "A hidden session's lines entered the feed.");
+            Assert(timeline.Note("secret", Now, ClaudeLaneState.Working, Now) && !timeline.Feed.Any(f => f.Session == "secret"), "A hidden session's state change reached the feed.");
+        });
+
         check("Claude timeline: ≈ limit needs 3 plan readings, then goes by the last 30 minutes' pace (v0.54.0)", () => {
             var window = new ClaudeLimitWindow { Percent = 60, ResetsAt = Now.AddHours(2) };
             var timeline = new ClaudeTimeline(Now.AddHours(-3));
@@ -137,6 +153,7 @@ internal static class ClaudeTimelineTests
                     Record("api_error", "lp", real.AddSeconds(-30), I("status_code", 529), I("attempt", 1)),
                     Record("api_error", "lp", real.AddSeconds(-20), I("status_code", 529), I("attempt", 2))));
                 Assert(service.ToolEntries.Any(e => e.Tool == "Bash" && e.Asked), "A tool decision lost its tool's name.");
+                Assert(service.View(real, null).AskedToday.Count == (real.AddSeconds(-60) >= view.Starts[ClaudePeriod.Today] ? 1 : 0), "Today's asks per tool are wrong.");
                 view = service.View(real, null);
                 t = view.Threads.Single(x => x.Id == "lp");
                 Assert(t.Retrying && t.Lane == ClaudeLaneState.Retrying && view.Trails["lp"].Last().State == ClaudeLaneState.Retrying, "An API error with no request since isn't Retrying.");

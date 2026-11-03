@@ -212,6 +212,8 @@ namespace ClaudeDashboard
         public List<ClaudeToolRun> ToolRunsToday = new List<ClaudeToolRun>();
         public List<ClaudeApiError> ApiErrors = new List<ClaudeApiError>();
         public List<ClaudeCompaction> Compactions = new List<ClaudeCompaction>();
+        // Today's permission prompts per tool (tool name → times it asked you), from telemetry's tool decisions.
+        public Dictionary<string, int> AskedToday = new Dictionary<string, int>(StringComparer.Ordinal);
         public List<ClaudeFeedItem> Feed = new List<ClaudeFeedItem>();
         public DateTime LogsReadAt, TelemetryAt, AppThreadsReadAt;
         public int TelemetryPort, AppThreadCount;
@@ -1017,6 +1019,7 @@ namespace ClaudeDashboard
         // sources' freshness. In memory only.
         private void Lap(ClaudeView view, DateTime now, List<ClaudeUsageEntry> usage, HashSet<string> hidden)
         {
+            Timeline.Hide(hidden);
             var present = new HashSet<string>(view.Threads.Select(t => t.Id), StringComparer.Ordinal);
             foreach (var t in view.Threads)
             {
@@ -1122,6 +1125,8 @@ namespace ClaudeDashboard
             foreach (var t in view.Threads) { List<ClaudeToolRun> own; t.ToolTimes = runsBySession.TryGetValue(t.Id, out own) ? ClaudeTimeline.ToolTimes(own) : new List<ClaudeToolTime>(); }
             DateTime todayFrom; if (!view.Starts.TryGetValue(ClaudePeriod.Today, out todayFrom)) todayFrom = now.Date;
             view.ToolRunsToday = shownRuns.Where(r => r.At >= todayFrom && r.At <= now).OrderBy(r => r.At).ToList();
+            view.AskedToday = toolList.Where(e => !e.Result && e.Asked && !String.IsNullOrEmpty(e.Tool) && ids.Contains(e.Session) && e.At >= todayFrom && e.At <= now)
+                .GroupBy(e => e.Tool, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
             view.ApiErrors = errorList.Where(a => ids.Contains(a.Session) && a.At > now - TimeSpan.FromHours(24) && a.At <= now).OrderBy(a => a.At).ToList();
             // A lane for every project used in the last five hours (up to six). Ali asked for projects only, no thread
             // lanes under them (1 Nov 2026).

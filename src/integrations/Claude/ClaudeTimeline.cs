@@ -85,7 +85,11 @@ namespace ClaudeDashboard
         // The trails and the plan readings cover the last five hours; the feed keeps 50 lines; compactions a day.
         public static readonly TimeSpan Kept = TimeSpan.FromHours(5), CompactionsKept = TimeSpan.FromHours(24);
         public static readonly TimeSpan PaceWindow = TimeSpan.FromMinutes(30);
-        public const int FeedKept = 50, ReadingsKept = 600, SessionsKept = 300, MinReadings = 3;
+        public const int FeedKept = 50, FeedHeld = 500, ReadingsKept = 600, SessionsKept = 300, MinReadings = 3;
+        // Sessions in projects Settings hides (decision 020): their lines never enter the feed. The service sets this with
+        // each view; lines that came before it knew are filtered out when the snapshot is made, before the cap of 50.
+        private HashSet<string> hidden = new HashSet<string>(StringComparer.Ordinal);
+        public void Hide(IEnumerable<string> sessions) { lock (gate) hidden = new HashSet<string>(sessions ?? Enumerable.Empty<string>(), StringComparer.Ordinal); }
         // When the app began watching: no lane starts before it, and the chart draws that edge.
         public readonly DateTime WatchStart;
         private readonly object gate = new object();
@@ -186,13 +190,18 @@ namespace ClaudeDashboard
         }
         private void AddFeed(ClaudeFeedItem item)
         {
+            if (hidden.Contains(item.Session)) return;
             int i = feed.Count;
             while (i > 0 && feed[i - 1].At > item.At) i--;
             feed.Insert(i, item);
-            if (feed.Count > FeedKept) feed.RemoveRange(0, feed.Count - FeedKept);
+            if (feed.Count > FeedHeld) feed.RemoveRange(0, feed.Count - FeedHeld);
         }
-        // The last 50 lines, newest first.
-        public List<ClaudeFeedItem> Feed { get { lock (gate) return Enumerable.Reverse(feed).Select(f => f.Copy()).ToList(); } }
+        // The last 50 lines, newest first (of every session not hidden; the snapshot filters to the shown threads first).
+        public List<ClaudeFeedItem> Feed { get { return Lines(null); } }
+        public List<ClaudeFeedItem> Lines(Func<ClaudeFeedItem, bool> shown)
+        {
+            lock (gate) return Enumerable.Reverse(feed).Where(f => !hidden.Contains(f.Session) && (shown == null || shown(f))).Take(FeedKept).Select(f => f.Copy()).ToList();
+        }
         public List<ClaudeCompaction> Compactions(DateTime from) { lock (gate) return compactions.Where(c => c.At >= from).Select(c => new ClaudeCompaction { At = c.At, Session = c.Session }).ToList(); }
 
         // ----- The plan reading ring -----
@@ -299,14 +308,9 @@ namespace ClaudeDashboard
             view.LimitAtAverage = AtAverage(view.PlanReadings, window, now, averagePerHour);
             DateTime today; if (!view.Starts.TryGetValue(ClaudePeriod.Today, out today)) today = now.Date;
             view.Compactions = Compactions(today).Where(c => byId.ContainsKey(c.Session)).ToList();
-            var lines = new List<ClaudeFeedItem>();
-            foreach (var item in Feed)
-            {
-                ClaudeSession t;
-                if (!byId.TryGetValue(item.Session, out t)) continue;
-                item.Title = t.Shown; item.Project = t.ProjectName;
-                lines.Add(item);
-            }
+            // Only the shown threads' lines, filtered before the 50 are counted.
+            var lines = Lines(f => byId.ContainsKey(f.Session));
+            foreach (var item in lines) { var t = byId[item.Session]; item.Title = t.Shown; item.Project = t.ProjectName; }
             view.Feed = lines;
             foreach (var t in view.Threads)
             {
@@ -410,6 +414,7 @@ namespace ClaudeDashboard
             view.ToolTimes = ToolTimes(runs);
             view.ToolTimesKnown = true;
             foreach (var t in view.Threads) t.ToolTimes = ToolTimes(runs.Where(r => r.Session == t.Id));
+            view.AskedToday = new Dictionary<string, int>(StringComparer.Ordinal) { { "Bash", 9 }, { "Edit", 4 }, { "WebFetch", 2 } };
             view.ApiErrors = new List<ClaudeApiError> { new ClaudeApiError { At = now.AddMinutes(-70), Session = "sample-2", Status = 500, Attempt = 1 } };
             if (retrying != null) { view.ApiErrors.Add(new ClaudeApiError { At = now.AddSeconds(-75), Session = retrying.Id, Status = 529, Attempt = 1 }); view.ApiErrors.Add(new ClaudeApiError { At = now.AddSeconds(-40), Session = retrying.Id, Status = 529, Attempt = 2 }); }
             view.LogsReadAt = now.AddSeconds(-2); view.TelemetryAt = now.AddSeconds(-4); view.TelemetryPort = ClaudeTelemetry.DefaultPort;
