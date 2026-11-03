@@ -26,12 +26,26 @@ namespace ClaudeDashboard
         public int Calls, Errors, Timed;
         public long TimeMs;
         public int[] Buckets = new int[ClaudeDayDetail.Edges.Length + 1];
+        // Per model id: the calls, the errors and the ≈ time buckets.
         public Dictionary<string, int> ByModel = new Dictionary<string, int>(StringComparer.Ordinal);
+        public Dictionary<string, int> ErrorsByModel = new Dictionary<string, int>(StringComparer.Ordinal);
+        public Dictionary<string, int[]> BucketsByModel = new Dictionary<string, int[]>(StringComparer.Ordinal);
+        public int[] ModelBuckets(string model)
+        {
+            int[] b; if (!BucketsByModel.TryGetValue(model, out b)) { b = new int[ClaudeDayDetail.Edges.Length + 1]; BucketsByModel[model] = b; }
+            return b;
+        }
         public void Add(ClaudeToolUse o)
         {
             Calls += o.Calls; Errors += o.Errors; Timed += o.Timed; TimeMs += o.TimeMs;
             for (int i = 0; i < Buckets.Length && i < o.Buckets.Length; i++) Buckets[i] += o.Buckets[i];
             ClaudeDayDetail.AddAll(ByModel, o.ByModel);
+            ClaudeDayDetail.AddAll(ErrorsByModel, o.ErrorsByModel);
+            foreach (var p in o.BucketsByModel)
+            {
+                var b = ModelBuckets(p.Key);
+                for (int i = 0; i < b.Length && i < p.Value.Length; i++) b[i] += p.Value[i];
+            }
         }
     }
 
@@ -120,7 +134,8 @@ namespace ClaudeDashboard
             foreach (var p in Tools.OrderBy(p => p.Key, StringComparer.Ordinal))
             {
                 var t = new JsonObject(); t["calls"] = N(p.Value.Calls); t["errors"] = N(p.Value.Errors); t["timed"] = N(p.Value.Timed); t["ms"] = N(p.Value.TimeMs);
-                t["buckets"] = Ints(p.Value.Buckets); t["byModel"] = Counts(p.Value.ByModel);
+                t["buckets"] = Ints(p.Value.Buckets); t["byModel"] = Counts(p.Value.ByModel); t["errorsByModel"] = Counts(p.Value.ErrorsByModel);
+                var bm = new JsonObject(); foreach (var q in p.Value.BucketsByModel.OrderBy(q => q.Key, StringComparer.Ordinal)) bm[q.Key] = Ints(q.Value); t["bucketsByModel"] = bm;
                 tools[p.Key] = t;
             }
             o["tools"] = tools;
@@ -162,8 +177,10 @@ namespace ClaudeDashboard
             if (tools != null) foreach (var p in tools)
             {
                 var t = p.Value as JsonObject; if (t == null) continue;
-                var use = new ClaudeToolUse { Calls = (int)L(t, "calls"), Errors = (int)L(t, "errors"), Timed = (int)L(t, "timed"), TimeMs = L(t, "ms"), ByModel = ReadCounts(ClaudeJson.Obj(t, "byModel")) };
+                var use = new ClaudeToolUse { Calls = (int)L(t, "calls"), Errors = (int)L(t, "errors"), Timed = (int)L(t, "timed"), TimeMs = L(t, "ms"), ByModel = ReadCounts(ClaudeJson.Obj(t, "byModel")), ErrorsByModel = ReadCounts(ClaudeJson.Obj(t, "errorsByModel")) };
                 ReadInts(ClaudeJson.List(t, "buckets"), use.Buckets);
+                var bm = ClaudeJson.Obj(t, "bucketsByModel");
+                if (bm != null) foreach (var q in bm) if (q.Value is List<object>) ReadInts((List<object>)q.Value, use.ModelBuckets(q.Key));
                 d.Tools[p.Key] = use;
             }
             d.Mcp = ReadCounts(ClaudeJson.Obj(o, "mcp")); d.Skills = ReadCounts(ClaudeJson.Obj(o, "skills")); d.Plugins = ReadCounts(ClaudeJson.Obj(o, "plugins")); d.Stops = ReadCounts(ClaudeJson.Obj(o, "stops"));

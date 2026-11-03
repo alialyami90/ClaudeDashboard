@@ -224,12 +224,13 @@ namespace ClaudeDashboard
         {
             var day = Day(call.Day);
             ClaudeToolUse use; if (!day.Tools.TryGetValue(call.Name, out use)) { use = new ClaudeToolUse(); day.Tools[call.Name] = use; }
-            if (failed) use.Errors++;
+            if (failed) { use.Errors++; if (call.Model.Length > 0) ClaudeDayDetail.Count(use.ErrorsByModel, call.Model); }
             var gap = at - call.At;
             if (gap >= TimeSpan.Zero && gap <= TimeSpan.FromHours(6))
             {
                 long ms = (long)gap.TotalMilliseconds;
                 use.Timed++; use.TimeMs += ms; use.Buckets[ClaudeDayDetail.Bucket(ms)]++;
+                if (call.Model.Length > 0) use.ModelBuckets(call.Model)[ClaudeDayDetail.Bucket(ms)]++;
             }
         }
 

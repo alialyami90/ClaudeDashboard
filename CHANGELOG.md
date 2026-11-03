@@ -13,7 +13,7 @@ Claude Dashboard: the Insights engine (decision 031, part A). Ali asked: "show m
 - **Day files v2.** A day file now carries `"v": 2` and a `detail` section (`ClaudeDayDetail`) built from Claude Code's logs:
   - models: replies, input, output, cache read and write, thinking tokens and ≈ $ for each;
   - effort level per model;
-  - thinking: replies that thought, total and longest thinking time;
+  - tools: calls, errors, ≈ time, and calls, errors and ≈ time by model for each;
   - tools: calls, errors, ≈ time and calls by model for each;
   - MCP servers, skills and plugins;
   - permissions: allowed without asking, allowed by a rule, asked, denied;

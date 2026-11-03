@@ -23,6 +23,9 @@ namespace ClaudeDashboard
         public long Thinking, LinesAdded, LinesRemoved;
         // ≈ median time of a tool call, from the calls whose result was seen (null: none timed).
         public long? MedianMs;
+        // Tools only, per model id: the errors and the ≈ median time (null: none timed for that model).
+        public Dictionary<string, int> ErrorSplit = new Dictionary<string, int>(StringComparer.Ordinal);
+        public Dictionary<string, long?> MedianByModel = new Dictionary<string, long?>(StringComparer.Ordinal);
         // Per model, the calls (tools) or per effort level, the replies (models).
         public Dictionary<string, int> Split = new Dictionary<string, int>(StringComparer.Ordinal);
     }
@@ -111,7 +114,9 @@ namespace ClaudeDashboard
             r.Tools = Ranked(r.Detail.Tools.Select(p => {
                 ClaudeToolUse prior; r.PriorDetail.Tools.TryGetValue(p.Key, out prior);
                 return new ClaudeInsightRank { Name = p.Key, Value = p.Value.Calls, Prior = prior == null ? 0 : prior.Calls, Errors = p.Value.Errors, Timed = p.Value.Timed,
-                    MedianMs = ClaudeDayDetail.Median(p.Value.Buckets), Split = new Dictionary<string, int>(p.Value.ByModel, StringComparer.Ordinal) };
+                    MedianMs = ClaudeDayDetail.Median(p.Value.Buckets), Split = new Dictionary<string, int>(p.Value.ByModel, StringComparer.Ordinal),
+                    ErrorSplit = new Dictionary<string, int>(p.Value.ErrorsByModel, StringComparer.Ordinal),
+                    MedianByModel = p.Value.BucketsByModel.ToDictionary(q => q.Key, q => ClaudeDayDetail.Median(q.Value), StringComparer.Ordinal) };
             }));
             // Projects by tokens, with their lines.
             foreach (var p in r.Detail.ProjectLines)
@@ -182,6 +187,9 @@ namespace ClaudeDashboard
                     var use = new ClaudeToolUse { Calls = calls, Errors = t == 0 ? calls / 12 : t == 2 ? calls / 30 : 0, Timed = calls, TimeMs = calls * (t == 0 ? 6000L : 400L) };
                     use.Buckets[ClaudeDayDetail.Bucket(t == 0 ? 6000 : 400)] = calls;
                     use.ByModel[models[0]] = calls * 6 / 10; use.ByModel[models[1]] = calls - calls * 6 / 10;
+                    use.ErrorsByModel[models[0]] = use.Errors - use.Errors / 3; if (use.Errors / 3 > 0) use.ErrorsByModel[models[1]] = use.Errors / 3;
+                    use.ModelBuckets(models[0])[ClaudeDayDetail.Bucket(t == 0 ? 6000 : 400)] = use.ByModel[models[0]];
+                    use.ModelBuckets(models[1])[ClaudeDayDetail.Bucket(t == 0 ? 2500 : 250)] = use.ByModel[models[1]];
                     d.Detail.Tools[tools[t]] = use;
                 }
                 d.Detail.Mcp["github"] = d.Detail.Tools.ContainsKey(tools[8]) ? d.Detail.Tools[tools[8]].Calls : 0;

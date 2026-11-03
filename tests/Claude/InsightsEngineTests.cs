@@ -73,6 +73,9 @@ internal static class InsightsEngineTests
             Assert(d.ThinkingReplies == 1 && d.ThinkingMs == 1500 && d.LongestThinkingMs == 1500, "Thinking: " + d.ThinkingReplies + " / " + d.ThinkingMs);
             var bash = d.Tools["Bash"];
             Assert(bash.Calls == 1 && bash.Errors == 1 && bash.Timed == 1 && bash.TimeMs == 4000 && bash.ByModel["claude-opus-5-5"] == 1 && ClaudeDayDetail.Median(bash.Buckets) == 10000, "Bash: " + bash.Calls + " calls, " + bash.Errors + " errors, " + bash.TimeMs + " ms");
+            Assert(bash.ErrorsByModel["claude-opus-5-5"] == 1 && ClaudeDayDetail.Median(bash.BucketsByModel["claude-opus-5-5"]) == 10000, "Bash's errors and ≈ time per model.");
+            var back = ClaudeDayDetail.FromJson(ClaudeJson.Parse(ClaudeJson.Compact(d.ToJson())) as JsonObject).Tools["Bash"];
+            Assert(back.ErrorsByModel["claude-opus-5-5"] == 1 && back.BucketsByModel["claude-opus-5-5"].Sum() == 1, "Per-model errors and buckets didn't survive the file.");
             Assert(!d.Tools.ContainsKey("Write"), "The request blob's tool was counted.");
             var pr = d.Tools["mcp__github__create_pull_request"];
             Assert(pr.Calls == 1 && pr.Errors == 0 && pr.TimeMs == 2000 && d.Mcp["github"] == 1, "MCP call.");
@@ -163,7 +166,7 @@ internal static class InsightsEngineTests
             var v1 = ClaudeInsightsSet.Compute(new List<ClaudeDay> { new ClaudeDay { Date = today, Tokens = 5, Replies = 1 } }, today, Now);
             Assert(v1.Week.Missing.Contains("v0.60.0") && v1.Week.DaysWithDetail == 0, "Days without detail don't say why.");
             var sample = ClaudeInsightsSet.SampleSet(Now);
-            Assert(sample.Sample && sample.Week.Sample && sample.Week.Models.Count == 3 && sample.Week.Tools.Count > 5 && sample.All.DaysFromLogs > 0 && ClaudeView.Fixture(Now, false).Insights != null, "The labelled sample.");
+            Assert(sample.Sample && sample.Week.Sample && sample.Week.Models.Count == 3 && sample.Week.Tools.Count > 5 && sample.All.DaysFromLogs > 0 && sample.Week.Tools[0].MedianByModel.Count == 2 && ClaudeView.Fixture(Now, false).Insights != null, "The labelled sample.");
         });
     }
 }
