@@ -157,7 +157,16 @@ A seventh tab, after Sources, so Ctrl+1 to Ctrl+6 keep their views. Below 640 wi
   - the missing states, and no Sample label on live numbers;
   - the page as a tab stop with the ring;
   - layouts inside the width at 1600 × 900, 1100 × 700 and 700 × 500, at 100% and 140%.
-- The Lead rendered the engine and the tab on a copy of Ali's logs. That render found the problems v0.60.1 fixes: the medians, sessions counted per day, permission sources, API errors, and today before its detail. This record doesn't cover a render after v0.60.1.
+- **The first render.** The Lead rendered the engine and the tab on a copy of Ali's logs. That render found the problems v0.60.1 fixes: the medians, sessions counted per day, permission sources, API errors, and today before its detail.
+- **The render after v0.60.1.** It ran on #39 at ae30323, which contains #38 and #40, on a fresh copy of Ali's logs, on a first launch and again after reopening. It found these right:
+  - the ≈ medians: thinking ≈ 4.1 s against 3.86 s in the logs, and Bash ≈ 1.6 s against 1.51 s;
+  - 52 sessions, 34 of them in Widget screen, the same on both launches;
+  - permissions: by rule 6,153, by a hook 0, asked 616, denied 25;
+  - 4 API errors;
+  - "too little before";
+  - the model and tool names;
+  - exact tool calls and errors.
+- **Left open, for Builder's v0.61.1.** On a first launch the Replies tile counts today before today's detail arrives. Also, `error.log` ignores `--settings`.
 
 ## Not decided here
 
