@@ -60,17 +60,7 @@ namespace ClaudeDashboard
             claudeToast = new ClaudeToast(id => { if (!disposed) { ShowWindow(); FocusClaudeSession(id); } });
             claudeHistory = new ClaudeHistory(claude.BridgeFolder);
             if (Program.Rendering) return;
-            private async void StepClaudeBackfill()
-        {
-            var step = Task.Run(() => claude.Usage.StepBackfill(DateTime.UtcNow));
-            claudeScan = step;
-            try { await step; } catch (Exception) { }
-            if (disposed) return;
-            // Sources' "reading X of Y logs" follows each step.
-            claudeDirty = true;
-        }
-
-        // A watched folder changed or telemetry arrived (package 3): the card looks at once, on its own thread.
+            // A watched folder changed or telemetry arrived (package 3): the card looks at once, on its own thread.
             claude.Changed = () => { try { window.Dispatcher.BeginInvoke(new Action(ClaudeWatchFired)); } catch (Exception) { } };
             claude.CheckConnected();
             // After an update, Claude Code runs the bridge that came with it.
@@ -172,6 +162,16 @@ namespace ClaudeDashboard
             if (disposed) return;
             claudeDirty = true;
             if (claude.Watch.Running && CardShown) RefreshClaudeView();
+        }
+
+        private async void StepClaudeBackfill()
+        {
+            var step = Task.Run(() => claude.Usage.StepBackfill(DateTime.UtcNow));
+            claudeScan = step;
+            try { await step; } catch (Exception) { }
+            if (disposed) return;
+            // Sources' "reading X of Y logs" follows each step.
+            claudeDirty = true;
         }
 
         // A watched folder changed or telemetry arrived (package 3): only what changed is read, and the pit wall follows.
