@@ -13,6 +13,14 @@ Claude Dashboard: Live's rose reads on paper.
 - **Live's Retrying and API-error marks and words use `ClaudeReliability.Rose`**, the Reliability tab's helper. That's #F09A9A on the dark palettes and #A93B35 on the light Claude palette, so they read at 4.5:1 there too. This covers the lane's state words, the panel's state, the feed's lines, the trails' rose ticks and the key's API-error swatch.
 - **Checks:** rose is at least 4.5:1 on Page, Surface and Raised on every palette, Claude and Warm included, and Live's Retrying words take the light palette's rose.
 
+## v0.58.1 (unreleased)
+
+The lap chart's pages get the app's focus ring.
+
+- **Limits and History** pages use the shared `CardParts.PageFocus`, the app's 2-unit ring in Text, instead of WPF's dashed near-black rectangle, which didn't show on the dark page.
+- **Clear of the heading on all four pages.** The ring now sits just inside the page's edge, and the pages pad their content by `CardParts.PageInset` (6 units). On the v0.58.0 render, the ring touched the "R" of "Reliability today"; content now starts 4 units clear of it. Limits and History trim their own margins by the same amount, so they look as before.
+- **Check:** Limits, History, Reliability and Sources each use `PageFocus`, and each page's content starts at least 4 units from the corner.
+
 ## v0.58.0 (unreleased)
 
 Claude Dashboard: the lap chart's Reliability and Sources views (decision 030, package E).
