@@ -6,6 +6,13 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.58.4 (unreleased)
+
+Docs only. Ali confirmed the lap chart's six defaults on 3 Nov 2026.
+
+- **Decision 030:** the six defaults are marked confirmed by Ali. These are: the current tool in memory only, Silent at 5 minutes, rose for Retrying, shipping in steps, keeping the Garage tab, and Ctrl+1 to Ctrl+6 with Ctrl+G. The wording that left them open is gone.
+- **CLAUDE.md:** the confirmation, and v0.58.4 in the lap chart's table.
+
 ## v0.58.3 (unreleased)
 
 Docs for the lap chart (decision 030). Docs only. It lands last, after v0.58.2.
