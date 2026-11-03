@@ -130,6 +130,8 @@ namespace ClaudeDashboard
         public ClaudeLimitProjection Pace;
         public double Percent = Double.NaN;
         public string WallLabel = "", Note = "";
+        // v0.56.1: the window is at 100%: the label says so in Amber, and no wall or time is drawn.
+        public bool Reached;
         protected override void OnRender(DrawingContext dc)
         {
             if (Axis == null) return;
@@ -167,10 +169,10 @@ namespace ClaudeDashboard
             NowLine(dc, h);
             WallLine(dc, h);
             // One label, at the top: the wall's time, else why there's no projection.
-            string label = Axis.Wall != null ? WallLabel : Note;
+            string label = Reached ? "Limit reached" : Axis.Wall != null ? WallLabel : Note;
             if (label.Length > 0)
             {
-                var words = Words(label, size, Axis.Wall != null ? B("Warning") : muted);
+                var words = Words(label, size, Reached || Axis.Wall != null ? B("Warning") : muted);
                 double x = Axis.Wall != null ? Axis.X(Axis.Wall.Value, w) + 4 : Axis.X(Axis.Now, w) + 4;
                 if (x + words.Width > w) x = Math.Max(0, (Axis.Wall != null ? Axis.X(Axis.Wall.Value, w) : Axis.X(Axis.Now, w)) - 4 - words.Width);
                 dc.DrawText(words, new Point(x, 0));
