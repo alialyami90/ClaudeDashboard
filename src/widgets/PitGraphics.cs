@@ -18,6 +18,8 @@ namespace ClaudeDashboard
         protected static Brush Faded(Brush brush, double opacity) { var b = brush.CloneCurrentValue(); b.Opacity = opacity; b.Freeze(); return b; }
         protected static Pen Line(Brush brush, double width, bool round = true) { var p = new Pen(brush, width); if (round) { p.StartLineCap = PenLineCap.Round; p.EndLineCap = PenLineCap.Round; } p.Freeze(); return p; }
         public static readonly Typeface Ui = new Typeface("Segoe UI");
+        // Settings' text size, for the instruments' words (gauge ends, the week's days).
+        public double TextScale = 1;
         protected FormattedText Words(string text, double size, Brush brush)
         {
             return new FormattedText(text ?? "", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Ui, size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
@@ -76,8 +78,8 @@ namespace ClaudeDashboard
             double n = Angle(Value);
             dc.DrawLine(Line(B("Text"), 3), new Point(70, 74), At(n, r - 18));
             dc.DrawEllipse(B("Text"), null, new Point(70, 74), 6, 6);
-            var low = Words(Low, 10, B("Muted")); dc.DrawText(low, new Point(10, 84 - low.Baseline));
-            var high = Words(High, 10, B("Muted")); dc.DrawText(high, new Point(130 - high.Width, 84 - high.Baseline));
+            var low = Words(Low, Math.Round(10 * TextScale), B("Muted")); dc.DrawText(low, new Point(10, 84 - low.Baseline));
+            var high = Words(High, Math.Round(10 * TextScale), B("Muted")); dc.DrawText(high, new Point(130 - high.Width, 84 - high.Baseline));
             dc.Pop();
         }
     }
@@ -117,7 +119,7 @@ namespace ClaudeDashboard
                 if (proj > used) Hatch(dc, new Rect(box.X, 0, lap * proj, bar), B("Accent"), 4);
                 if (used > 0) { dc.PushClip(new RectangleGeometry(box, 4, 4)); dc.DrawRectangle(B("Accent"), null, new Rect(box.X, 0, lap * used, bar)); dc.Pop(); }
                 if (i == Now) dc.DrawRoundedRectangle(null, new Pen(B("Text"), 1), new Rect(box.X + 0.5, 0.5, lap - 1, bar - 1), 4, 4);
-                var day = Words(Days[i] ?? "", 11, B("Muted"));
+                var day = Words(Days[i] ?? "", Math.Round(11 * TextScale), B("Muted"));
                 dc.DrawText(day, new Point(box.X + (lap - day.Width) / 2, bar + 2));
             }
             // The chequered flag.

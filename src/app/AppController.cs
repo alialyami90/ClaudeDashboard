@@ -30,6 +30,8 @@ namespace ClaudeDashboard
         private bool openingSettings, savingSettings, closing, disposed;
         private int ticks, statusClearsAt = int.MaxValue;
         private string pendingMessage, shownTitle, fullSummary = "", shortSummary = "";
+        // How many sessions needed you at the last header update, so a new one is announced once (critique issue 4).
+        private int announcedNeeds;
         // Shorter forms still, for the narrowest headers: the most urgent part with the count, then without it.
         private string[] shorterSummaries = new string[0];
         private double headerWidth, headerHeight;
@@ -352,7 +354,22 @@ namespace ClaudeDashboard
             string title = needs ? (view.NeedsYou == 1 ? "Claude needs you" : view.NeedsYou + " sessions need you") + " · Claude Dashboard" : "Claude Dashboard";
             if (title != shownTitle) { shownTitle = title; window.Title = title; }
             FitHeader(0);
+            Announce(summary, needs ? view.NeedsYou : 0);
         }
+
+        // The header summary is an assertive live region: when a session starts needing you, a screen reader reads it
+        // out at once. Fewer or the same number say nothing.
+        private void Announce(TextBlock summary, int needs)
+        {
+            AutomationProperties.SetLiveSetting(summary, AutomationLiveSetting.Assertive);
+            bool more = needs > announcedNeeds; announcedNeeds = needs;
+            if (!more) return;
+            var peer = System.Windows.Automation.Peers.UIElementAutomationPeer.CreatePeerForElement(summary);
+            if (peer != null) peer.RaiseAutomationEvent(System.Windows.Automation.Peers.AutomationEvents.LiveRegionChanged);
+        }
+        // For the checks: whether the header would announce now.
+        public bool HeaderAnnounces { get { var summary = window.FindName("ClaudeSummary") as TextBlock; return summary != null && AutomationProperties.GetLiveSetting(summary) == AutomationLiveSetting.Assertive; } }
+        public int AnnouncedNeeds { get { return announcedNeeds; } }
 
         private void ToggleQuiet()
         {
