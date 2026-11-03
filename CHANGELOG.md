@@ -6,6 +6,14 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.58.1 (unreleased)
+
+The lap chart's pages get the app's focus ring.
+
+- **Limits and History** pages use the shared `CardParts.PageFocus`, the app's 2-unit ring in Text, instead of WPF's dashed near-black rectangle, which didn't show on the dark page.
+- **Clear of the heading on all four pages.** The ring now sits just inside the page's edge, and the pages pad their content by `CardParts.PageInset` (6 units). On the v0.58.0 render, the ring touched the "R" of "Reliability today"; content now starts 4 units clear of it. Limits and History trim their own margins by the same amount, so they look as before.
+- **Check:** Limits, History, Reliability and Sources each use `PageFocus`, and each page's content starts at least 4 units from the corner.
+
 ## v0.58.0 (unreleased)
 
 Claude Dashboard: the lap chart's Reliability and Sources views (decision 030, package E).
