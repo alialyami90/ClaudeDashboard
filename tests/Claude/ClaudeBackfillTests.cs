@@ -80,7 +80,7 @@ internal static class ClaudeBackfillTests
             var day10 = history.Read(d10.Date);
             Assert(day10 != null && day10.Replies == 2 && day10.Tokens == 300 && day10.CacheRead == 2000 && day10.Threads == 1 && day10.Garages.Count == 1 && day10.Garages[0].Replies == 2
                 && day10.Needs == 3 && day10.LongestWait == 90 && day10.FromLogs, "The partial day wasn't corrected from the logs, keeping its needs: " + (day10 == null ? "none" : day10.Replies + " replies, " + day10.Tokens + " tokens, " + day10.Needs + " needs, " + day10.LongestWait + " s"));
-            Assert(backfill.DaysWritten == 3, "Days written: " + backfill.DaysWritten);
+            Assert(backfill.DaysWritten == 4, "Days written (three built, one v1 day given its detail): " + backfill.DaysWritten);
             foreach (var file in Directory.GetFiles(ClaudeHistory.Folder(bridge)))
             {
                 string text = File.ReadAllText(file);
