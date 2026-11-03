@@ -159,6 +159,30 @@ internal static class LapChartTests
             }
         });
 
+        check("Claude Live's rose (Retrying, API errors) is Reliability's, at 4.5:1 on every palette, Claude and Warm included (v0.58.2)", () => {
+            foreach (string theme in Palettes.Themes)
+            {
+                var scope = new Border();
+                Palettes.Apply(scope.Resources, theme, Palettes.DefaultAccent(theme), 1);
+                var rose = ClaudeReliability.Rose(scope) as SolidColorBrush;
+                Assert(rose != null, theme + ": no rose.");
+                string hex = "#" + rose.Color.R.ToString("X2") + rose.Color.G.ToString("X2") + rose.Color.B.ToString("X2");
+                var c = Palettes.Colors(theme); Func<string, string> key = k => c[Array.IndexOf(Palettes.Keys, k)];
+                foreach (string back in new[] { "Page", "Surface", "Raised" })
+                    Assert(Palettes.Contrast(hex, key(back)) >= 4.5, theme + ": rose " + hex + " on " + back + " is " + Math.Round(Palettes.Contrast(hex, key(back)), 2) + ":1.");
+            }
+            // Live's Retrying words take that rose, not the dark palettes' #F09A9A, on the light palette.
+            var light = new LiveView { Visible = true };
+            var built = light.Build(new ClaudeViewContext(), new Size(1200, 700));
+            Palettes.Apply(built.Resources, "Claude", "Terracotta", 1);
+            light.Refresh(ClaudeView.Fixture(Now, true, true), Now);
+            var lane = light.LaneButton("crowd-10");
+            Assert(lane != null, "No Retrying lane.");
+            var words = ((Grid)lane.Content).Children.OfType<StackPanel>().First().Children.OfType<TextBlock>().First(t => t.Text.StartsWith("Retrying"));
+            var brush = words.Foreground as SolidColorBrush;
+            Assert(brush != null && brush.Color == Color.FromRgb(0xA9, 0x3B, 0x35), "Live's Retrying words aren't the light palette's rose: " + (brush == null ? "none" : brush.Color.ToString()));
+        });
+
         check("Claude Live: the window's Live tab at 640, 1000 and 1600 wide, 100% and 140% (v0.56.0)", () => {
             int seen = 0;
             foreach (double scale in new[] { 1.0, 1.4 })

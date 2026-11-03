@@ -205,7 +205,7 @@ namespace ClaudeDashboard
             foreach (var item in feedShown.Take(feedRoom))
             {
                 var text = CardParts.Text(FeedLine(item, context.Use24Hour), S(13), item.Kind == ClaudeFeedItem.Needs || item.Kind == ClaudeFeedItem.Silent || item.Kind == ClaudeFeedItem.Stuck ? "Warning" : "Muted");
-                if (item.Kind == ClaudeFeedItem.Retrying || item.Kind == ClaudeFeedItem.ApiError) text.Foreground = Rose;
+                if (item.Kind == ClaudeFeedItem.Retrying || item.Kind == ClaudeFeedItem.ApiError) text.Foreground = ClaudeReliability.Rose(root);
                 text.TextTrimming = TextTrimming.CharacterEllipsis;
                 feedLines.Children.Add(text);
             }
@@ -278,7 +278,7 @@ namespace ClaudeDashboard
             lane.Title.Text = ClaudeText.ThreadTitle(t, now, context.Use24Hour);
             lane.State.Text = StateWords(t, now, context.Use24Hour);
             lane.State.Foreground = null;
-            if (t.Lane == ClaudeLaneState.Retrying) lane.State.Foreground = Rose;
+            if (t.Lane == ClaudeLaneState.Retrying) lane.State.Foreground = ClaudeReliability.Rose(root);
             else lane.State.SetResourceReference(TextBlock.ForegroundProperty, t.Lane == ClaudeLaneState.NeedsYou || t.Lane == ClaudeLaneState.Silent || t.Lane == ClaudeLaneState.Stuck ? "Warning" : "Muted");
             lane.Project.Text = t.ProjectName;
             List<ClaudeStateMark> marks; view.Trails.TryGetValue(t.Id, out marks);
@@ -442,7 +442,7 @@ namespace ClaudeDashboard
             panelBody.Children.Add(top);
             Add(t.ProjectName + (ClaudeText.Place(t).Length > 0 ? " · " + ClaudeText.Place(t) : ""), "Muted", 12, 2);
             var state = Add(StateWords(t, now, context.Use24Hour), t.Lane == ClaudeLaneState.NeedsYou || t.Lane == ClaudeLaneState.Silent || t.Lane == ClaudeLaneState.Stuck ? "Warning" : "Text", 14, 10);
-            if (t.Lane == ClaudeLaneState.Retrying) state.Foreground = Rose;
+            if (t.Lane == ClaudeLaneState.Retrying) state.Foreground = ClaudeReliability.Rose(root);
             // What it asks: the notification's words (never a prompt), and Go to it, which only opens the session.
             if (t.Lane == ClaudeLaneState.NeedsYou && t.Message.Length > 0) Add(t.Message, "Text", 13, 4).TextWrapping = TextWrapping.Wrap;
             if (t.Running)
@@ -506,8 +506,7 @@ namespace ClaudeDashboard
 
         // ----- Parts -----
 
-        private static readonly Brush Rose = Frozen(0xFFF09A9A);
-        private static Brush Frozen(uint c) { var b = new SolidColorBrush(Color.FromArgb((byte)(c >> 24), (byte)(c >> 16), (byte)(c >> 8), (byte)c)); b.Freeze(); return b; }
+        // v0.58.2: rose (Retrying, API errors) is ClaudeReliability.Rose, deeper on the light palette so it reads at 4.5:1.
         private static Style laneStyle;
         // A flat button: the lane's whole row, with a 2-unit focus outline.
         private static Style LaneStyle
