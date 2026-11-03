@@ -19,6 +19,29 @@ Claude Dashboard: the lap chart's tab shell (decision 030, package B).
 - **For the views:** a view-host contract (`IClaudeView` in `ClaudeViews.cs`) that the next packages build on, with actions that take the same path as their Settings → Claude buttons, confirmations included.
 - **`--render-view <name>`** renders one view.
 
+## v0.54.0 (unreleased)
+
+Claude Dashboard: the lap chart's engine (package A of the lap chart plan). Nothing on screen changes yet; the Live, Limits, Reliability and Sources views read these. Everything is in memory only and holds names, states and times, never prompts, replies, commands or file contents. No new polling.
+
+- **State timeline per session** for the last five hours (`ClaudeView.Trails`, `ClaudeTimeline`): each change of lane state (Needs you, Stuck, Retrying, Silent, Your turn, Compacting, Working, Idle, Ended), starting no earlier than when the app began watching (`WatchStart`). Each thread has its `Lane` and `LaneSince`.
+- **Last sign of life** goes by the hook's `heard` time, the session's log and now its telemetry events; Silent is still Working with no sign for 5 minutes.
+- **Retrying**: an API error on a working session with no request through since (`ClaudeSession.Retrying`).
+- **Plan reading ring**: the 5-hour readings of the last five hours from the status line and the plan check (`PlanReadings`), and "≈ limit" at the last 30 minutes' pace and at today's average (`LimitAtPace`, `LimitAtAverage`). With fewer than 3 readings there's no projection, and `Why` says so.
+- **Typical tool times**: median, longest, runs and failures per tool across all sessions (`ToolTimes`) and per session (`ClaudeSession.ToolTimes`), from telemetry. Log tool calls now carry the tool's name.
+- **Event feed**: the last 50 state changes, tool failures, API errors and compactions of the projects you show (`Feed`), newest first. A project Settings hides never takes a slot.
+- **For Reliability and Sources**: today's tool runs, the last 24 hours' API errors, today's compactions, a tool name on tool decisions, and each source's freshness (logs' last scan, telemetry's last export and port, the Claude app's records, the plan's next check).
+- **Samples** carry all of it: three hours of trails, readings, a crowd thread retrying, the feed and tool times.
+- **Checks:** `tests/Claude/ClaudeTimelineTests.cs`.
+
+## v0.53.2 (unreleased)
+
+Docs catch up with the observability wave, v0.48.0 to v0.53.0. Docs only.
+
+- **Decision 029:** 5 h and Today are a live status board, and Week is the ledger. It records what each of v0.49.0 to v0.53.0 did for the critique's five issues and the rules it kept: no tool details, no new polling, Amber only for Needs you and warnings, and the dashboard never answers. It also records that on Small, and on any narrow window, healthy sources show as glyphs only, with Reconnect and the reasons in the tooltips. It ends with a polish list of what the wave left for Ali.
+- **DESIGN.md:** the burn tile in place of the rev counter. New sections for the plan row in time, attention first, live rows and the Week ledger, the source-health line with its five steps, and keyboard and window: Tab, the 2-unit focus outline, Ctrl+1, the live region, the taskbar dot and flash, and Keep on top. Amber's uses now cover Stuck, the context bar, old or failed sources and the taskbar dot. Ended rows dim by colour. Text size and contrast are now rules.
+- **PRODUCT.md and README:** the live board and the Week ledger, pace as a time, the queue, the source-health line, the taskbar dot and flash, Ctrl+1 and Keep on top. Telemetry's tool name is listed as read, for Now, and kept in memory only. Decisions run to 029.
+- **The watcher's design note** points to decision 029 and DESIGN.md for anything the older sections describe differently.
+
 ## v0.53.1 (unreleased)
 
 Claude Dashboard: follow-ups to the live status board.

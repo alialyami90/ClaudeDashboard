@@ -9,15 +9,18 @@ It is native WPF on .NET Framework 4.8, with no WebView, no packages and no serv
 ## What it shows
 
 - **Garages and cars.** One garage per project, one car per thread from the last 5 hours, today or the week. The car's class follows its main model (grand tourer for Opus, sports car for Sonnet, hot hatch for Haiku), and its motion says its state: wheels turning while it works, hazards when it needs you, brake lights on your turn, up on the jack while compacting, wheelspin when it's stuck or retrying, a cover when it ends. Click a garage (or Tab to it and press Enter or Space) to roll its cars in or out.
-- **Your plan.** The 5-hour window as a fuel tank with your pace and where it will end up, the week as seven laps, and tokens a minute on a rev counter.
-- **Pit stop.** The thread that has waited longest on you, what it wants ("Wants to use Bash · waiting 2 min") and **Go to it**, which brings its window forward.
-- **The ledger.** Tokens, cache reads, replies or ≈ $ at API prices, model mix and lines added and removed, per project and per thread.
-- **Alerts.** A Windows notification when a session needs you, gets stuck or finishes a long turn, and an optional chime. Quiet mode keeps both silent. A click brings the session's own window forward; the dashboard never answers a permission prompt for you ([decision 027](docs/decisions/027-claude-answer-permission-prompts.md)).
-- **The last 7 days.** Small bars on the rev counter's tile, one a day, with a tick for what last week had used by this time of day.
+- **Your plan.** The 5-hour window as a fuel tank and the week as seven laps, each saying when in plain time: "≈ empty 3:21 am, 37 min before reset" or "≈ 84% by reset". Tokens a minute and the last hour's burn line sit beside them.
+- **Pit stop.** A short queue of what waits on you: a session that needs you, one that's stuck, a reply you've owed for 10 minutes, or a working session that has gone silent for 5. One at a time with "1 of 3" and Next, what it wants ("Wants to use Bash · waiting 2 min") and **Go to it**, which brings its window forward. Projects are ranked the same way, and when the list is longer than the window a line under it says what's below ("+7 below · 1 stuck").
+- **Live rows (5 h and Today).** For each thread: how long it has been in its state, its last sign of life ("just now", "silent 8 min"), the tool it's in now by name ("Bash · 2 min"), a thin context bar, its tokens and lines.
+- **The ledger (Week).** Tokens, cache reads, replies or ≈ $ at API prices, model mix and lines added and removed, per project and per thread.
+- **Where the numbers come from.** A line under the card names each source, Hooks · Logs · Telemetry · Plan, and says whether it's fine, waiting, old or off and why ("Plan 12 min old", "Hooks off: not connected"). Sample data says so there at every size.
+- **Alerts.** A Windows notification when a session needs you, gets stuck or finishes a long turn, and an optional chime. While a session needs you the taskbar button carries an Amber dot with how many, and flashes once for each new one when the window isn't in front. Quiet mode keeps the notifications, chime and flash silent. A click brings the session's own window forward; the dashboard never answers a permission prompt for you ([decision 027](docs/decisions/027-claude-answer-permission-prompts.md)).
+- **The last 7 days.** Small bars beside tokens a minute, one a day, with a tick for what last week had used by this time of day.
 - **Export.** Settings → Claude → History → **Copy summary** (the last 7 days as a Markdown table) and **Save CSV…** (one row per day, project and thread).
 - **Plain list.** Settings → Claude → Show a plain list instead of the pit wall: the same projects, threads, states and numbers as rows of text, named for screen readers, with nothing moving.
+- **Keyboard.** Tab reaches every thread, car and garage; Enter or Space brings a session forward or folds a garage; **Ctrl+1** opens the session that has waited longest. A screen reader hears when a session starts needing you, and every word follows the text size up to 140%.
 
-It's an ordinary window (at least 360 × 300) that remembers where it was and picks a Large, Medium or Small design from its size: the full pit wall, the top garages under two plan tiles, or just the car that needs you over the 5-hour meter. Its edge turns Amber when a session needs you. Settings has three tabs: Theme (Midnight, Slate, Warm or the light Claude palette, accent, text size, clock, Quiet mode), Claude (connection, sign-in, alerts, the plain list, intervals, History and export, projects), and Window (start with Windows, start minimised, open where I last closed it).
+It's an ordinary window (at least 360 × 300) that remembers where it was and picks a Large, Medium or Small design from its size: the full pit wall, the top garages under two plan tiles, or just the car that needs you over the 5-hour meter. Its edge turns Amber when a session needs you, and Glacier when a reply you owe has waited 10 minutes. Settings has three tabs: Theme (Midnight, Slate, Warm or the light Claude palette, accent, text size, clock, Quiet mode), Claude (connection, sign-in, alerts, the plain list, intervals, History and export, projects), and Window (start with Windows, start minimised, open where I last closed it, keep on top).
 
 ## Setting it up
 
@@ -83,7 +86,7 @@ CI on GitHub runs the same checks on every push and pull request. Every change g
 | `hook/` | `ClaudeHook.exe`, which Claude Code's hooks and status line call |
 | `installer/` | The setup exe |
 | `tests/Claude/`, `tests/Migration/` | The watcher's checks and the move from Widget Screen |
-| `docs/decisions/` | Decision records 014–027: why the watcher works the way it does |
+| `docs/decisions/` | Decision records 014–029: why the watcher works the way it does |
 | `docs/design/` | The watcher's design note, the approved pit wall mock and the setup note |
 | `docs/archive/` | Widget Screen's spec, records and notes, kept read-only as history |
 
