@@ -72,7 +72,7 @@ From 640 wide a real tab list under the header chooses the view; each tab has a 
 | Ctrl+1 | **Live** (home) | The lap chart, the 5-hour curve and wall, "What just happened" and the selected session |
 | Ctrl+2 | **Garage** | The pit wall as above, with its own 5 h / Today / Week |
 | Ctrl+3 | **Limits** | The 5-hour window from start to reset, the week's laps, the weekly windows and tokens by project |
-| Ctrl+4 | **History** | 8 weeks of days, the hour-of-day profile, the last 7 days and this week's projects |
+| Ctrl+4 | **History** | 8 weeks of days (files kept a year, past days from the logs), the hour-of-day profile, the last 7 days and this week's projects |
 | Ctrl+5 | **Reliability** | Tool failures, API errors in the last hour, asks and denials, tools across all sessions, and stuck turns with their reasons |
 | Ctrl+6 | **Sources** | Hooks, Logs, Telemetry, Plan meters and Claude app threads, each with its state, freshness, what it gives and one action |
 
@@ -88,9 +88,9 @@ From 640 wide a real tab list under the header chooses the view; each tab has a 
 ### Limits, History, Reliability and Sources
 
 - **Limits**: the window's use curve, the dashed "≈ limit" at the last 30 minutes' pace (Amber with a wall when it hits before the reset), the dotted line at today's average from tokens, and a mark where heavy use began. Beside it, the week as laps by day in whole percents ("<1%" for a little use) with the pace to the reset, the weekly windows (each saying when it isn't reported) and this window's tokens by project.
-- **History**: an 8-week calendar of tokens per day, the hour-of-day profile with a tick at the same hour last week, and the last 7 days (tokens, ≈ $, threads, times it needed you, the longest wait, Amber from 15 minutes). While History is off it says so and where to turn it on.
+- **History**: an 8-week calendar of tokens per day, the hour-of-day profile with a tick at the same hour last week, and the last 7 days (tokens, ≈ $, threads, times it needed you, the longest wait, Amber from 15 minutes). A day built from Claude Code's logs (v0.59.0) gets a small Text-ink dot in its calendar corner, a line in words under the calendar naming those days, and "—" and "from logs" in the last 7 days where the dashboard saw no needs or waits, with a one-line note; never a 0 it didn't count. While History is off it says so and where to turn it on.
 - **Reliability**: the figures for today, the API error strip for the last hour (a rose mark per failed request with its status), tools across all sessions with runs, typical and longest times, failures and asks, and stuck turns with their reasons in plain words, never the reply. With telemetry off it says so and shows the logs' tool count.
-- **Sources**: five rows, each with a glyph and state, how fresh it is, what it gives and one button (Connect, Reconnect, Open folder, Turn on, Sign in, Check now, Show archived). A button takes the same path as its Settings → Claude button, confirmations and backups included, and what went wrong shows above the rows. On the sample nothing changes and it says so.
+- **Sources**: five rows, each with a glyph and state, how fresh it is, what it gives and one button (Connect, Reconnect, Open folder, Turn on, Sign in, Check now, Show archived). A button takes the same path as its Settings → Claude button, confirmations and backups included, and what went wrong shows above the rows. Under the rows, a **History from the logs** tile (v0.59.0) says how long Claude Code keeps its logs ("30 days (Claude Code's default)", or "(set by Claude Dashboard)"), the backfill's progress or result and how many logs couldn't be read, with one button: **Keep logs a year** (`cleanupPeriodDays` 365, dated backup) or **Undo**. On the sample nothing changes and it says so.
 - Limits and History each scroll as one page that Tab reaches; the arrow, Page and Home/End keys scroll it, and a redraw keeps its place.
 
 ## The plain list

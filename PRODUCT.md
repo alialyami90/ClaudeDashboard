@@ -30,13 +30,13 @@ A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud s
 - **Claude Code's own session list and logs,** read-only: token counts per reply, models, times, tool names and lines changed. It also takes the first line of a thread's first request (about 60 characters) as the thread's name when nothing better exists, and keeps it in memory only.
 - **The Claude app's thread records,** read-only: thread title, folder, archived flag and last activity.
 - **Claude Code's OpenTelemetry,** sent to 127.0.0.1 only: event names, counts, costs, tool decisions and the name of the tool a call is in (shown as Now, kept in memory only). Prompts, replies and tool details (inputs, commands, arguments) stay off.
-- **The plan's usage meters** from `api.anthropic.com`, every 5 minutes by default while signed in with the app's own **Sign in with Claude** (`user:profile` only).
+- **The plan's usage meters** from `api.anthropic.com`, every 5 minutes by default while signed in with the app's own **Sign in with Claude** (`user:profile` only). Anthropic's [legal page](https://code.claude.com/docs/en/legal-and-compliance) says other apps may not offer Claude.ai login or store its tokens; Ali was told and kept the sign-in as it is (3 Nov 2026).
 - **Widget Screen's folder** (`%LOCALAPPDATA%\WidgetScreen`): read once, when the first run offers to bring its Claude settings, sign-in and bridge over. Since v0.48.0 the hook also writes its session files and `limits.json` into `WidgetScreen\claude` when that folder exists, so Widget Screen stays current (decision 028); nothing else there is written.
 
 ## What it keeps
 
 - Its settings, its own sign-in and the bridge folder, in `%LOCALAPPDATA%\ClaudeDashboard`.
-- A daily summary per day (on by default, kept 8 weeks) in `claude\history\`: tokens, cache reads, replies, threads, the API value, how often a session needed you and the longest wait (counted while the window is open), by hour and by project. Numbers and project names only: no prompts, replies, titles or session ids. Turning it off deletes the files.
+- A daily summary per day (on by default, kept a year since v0.59.0) in `claude\history\`: tokens, cache reads, replies, threads, the API value, how often a session needed you and the longest wait (counted while the window is open), by hour and by project. Numbers, project folders and the folder's own name only: no prompts, replies, titles, thread names or session ids. Past days the dashboard didn't see are built once from Claude Code's logs (`ClaudeBackfill`, never today, never over a complete day) and marked "from logs", because the logs can't say when a session needed you or how long it waited. Turning it off deletes the files. The History calendar shows the last 8 weeks of them.
 - In memory only, for the lap chart (decision 030): each session's state changes over the last 5 hours, the plan readings of the 5-hour window, tool run times and the last 50 lines of "What just happened". Names, states and times only, gone when the app closes.
 - Nothing else. Copy summary and Save CSV write only when the user asks, and only what the ledger shows: dates, projects, thread names the user, Claude Code or the Claude app gave (otherwise an id label), models, counts and costs.
 
@@ -47,7 +47,7 @@ A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud s
 - It never listens on the network. The telemetry receiver binds to 127.0.0.1 and takes JSON only.
 - It never spends credits. The usage endpoint reads the meters; nothing calls a model.
 - It never answers a permission dialog or acts in a session (decision 027). Needs you brings the session's own window forward, and the user answers there.
-- It never overwrites the user's own Claude Code settings: Connect merges into `settings.json` with a dated backup, leaves the user's `OTEL_*` values alone, and says when managed settings override it.
+- It never overwrites the user's own Claude Code settings: Connect merges into `settings.json` with a dated backup, leaves the user's `OTEL_*` values alone, and says when managed settings override it. Sources → Keep logs a year changes one value, `cleanupPeriodDays` to 365, only on that press and with the same backups; Undo and Disconnect put back what was there only while the value is still the dashboard's own (`logs-kept.json` in the bridge folder).
 
 ## The honest-numbers promise
 

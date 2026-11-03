@@ -19,7 +19,7 @@ The prototype is the bottom artboard of "Claude Dashboard app layouts". Its numb
 | Ctrl+1 | **Live** (home) | The lap chart, the 5-hour curve and wall, "What just happened" and the selected-session panel | Bridge session files, logs, telemetry, plan meters, and the in-memory timeline |
 | Ctrl+2 | **Garage** | The pit wall as it was at v0.53.x, with its own 5 h / Today / Week switch | As before |
 | Ctrl+3 | **Limits** | The 5-hour window from start to reset: use curve, projections at the last 30 minutes' pace and at today's average, and the onset of heavy use. Also week laps per day with pace, per-model weekly windows, extra usage, spend limit, and tokens in this window by project | `ClaudeLimits`, and the in-memory plan reading ring |
-| Ctrl+4 | **History** | 8-week calendar, hour-of-day profile against the same hour last week, the last 7 days, and projects this week | `ClaudeHistory` day files (numbers only, kept 8 weeks) |
+| Ctrl+4 | **History** | 8-week calendar, hour-of-day profile against the same hour last week, the last 7 days, and projects this week | `ClaudeHistory` day files (numbers and project folders, kept a year since v0.59.0; past days built from Claude Code's logs by `ClaudeBackfill`) |
 | Ctrl+5 | **Reliability** | Tool failure rate, API errors in the last hour, asks and denials, compactions, edits accepted and rejected; the API error strip; tools across all sessions; and stuck turns today with their reasons | Telemetry tool runs and API errors, the logs' tool entries, and the bridge's error fields |
 | Ctrl+6 | **Sources** | Hooks, Logs, Telemetry, Plan meters and Claude app threads: each with its state, freshness, what it gives, and one action | Connector, watcher, telemetry and sign-in states |
 
