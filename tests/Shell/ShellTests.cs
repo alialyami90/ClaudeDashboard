@@ -318,17 +318,22 @@ internal static class ShellTests
             {
                 // The fixture's Your-turn thread has waited 12 minutes: Glacier. Turns that ended moments ago don't light it.
                 controller.UseClaudeSample(false);
+                // The card fills in once it's laid out, so each state is rendered before it's checked.
+                AppController.Render(window, new Size(1000, 600), 1, Path.Combine(renders, "shell-alerts-1000x600-old-turn.png"));
                 var card = controller.ClaudeCardView;
                 var view = card.View;
                 DateTime now = DateTime.UtcNow;
                 Assert(view.Attention(now).Any(a => a.Kind == ClaudeAttention.Turn) && card.Edge == "Turn", "A reply owed for 12 minutes doesn't turn the edge Glacier: " + card.Edge);
                 foreach (var turn in view.Sessions.Where(x => x.YourTurn)) turn.Since = now.AddMinutes(-3);
                 card.Update(view);
-                Assert(card.Edge == null && ColorOf(((Border)window.FindName("WindowEdge")).BorderBrush) == Colors.Transparent, "A turn that ended 3 minutes ago lights the edge: " + card.Edge);
                 foreach (var size in new[] { new Size(360, 300), new Size(640, 420), new Size(1000, 600), new Size(1600, 900) })
+                {
                     AppController.Render(window, size, 1, Path.Combine(renders, "shell-alerts-" + size.Width + "x" + size.Height + "-recent-turn.png"));
+                    Assert(card.Edge == null && ColorOf(((Border)window.FindName("WindowEdge")).BorderBrush) == Colors.Transparent, size + ": a turn that ended 3 minutes ago lights the edge: " + card.Edge);
+                }
                 foreach (var turn in view.Sessions.Where(x => x.YourTurn)) turn.Since = now.AddMinutes(-(ClaudeAttention.TurnWaits.TotalMinutes + 1));
                 card.Update(view);
+                AppController.Render(window, new Size(1000, 600), 1, Path.Combine(renders, "shell-alerts-1000x600-turn-11min.png"));
                 Assert(card.Edge == "Turn", "The edge didn't turn Glacier at 10 minutes.");
                 // No dot while nothing needs you.
                 Assert(window.TaskbarItemInfo == null || window.TaskbarItemInfo.Overlay == null, "The taskbar shows a dot with nothing needing you.");
