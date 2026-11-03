@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // A session's state as the card shows it (docs/design/claude-watcher.md). Stuck (decision 023): Claude Code's
     // turn ended on an API error (StopFailure) or it stopped waiting for a usage limit, until the next turn starts.
@@ -662,7 +662,8 @@ namespace WidgetScreen
         private static void Delete(string path) { try { if (File.Exists(path)) File.Delete(path); } catch (Exception) { } }
 
         // Hooks for one session can run at the same moment (a tool finishing while the status line updates); a named
-        // mutex per session keeps their read-change-write from losing each other's change.
+        // mutex per session keeps their read-change-write from losing each other's change. The name keeps Widget Screen's
+        // prefix so a hook built before the namespace rename and one built after still share the lock.
         private static void WithSession(string id, Action action)
         {
             using (var mutex = new Mutex(false, "Local\\WidgetScreen.Claude." + SafeName(id)))

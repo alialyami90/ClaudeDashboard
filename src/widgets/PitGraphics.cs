@@ -5,7 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // The Claude card's pit wall instruments (docs/design/claude-watcher-v2.html; decision 017), drawn as vectors in the
     // theme's colours: the needle gauges, the pace meter, the week's laps, the burn line, the model mix and the 5-hour

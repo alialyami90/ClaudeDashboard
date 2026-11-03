@@ -3,7 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // A thread's name on the Claude card (Ali, 1 Nov 2026; decision 018). The Claude app gives every Remote Control
     // thread the same placeholder title ("Remote Control session (from a project)"), so placeholders count as no title.

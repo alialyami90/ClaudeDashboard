@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // One moment worth telling the user about (package 3, decision 025): a session started needing you, got stuck, or
     // finished a turn of 10 minutes or more. Seq only grows, so the phone can tell which it has already shown.

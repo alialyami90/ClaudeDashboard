@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // A Claude Code session as the card and the phone show it.
     public sealed class ClaudeSession

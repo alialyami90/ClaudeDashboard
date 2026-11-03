@@ -8,7 +8,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // Package 1 of the watcher plan, "Trust the sources" (decision 023): a session lives until its own SessionEnd or its
 // process is gone, every hook event Claude Code documents is read (fixtures shaped like the hooks reference), Stuck has

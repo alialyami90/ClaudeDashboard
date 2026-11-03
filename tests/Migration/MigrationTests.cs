@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // Phase 5 (decision 026): the first run's offer to bring Widget Screen's Claude files over from %LOCALAPPDATA%\WidgetScreen
 // to %LOCALAPPDATA%\ClaudeDashboard, and to point Claude Code's hooks at the new ClaudeHook.exe. Everything runs in

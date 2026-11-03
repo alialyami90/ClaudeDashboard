@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // The Claude Code watcher (docs/design/claude-watcher.md): the settings.json merge, the bridge's files, the logs, the
 // plan limits, the card's sizes and the phone's words. Everything runs in temporary folders under the test output;

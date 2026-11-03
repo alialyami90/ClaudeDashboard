@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // One thing Claude Code's telemetry said about a session: a prompt, a tool decision or result, an API request
     // (with its usage), or only that the session was active (a metric).

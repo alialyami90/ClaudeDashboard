@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Claude Dashboard's entry point. ShellProgram opens the window (or draws a render and exits); this keeps what the
     // rest of the app asks of the program: whether this run is a render, and the error log.

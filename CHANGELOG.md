@@ -6,6 +6,14 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.47.3 (unreleased)
+
+Claude Dashboard: the code's namespace is renamed.
+
+- **`WidgetScreen` → `ClaudeDashboard`** in every C# file under `src\`, `hook\` and `tests\`, and `WidgetScreenSetup` → `ClaudeDashboardSetup` in the setup exe. The XAML resources are embedded as `ClaudeDashboard.<FileName>`, the manifest's identity is `ClaudeDashboard.app`, and the sign-in's requests say `ClaudeDashboard/<version>`.
+- **`scripts\make-icon.ps1`** looks up `PitArt`, `PitRaster` and `PitState` in the new namespace.
+- **Nothing you use changes.** Names other programs or saved files depend on stay as they were: the `WIDGETSCREEN_*` variables the checks set, the `.widgetscreen-backup` suffix Disconnect looks for, the hook's `Local\WidgetScreen.Claude.` mutex (so a hook built before the rename and one built after share the lock) and the sign-in's DPAPI entropy (a new value would sign everyone out).
+
 ## v0.47.2 (unreleased)
 
 Claude Dashboard: the header's summary.

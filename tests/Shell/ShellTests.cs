@@ -4,7 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // Claude Dashboard's window (phase 4 of the transformation plan): the palettes, the window picking the card's design
 // from its size, the header, the Settings window's preview, Cancel and Save, the window's place, and Start with

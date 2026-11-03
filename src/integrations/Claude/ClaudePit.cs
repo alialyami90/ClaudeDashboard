@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // What a thread's car does on the v2 card (docs/design/claude-watcher-v2.html, decisions 017 and 019): Idle (engine
     // off: nothing asked yet, or your turn for over 30 minutes), Work (wheels turning), Rev (a long tool run: holding on

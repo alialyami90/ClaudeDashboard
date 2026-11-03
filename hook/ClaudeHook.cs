@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // ClaudeHook.exe, the bridge between Claude Code and the dashboard (docs/design/claude-watcher.md, decision 014).
     // Claude Code runs "ClaudeHook.exe hook" for its hooks and "ClaudeHook.exe statusline" for its status line, with JSON

@@ -29,7 +29,7 @@ $info = Join-Path $generated 'SetupInfo.cs'
     '[assembly: System.Reflection.AssemblyVersion("' + $core + '.0")]'
     '[assembly: System.Reflection.AssemblyFileVersion("' + $core + '.0")]'
     '[assembly: System.Reflection.AssemblyInformationalVersion("' + $label.TrimStart('v') + '")]'
-    'namespace WidgetScreenSetup { static class SetupInfo { public const string Version = "' + $label.TrimStart('v') + '"; } }'
+    'namespace ClaudeDashboardSetup { static class SetupInfo { public const string Version = "' + $label.TrimStart('v') + '"; } }'
 ) | Set-Content -LiteralPath $info -Encoding utf8
 $setupPath = Join-Path $output "ClaudeDashboard-Setup-$label.exe"
 $references = @('System.dll', 'System.Core.dll', 'System.Xaml.dll', 'WPF\WindowsBase.dll', 'WPF\PresentationCore.dll', 'WPF\PresentationFramework.dll') | ForEach-Object { '/reference:' + (Join-Path $frameworkPath $_) }

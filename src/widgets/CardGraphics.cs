@@ -6,7 +6,7 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Drawn parts shared by the Claude card's designs (docs/design/claude-watcher.md). They draw only when a reading
     // changes; nothing animates. Brushes are set with SetResourceReference so palettes and accents apply live.

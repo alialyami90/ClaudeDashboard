@@ -21,7 +21,7 @@ A Windows desktop app whose whole window is the Claude Code watcher: every Claud
 
 Cloud garage (package 4.3) waits on a one-time look at the Claude app's cloud thread records on Ali's PC (Watcher).
 
-The C# namespace stays `WidgetScreen` until its own rename PR at v0.47.3 (it moved out of phase 4; that PR also updates `make-icon.ps1`, which loads `WidgetScreen.PitArt` by name). Since v0.46.0 settings, the sign-in and the bridge live in `%LOCALAPPDATA%\ClaudeDashboard`, and Claude Code's hooks run `...\ClaudeDashboard\claude\ClaudeHook.exe`. `%LOCALAPPDATA%\WidgetScreen` is only read, by the first run's offer to bring it over (`Migration`, `AppController.Migration.cs`); never write to it. Each member touches only the files the plan gives them; the Lead writes `CHANGELOG.md`, `CLAUDE.md` and `BRANCHES.md` at each merge, and the Scribe reviews every PR.
+Since v0.47.3 the C# namespace is `ClaudeDashboard` (the setup's is `ClaudeDashboardSetup`), and XAML is embedded as `ClaudeDashboard.<FileName>`. Strings that leave the app keep Widget Screen's name on purpose: the `WIDGETSCREEN_*` variables, the `.widgetscreen-backup` suffix, the `Local\WidgetScreen.Claude.` hook mutex and the sign-in's DPAPI entropy `WidgetScreen.ClaudeSignIn`. Since v0.46.0 settings, the sign-in and the bridge live in `%LOCALAPPDATA%\ClaudeDashboard`, and Claude Code's hooks run `...\ClaudeDashboard\claude\ClaudeHook.exe`. `%LOCALAPPDATA%\WidgetScreen` is only read, by the first run's offer to bring it over (`Migration`, `AppController.Migration.cs`); never write to it. Each member touches only the files the plan gives them; the Lead writes `CHANGELOG.md`, `CLAUDE.md` and `BRANCHES.md` at each merge, and the Scribe reviews every PR.
 
 ## The engine
 

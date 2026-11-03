@@ -7,7 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace WidgetScreenSetup
+namespace ClaudeDashboardSetup
 {
     // Claude Dashboard setup: one exe that installs, updates and (copied into the install folder) uninstalls.
     //   ClaudeDashboard-Setup-vX.Y.Z.exe              install or update, with a window

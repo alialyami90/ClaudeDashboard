@@ -5,7 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // Package 2 of the watcher plan, "Honest numbers": Claude Code's own cost and clocks from the status line, a spend
 // limit, unknown models shown as unpriced rather than $0, telemetry's tool runs, API errors and counters, the car

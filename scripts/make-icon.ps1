@@ -9,9 +9,9 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $appPath = Join-Path (Join-Path $projectRoot $AppDirectory) 'ClaudeDashboard.exe'
 if (-not (Test-Path -LiteralPath $appPath)) { throw "$appPath is missing. Run scripts\build.ps1 first." }
 $app = [System.Reflection.Assembly]::LoadFrom($appPath)
-# The types by name in either namespace (WidgetScreen until phase 4 renames it to ClaudeDashboard).
+# The types by name in the app's namespace (ClaudeDashboard since v0.47.3).
 function AppType([string]$name) {
-    $type = @($app.GetTypes() | Where-Object { $_.Name -eq $name -and ($_.Namespace -eq 'WidgetScreen' -or $_.Namespace -eq 'ClaudeDashboard') }) | Select-Object -First 1
+    $type = @($app.GetTypes() | Where-Object { $_.Name -eq $name -and $_.Namespace -eq 'ClaudeDashboard' }) | Select-Object -First 1
     if (-not $type) { throw "$name isn't in $appPath." }
     $type
 }

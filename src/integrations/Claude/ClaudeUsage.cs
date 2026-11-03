@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // The periods the card counts tokens over (docs/design/claude-watcher.md).
     public enum ClaudePeriod { FiveHour, Today, Week }

@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // Package 3 of the watcher plan, "Instant and everywhere" (decision 025): folder watchers instead of the 2-second look,
 // the project groups worked out once per view, alerts for Windows notifications and the phone, helpers and tasks on

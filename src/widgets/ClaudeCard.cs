@@ -11,7 +11,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // The Claude card's words (docs/design/claude-watcher.md and claude-watcher-v2.html), the same as ClaudeText.java on
     // the phone.

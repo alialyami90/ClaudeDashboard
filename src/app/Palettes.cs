@@ -2,7 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Media;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Claude Dashboard's palettes (phase 4 of the transformation plan): Midnight, Slate and Warm from the widget app,
     // and Claude, a light one in the spirit of the Claude app (warm paper, soft black, terracotta). Every window of the

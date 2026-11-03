@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Settings → Claude → Connect Claude Code (docs/design/claude-watcher.md, decisions 014 and 015): adds Widget Screen's
     // hooks, status line and telemetry settings (the env block) to Claude Code's settings.json, and Disconnect takes

@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Settings → Claude → Copy summary and Save CSV (package 4): the last 7 days as Markdown for pasting, and the ledger
     // as CSV, one row per day, project and thread. Only what the card already shows: names, counts and costs, never a

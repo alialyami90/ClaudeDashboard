@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Phase 5 (decision 026): Claude Dashboard keeps its settings in %LOCALAPPDATA%\ClaudeDashboard, and Widget Screen
     // kept them in %LOCALAPPDATA%\WidgetScreen. On the first run with nothing in the new folder and something in the old

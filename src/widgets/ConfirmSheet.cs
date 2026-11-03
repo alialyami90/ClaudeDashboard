@@ -5,7 +5,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // The one way the dashboard asks "are you sure": a themed sheet over the dashboard with 52 px buttons, instead of
     // a Win32 message box that ignores the theme, the Viewbox scale and the touch sizes. Escape or the scrim cancels.
