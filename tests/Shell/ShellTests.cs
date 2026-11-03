@@ -431,8 +431,10 @@ internal static class ShellTests
                 var view = controller.ClaudeCardView.View; view.LogsFailed = true;
                 controller.ClaudeCardView.Update(view);
                 AppController.Render(window, new Size(1280, 760), 1, Path.Combine(Renders(directory), "shell-logs-unreadable-1280x760.png"));
-                var words = Texts(window).Where(t => Shown(t, window) && t.ActualWidth > 0 && t.Text.Contains("NO LOGS")).ToList();
-                Assert(words.Count >= 2, "The side panel doesn't say NO LOGS for the tokens and tools: " + words.Count);
+                Assert(window.FindName("ClaudeSide") is FrameworkElement, "No side panel at 1280 × 760 (" + controller.ClaudeCardView.Current + ").");
+                var keys = Enumerable.Range(0, 4).Select(i => window.FindName("ClaudeFact" + i) as Panel).Where(f => f != null).Select(f => f.Children.OfType<TextBlock>().Last()).ToList();
+                var words = keys.Where(t => t.Text.Contains("NO LOGS")).ToList();
+                Assert(words.Count >= 2, "The side panel doesn't say NO LOGS for the tokens and tools: " + String.Join(" / ", keys.Select(t => t.Text)));
                 foreach (var t in words) Assert(!Cut(t), "The side panel cuts \"" + t.Text + "\".");
             }
         });
