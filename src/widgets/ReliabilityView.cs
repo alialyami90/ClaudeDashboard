@@ -358,7 +358,7 @@ namespace ClaudeDashboard
             var head = CardParts.Columns(CardParts.Star, CardParts.Auto);
             var title = CardParts.Text("Reliability today", S(18), "Text"); title.FontWeight = FontWeights.SemiBold;
             head.Children.Add(title);
-            sample = CardParts.Text("SAMPLE", S(12), "Muted"); sample.VerticalAlignment = VerticalAlignment.Center; sample.Visibility = this.context.Sample ? Visibility.Visible : Visibility.Collapsed;
+            sample = CardParts.Text("Sample", S(12), "Muted"); sample.FontWeight = FontWeights.SemiBold; sample.VerticalAlignment = VerticalAlignment.Center; sample.Visibility = this.context.Sample ? Visibility.Visible : Visibility.Collapsed;
             head.Children.Add(CardParts.At(sample, 0, 1));
             stack.Children.Add(head);
             // The five figures: one row from 900 wide, else three and two.

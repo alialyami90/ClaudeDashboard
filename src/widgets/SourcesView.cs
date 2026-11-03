@@ -152,6 +152,8 @@ namespace ClaudeDashboard
         // Set by the checks in place of the host's Act (the same path as Settings → Claude's buttons, confirmations
         // included).
         public Func<string, string> Act;
+        // The sample's buttons are off: there's nothing behind them to change (the window's Act says the same).
+        public const string SampleRefusal = "These are sample numbers, so there's nothing to change.";
         private Func<string, string> Acts { get { return Act ?? context.Act; } }
 
         public FrameworkElement Build(ClaudeViewContext context, Size room)
@@ -163,7 +165,7 @@ namespace ClaudeDashboard
             var head = CardParts.Columns(CardParts.Star, CardParts.Auto);
             var title = CardParts.Text("Sources", S(18), "Text"); title.FontWeight = FontWeights.SemiBold;
             head.Children.Add(title);
-            sample = CardParts.Text("SAMPLE", S(12), "Muted"); sample.VerticalAlignment = VerticalAlignment.Center; sample.Visibility = this.context.Sample ? Visibility.Visible : Visibility.Collapsed;
+            sample = CardParts.Text("Sample", S(12), "Muted"); sample.FontWeight = FontWeights.SemiBold; sample.VerticalAlignment = VerticalAlignment.Center; sample.Visibility = this.context.Sample ? Visibility.Visible : Visibility.Collapsed;
             head.Children.Add(CardParts.At(sample, 0, 1));
             stack.Children.Add(head);
             var intro = CardParts.Text("Where every number comes from, and how fresh it is. A source that stops shows here and on the Live header at once.", S(13), "Muted");
@@ -248,6 +250,10 @@ namespace ClaudeDashboard
                 c.Glyph.SetResourceReference(TextBlock.ForegroundProperty, brush);
                 c.State.SetResourceReference(TextBlock.ForegroundProperty, r.Level == ClaudeHealthLevel.Ok ? "Text" : brush == "Muted" ? "Text" : brush);
                 c.Button.Content = r.Button; c.Button.Tag = r.Action;
+                bool sampled = context.Sample || (snapshot != null && snapshot.Sample);
+                c.Button.IsEnabled = !sampled;
+                ToolTipService.SetShowOnDisabled(c.Button, true);
+                c.Button.ToolTip = sampled ? SampleRefusal : null;
                 AutomationProperties.SetName(c.Button, r.Button + ", " + r.Name);
                 AutomationProperties.SetName(c.Row, r.Name + ": " + r.State + (r.Fresh.Length > 0 ? ", " + r.Fresh : "") + ". Gives " + r.Gives + ".");
                 AutomationProperties.SetHelpText(c.Row, r.Tip);

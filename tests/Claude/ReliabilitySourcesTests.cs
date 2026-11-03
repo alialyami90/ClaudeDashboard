@@ -175,8 +175,17 @@ internal static class ReliabilitySourcesTests
             Assert(ClaudeSources.Of(view, DateTime.UtcNow, false, null)[0].Action == ClaudeSources.Connect, "Hooks off should offer Connect.");
         });
 
+        check("Sources' buttons are off on the sample, and say why", () => {
+            var view = ClaudeView.Fixture(DateTime.UtcNow, false);
+            Host(new SourcesView(), view, new Size(1000, 700), 1, "Midnight", (window, root) => {
+                var buttons = Descendants(root).OfType<Button>().ToList();
+                Assert(buttons.Count == 5 && buttons.All(b => !b.IsEnabled && (b.ToolTip as string) == SourcesView.SampleRefusal), "The sample's buttons should be off with the refusal in their tip.");
+            });
+        });
+
         check("Sources buttons only call the host's Act, with the action's name", () => {
             var view = ClaudeView.Fixture(DateTime.UtcNow, false);
+            view.Sample = false;
             var sources = new SourcesView();
             var asked = new List<string>();
             Host(sources, view, new Size(1000, 700), 1, "Midnight", (window, root) => {
