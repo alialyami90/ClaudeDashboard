@@ -52,6 +52,10 @@ namespace ClaudeDashboard
     public sealed class ClaudeDayDetail
     {
         public const int Version = 2;
+        // The tally's revision inside v2 ("rev" in the detail). A kept day with an older revision gets its detail again
+        // from the logs. 2 (v0.60.1): sessions on the day they started, hook permissions, API errors from api_error lines.
+        public const int CurrentRevision = 2;
+        public int Revision = CurrentRevision;
         // Bucket edges in milliseconds for tool and thinking times: an ≈ median comes from the bucket it falls in.
         public static readonly long[] Edges = { 100, 300, 1000, 3000, 10000, 30000, 60000, 180000, 600000, 1800000, 3600000 };
 
@@ -63,14 +67,19 @@ namespace ClaudeDashboard
         public int[] ThinkingBuckets = new int[Edges.Length + 1];
         public Dictionary<string, ClaudeToolUse> Tools = new Dictionary<string, ClaudeToolUse>(StringComparer.Ordinal);
         public Dictionary<string, int> Mcp = new Dictionary<string, int>(StringComparer.Ordinal), Skills = new Dictionary<string, int>(StringComparer.Ordinal), Plugins = new Dictionary<string, int>(StringComparer.Ordinal);
-        // permissionDecision: allowed without asking, allowed by a rule, asked, denied.
-        public int PermAuto, PermRule, PermAsked, PermDenied;
-        // API errors (replies Claude Code marked as an API error), retries (its api_error lines), compactions.
+        // permissionDecision: allowed by a rule (source "config"), allowed by a hook ("hook"), asked and allowed
+        // (the person answered, "user_temporary" and the like), denied ("reject").
+        public int PermRule, PermHook, PermAsked, PermDenied;
+        // API errors (Claude Code's api_error lines and replies it marked as an API error), retries (the api_error
+        // lines that say a retry follows), compactions.
         public int ApiErrors, Retries, Compactions;
         // Stop reasons: tool_use, end_turn, and the rest under "other".
         public Dictionary<string, int> Stops = new Dictionary<string, int>(StringComparer.Ordinal);
-        // Each session's length that day in minutes (its first to its last line), longest first.
+        // Each session that started that day: its length in minutes (its first to its last line, past midnight too),
+        // longest first. A session counts only on the day it started, so a range's sum is exact.
         public List<int> SessionMinutes = new List<int>();
+        // Per project folder: the sessions that started there that day.
+        public Dictionary<string, int> ProjectSessions = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public long LinesAdded, LinesRemoved;
         // Per project folder: lines added and removed.
         public Dictionary<string, long[]> ProjectLines = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
@@ -80,15 +89,27 @@ namespace ClaudeDashboard
         public int MedianSession { get { if (SessionMinutes.Count == 0) return 0; var s = SessionMinutes.OrderBy(m => m).ToList(); return s[s.Count / 2]; } }
         public int Replies { get { return Models.Values.Sum(m => m.Replies); } }
 
-        // The bucket for a time, and the ≈ median of a histogram (the upper edge of the bucket the middle falls in;
-        // past the last edge, the last edge). Null with nothing counted.
+        // The bucket for a time, and the ≈ median of a histogram. The median falls in one bucket; within it, it sits as
+        // far along as its rank among that bucket's counts, on a log scale (the edges grow about threefold), so it
+        // isn't pinned to the bucket's upper edge. Below the first edge the scale is straight; past the last edge, the
+        // last edge. Null with nothing counted.
         public static int Bucket(long ms) { int i = 0; while (i < Edges.Length && ms >= Edges[i]) i++; return i; }
         public static long? Median(int[] buckets)
         {
-            int total = buckets == null ? 0 : buckets.Sum();
+            long total = buckets == null ? 0 : buckets.Sum(b => (long)Math.Max(0, b));
             if (total == 0) return null;
-            int seen = 0, half = (total + 1) / 2;
-            for (int i = 0; i < buckets.Length; i++) { seen += buckets[i]; if (seen >= half) return Edges[Math.Min(i, Edges.Length - 1)]; }
+            double half = total / 2.0, before = 0;
+            for (int i = 0; i < buckets.Length; i++)
+            {
+                int n = Math.Max(0, buckets[i]);
+                if (n == 0 || before + n < half) { before += n; continue; }
+                if (i >= Edges.Length) return Edges[Edges.Length - 1];
+                double f = Math.Max(0, Math.Min(1, (half - before) / n));
+                if (f == 0) f = 0.5 / n;
+                double low = i == 0 ? 0 : Edges[i - 1], high = Edges[i];
+                double v = i == 0 ? high * f : low * Math.Pow(high / low, f);
+                return (long)Math.Round(v);
+            }
             return Edges[Edges.Length - 1];
         }
 
@@ -105,9 +126,11 @@ namespace ClaudeDashboard
             for (int i = 0; i < ThinkingBuckets.Length && i < o.ThinkingBuckets.Length; i++) ThinkingBuckets[i] += o.ThinkingBuckets[i];
             foreach (var p in o.Tools) { ClaudeToolUse t; if (!Tools.TryGetValue(p.Key, out t)) { t = new ClaudeToolUse(); Tools[p.Key] = t; } t.Add(p.Value); }
             AddAll(Mcp, o.Mcp); AddAll(Skills, o.Skills); AddAll(Plugins, o.Plugins); AddAll(Stops, o.Stops);
-            PermAuto += o.PermAuto; PermRule += o.PermRule; PermAsked += o.PermAsked; PermDenied += o.PermDenied;
+            Revision = Math.Min(Revision, o.Revision);
+            PermHook += o.PermHook; PermRule += o.PermRule; PermAsked += o.PermAsked; PermDenied += o.PermDenied;
             ApiErrors += o.ApiErrors; Retries += o.Retries; Compactions += o.Compactions;
             SessionMinutes.AddRange(o.SessionMinutes);
+            AddAll(ProjectSessions, o.ProjectSessions);
             LinesAdded += o.LinesAdded; LinesRemoved += o.LinesRemoved;
             foreach (var p in o.ProjectLines) { long[] l; if (!ProjectLines.TryGetValue(p.Key, out l)) { l = new long[2]; ProjectLines[p.Key] = l; } l[0] += p.Value[0]; l[1] += p.Value[1]; }
         }
@@ -140,10 +163,12 @@ namespace ClaudeDashboard
             }
             o["tools"] = tools;
             o["mcp"] = Counts(Mcp); o["skills"] = Counts(Skills); o["plugins"] = Counts(Plugins);
-            var perm = new JsonObject(); perm["auto"] = N(PermAuto); perm["rule"] = N(PermRule); perm["asked"] = N(PermAsked); perm["denied"] = N(PermDenied); o["permissions"] = perm;
+            var perm = new JsonObject(); perm["rule"] = N(PermRule); perm["hook"] = N(PermHook); perm["asked"] = N(PermAsked); perm["denied"] = N(PermDenied); o["permissions"] = perm;
             var health = new JsonObject(); health["apiErrors"] = N(ApiErrors); health["retries"] = N(Retries); health["compactions"] = N(Compactions); o["health"] = health;
             o["stops"] = Counts(Stops);
             o["sessions"] = Ints(SessionMinutes.OrderByDescending(m => m));
+            o["projectSessions"] = Counts(ProjectSessions);
+            o["rev"] = N(Revision);
             var lines = new JsonObject(); lines["added"] = N(LinesAdded); lines["removed"] = N(LinesRemoved); o["lines"] = lines;
             var pl = new JsonObject(); foreach (var p in ProjectLines.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase)) pl[p.Key] = new List<object> { N(p.Value[0]), N(p.Value[1]) }; o["projectLines"] = pl;
             return o;
@@ -185,9 +210,11 @@ namespace ClaudeDashboard
             }
             d.Mcp = ReadCounts(ClaudeJson.Obj(o, "mcp")); d.Skills = ReadCounts(ClaudeJson.Obj(o, "skills")); d.Plugins = ReadCounts(ClaudeJson.Obj(o, "plugins")); d.Stops = ReadCounts(ClaudeJson.Obj(o, "stops"));
             var perm = ClaudeJson.Obj(o, "permissions");
-            d.PermAuto = (int)L(perm, "auto"); d.PermRule = (int)L(perm, "rule"); d.PermAsked = (int)L(perm, "asked"); d.PermDenied = (int)L(perm, "denied");
+            d.PermHook = (int)L(perm, "hook"); d.PermRule = (int)L(perm, "rule"); d.PermAsked = (int)L(perm, "asked"); d.PermDenied = (int)L(perm, "denied");
             var health = ClaudeJson.Obj(o, "health");
             d.ApiErrors = (int)L(health, "apiErrors"); d.Retries = (int)L(health, "retries"); d.Compactions = (int)L(health, "compactions");
+            d.ProjectSessions = new Dictionary<string, int>(ReadCounts(ClaudeJson.Obj(o, "projectSessions")), StringComparer.OrdinalIgnoreCase);
+            d.Revision = (int)L(o, "rev");
             foreach (var n in (ClaudeJson.List(o, "sessions") ?? new List<object>()).OfType<JsonNumber>()) if (!Double.IsNaN(n.Value) && n.Value >= 0) d.SessionMinutes.Add((int)n.Value);
             var lines = ClaudeJson.Obj(o, "lines"); d.LinesAdded = L(lines, "added"); d.LinesRemoved = L(lines, "removed");
             var pl = ClaudeJson.Obj(o, "projectLines");

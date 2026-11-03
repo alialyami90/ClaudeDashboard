@@ -6,6 +6,17 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.60.1 (unreleased)
+
+Claude Dashboard: Insights engine fixes, from rendering the Insights tab on a copy of Ali's logs.
+
+- **≈ medians inside their bucket.** A tool's or thinking's ≈ median used to be its bucket's upper edge (thinking showed ≈10 s against a real 3.8 s). It now sits within the bucket by its rank among that bucket's calls, on a log scale.
+- **Sessions counted once.** A session counts only on the day it started, with its full length past midnight, for the range and for its project (`ProjectSessions`, in `projectSessions`), so the sums are exact and the same on every launch. Only lines of a conversation (user, assistant, system) make a session. Session ids stay in memory and are never written.
+- **Today before its detail arrives.** `ClaudeInsights.TodayPending` and `Note` say that today's models, tools and effort are still being read, instead of blaming older files. Ratios over the detail use `Detail.Replies`. `Sessions`, `PriorSessions` and `PriorActiveDays` (days of the previous range with a reply) are new.
+- **Permissions as Claude Code records them.** Sources are `config` (a rule), `hook`, and `user_temporary` and the like (asked and allowed); decisions are `accept` and `reject`. `PermAuto`, which was always 0, is replaced by `PermHook`.
+- **API errors.** Claude Code's `api_error` lines now count as API errors, with the replies it marked as one. Retries are the `api_error` lines that say a retry follows.
+- **Kept days redone.** The detail carries `"rev": 2`. A kept day whose detail came from v0.60.0's tally gets it again from the logs while they still hold the day, keeping its counts, Needs and LongestWait.
+
 ## v0.60.0 (unreleased)
 
 Claude Dashboard: the Insights engine (decision 031, part A). Ali asked: "show me a detailed view of the logs. Where can i have different charts or comparisons or most used or least used models efforts or tool or etc. Give me more". The view (part B, the Insights tab) comes in v0.61.0.
