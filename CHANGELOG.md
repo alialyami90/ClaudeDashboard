@@ -6,6 +6,10 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.59.1 (unreleased)
+
+Docs: CLAUDE.md records v0.59.0 (History from the logs, Ali's options A, B and C), that history day files are kept a year with past days built from Claude Code's logs, and Ali's choice to keep Sign in with Claude as it is.
+
 ## v0.59.0 (unreleased)
 
 Claude Dashboard: History from the logs (Ali: "I've been using claude for more than a month. I want to see the stats for that.").
