@@ -34,8 +34,9 @@ A Windows desktop app whose whole window is the Claude Code watcher: every Claud
 | The pages' focus ring | v0.58.1 | Builder |
 | Live's rose on paper | v0.58.2 | Watcher |
 | F. Docs (decision 030, DESIGN, PRODUCT, README) | v0.58.3 | Scribe |
+| The six defaults confirmed | v0.58.4 | Scribe |
 
-"≈ limit" always means the engine's `LimitAtPace` (3 plan readings or more, before the reset), and "Limit reached" replaces it once the window is full. The views live in `src/widgets/` (`LiveView`, `LapChart`, `LimitsView`, `HistoryView`, `ReliabilityView`, `SourcesView`), start no timers, and get frames only through `ClaudeViewContext.Frames`.
+Ali confirmed decision 030's six defaults and approved the tags v0.53.1 to v0.58.3 (3 Nov 2026). "≈ limit" always means the engine's `LimitAtPace` (3 plan readings or more, before the reset), and "Limit reached" replaces it once the window is full. The views live in `src/widgets/` (`LiveView`, `LapChart`, `LimitsView`, `HistoryView`, `ReliabilityView`, `SourcesView`), start no timers, and get frames only through `ClaudeViewContext.Frames`.
 
 Cloud garage (package 4.3) waits on a one-time look at the Claude app's cloud thread records on Ali's PC (Watcher).
 

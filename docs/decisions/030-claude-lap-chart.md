@@ -1,6 +1,6 @@
 # 030: The lap chart: six views, with Live as home
 
-Status: decided (Ali, 3 Nov 2026), when he asked the team to build the lap chart from "Claude Dashboard app: lap chart build brief". It shipped in steps, v0.54.0 to v0.58.3. Windows only. The six defaults below hold until Ali changes them.
+Status: decided (Ali, 3 Nov 2026), when Ali asked the team to build the lap chart from "Claude Dashboard app: lap chart build brief". It shipped in steps, v0.54.0 to v0.58.3. Windows only. Ali confirmed the six defaults below on 3 Nov 2026 and approved the tags v0.53.1 to v0.58.3.
 
 ## Context
 
@@ -70,9 +70,9 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
 - **Typical tool time:** the median of telemetry's tool run times, per tool, per session and across all sessions. With telemetry off, the table says so and shows only the log counts.
 - **Event feed:** the last 50 state changes, tool failures, API errors and compactions. It holds names and times only.
 
-## The six defaults (until Ali says otherwise)
+## The six defaults (confirmed by Ali, 3 Nov 2026)
 
-1. **Current tool.** The hook does not store it. Now keeps v0.53.0's tool name from telemetry, in memory, and labels it "last" once that tool has finished. Nothing new is written to the session file. Storing the name on PreToolUse would add one field and a write per tool change, and that stays Ali's call.
+1. **Current tool.** The hook does not store it. Now keeps v0.53.0's tool name from telemetry, in memory, and labels it "last" once that tool has finished. Nothing new is written to the session file. Storing the name on PreToolUse would add one field and a write per tool change; it isn't done, and doing it would take a new decision.
 2. **Silent** stays at 5 minutes (`ClaudeAttention.SilentAfter`).
 3. **Retrying gets rose** (`#F09A9A`) as a state colour, recorded in DESIGN.md. Rose was already used for lines removed. It now also means API errors and Retrying, and nothing decorative is rose.
 4. **Shipping in steps**, one PR and version per package, in version order:
@@ -87,7 +87,7 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
    - v0.58.1: the keyboard focus ring on the Limits and History pages, inset off the heading (Builder);
    - v0.58.2: Live's rose shares `ClaudeReliability.Rose`, so it is `#A93B35` on paper too (Watcher);
    - v0.58.3: these docs (Scribe).
-5. **The garage pit wall stays** as its own Garage tab, keeping 5 h / Today / Week. Ali can drop it after he has seen Live.
+5. **The garage pit wall stays** as its own Garage tab, keeping 5 h / Today / Week. Ali confirmed keeping it (3 Nov 2026).
 6. **Keys:** Ctrl+1 to Ctrl+6 switch views in tab order, and "open the session that waited longest" moves from Ctrl+1 to Ctrl+G. The brief says Ctrl+1 to Ctrl+5 because it has no Garage tab.
 
 ## Rules this keeps
