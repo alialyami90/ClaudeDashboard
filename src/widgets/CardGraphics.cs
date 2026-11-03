@@ -105,8 +105,11 @@ namespace ClaudeDashboard
         }
         public static readonly GridLength Star = new GridLength(1, GridUnitType.Star), Auto = GridLength.Auto;
 
-        // A page's focus ring (a view's ScrollViewer): the app's 2-unit ring in Text, like the Garage rows, inset 2 so
-        // the window's edge never clips it. Use as scroll.FocusVisualStyle = CardParts.PageFocus.
+        // A page's focus ring (a view's ScrollViewer): the app's 2-unit ring in Text, like the Garage rows, drawn just
+        // inside the page's edge so the window never clips it. Use as scroll.FocusVisualStyle = CardParts.PageFocus,
+        // with scroll.Padding = CardParts.PageInset, which keeps the page's content (its first heading) 4 units clear
+        // of the ring (the render of v0.58.0: the ring touched "Reliability today").
+        public static readonly Thickness PageInset = new Thickness(6);
         private static Style pageFocus;
         public static Style PageFocus
         {
@@ -116,7 +119,7 @@ namespace ClaudeDashboard
                 var ring = new FrameworkElementFactory(typeof(Border));
                 ring.SetValue(Border.BorderThicknessProperty, new Thickness(2));
                 ring.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
-                ring.SetValue(FrameworkElement.MarginProperty, new Thickness(2));
+                ring.SetValue(FrameworkElement.MarginProperty, new Thickness(0));
                 ring.SetResourceReference(Border.BorderBrushProperty, "Text");
                 var style = new Style(typeof(Control));
                 style.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(Control)) { VisualTree = ring }));

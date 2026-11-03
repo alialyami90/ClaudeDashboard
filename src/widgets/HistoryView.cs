@@ -91,7 +91,7 @@ namespace ClaudeDashboard
 
         private FrameworkElement Draw(HistoryModel m)
         {
-            var sheet = new StackPanel { Margin = new Thickness(20, 12, 20, 16) };
+            var sheet = new StackPanel { Margin = new Thickness(14, 6, 14, 10) };
             if (m.Sample) sheet.Children.Add(LapParts.SampleFlag(S(12)));
             if (m.Missing.Length > 0 || m.Empty)
             {

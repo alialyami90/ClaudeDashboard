@@ -197,6 +197,21 @@ internal static class LimitsHistoryTests
             }
         });
 
+        check("Lap chart: every page's focus ring is the shared 2-unit Text ring, clear of the page's content", () => {
+            foreach (var name in new[] { ClaudeViews.Limits, ClaudeViews.History, ClaudeViews.Reliability, ClaudeViews.Sources })
+            {
+                var view = ClaudeViews.Create(name);
+                var host = Show(view, ClaudeView.Fixture(Now, true), 1000, 600, 1, true);
+                var page = Descendants(host).OfType<ScrollViewer>().FirstOrDefault(s => s.IsTabStop && s.Focusable);
+                Assert(page != null, name + ": no page tab stop");
+                Assert(page.FocusVisualStyle == CardParts.PageFocus, name + ": the page's focus ring isn't CardParts.PageFocus");
+                var content = page.Content as FrameworkElement;
+                Assert(content != null, name + ": the page has no content");
+                var corner = content.TranslatePoint(new Point(0, 0), page);
+                Assert(corner.X >= 4 && corner.Y >= 4, name + ": the content starts " + corner + " from the page's corner, inside or touching the 2-unit ring");
+            }
+        });
+
         check("Lap chart: the week's laps show whole percents and <1% for a little use", () => {
             Assert(LimitsModel.LapPct(7.4) == "7%" && LimitsModel.LapPct(20) == "20%" && LimitsModel.LapPct(0.3) == "<1%" && LimitsModel.LapPct(0) == "0%", "lap percents");
             var m = LimitsModel.From(ClaudeView.Fixture(Now, true), Now, true);

@@ -77,7 +77,7 @@ namespace ClaudeDashboard
             if (wide) { right.Margin = new Thickness(16, 0, 0, 0); grid.Children.Add(CardParts.At(left, 0, 0)); grid.Children.Add(CardParts.At(right, 0, 1)); }
             else { right.Margin = new Thickness(0, 16, 0, 0); grid.Children.Add(CardParts.At(left, 0)); grid.Children.Add(CardParts.At(right, 1)); }
 
-            var sheet = new StackPanel { Margin = new Thickness(20, 12, 20, 16) };
+            var sheet = new StackPanel { Margin = new Thickness(14, 6, 14, 10) };
             if (m.Sample) sheet.Children.Add(LapParts.SampleFlag(S(12)));
             sheet.Children.Add(grid);
             return sheet;
@@ -597,7 +597,7 @@ namespace ClaudeDashboard
         // A view's page: a tab stop with a spoken name that scrolls from the keyboard (the ScrollViewer's own keys).
         public static ScrollViewer Page(string name)
         {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = true, IsTabStop = true };
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = true, IsTabStop = true, FocusVisualStyle = CardParts.PageFocus, Padding = CardParts.PageInset };
             AutomationProperties.SetName(scroll, name);
             AutomationProperties.SetHelpText(scroll, "Arrow keys, Page Up, Page Down, Home and End scroll the page.");
             // WPF's ScrollViewer takes plain Home and End to the left and right ends; on a page that only scrolls down
