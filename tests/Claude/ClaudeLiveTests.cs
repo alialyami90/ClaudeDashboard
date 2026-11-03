@@ -60,7 +60,23 @@ internal static class ClaudeLiveTests
             string at = ClaudeText.When(Now.AddMinutes(63), Now, false);
             Assert(forms.Count == 2 && forms[0] == "≈ empty " + at + ", 37 min before reset" && forms[1] == "≈ empty " + at, "The pace in time is wrong: " + String.Join(" | ", forms));
             Assert(ClaudeText.PaceTimes(84.4, Double.NaN, window5, Now, false)[0] == "≈ 84% by reset" && ClaudeText.PaceTimes(Double.NaN, Double.NaN, window5, Now, false)[0] == "", "The projection's words are wrong.");
-            Assert(ClaudeText.PaceBy(126) == "≈ 126% by reset" && ClaudeText.PaceBy(Double.NaN) == "", "The week's pace is wrong.");
+            Assert(ClaudeText.PaceBy(76.2) == "≈ 76% by reset" && ClaudeText.PaceBy(126) == "≈ empty before reset" && ClaudeText.PaceBy(Double.NaN) == "", "The week's pace is wrong.");
+            // Over 100% never prints as "% by reset": with no ETA the window's own pace says when, else "before reset".
+            var over = ClaudeText.PaceTimes(126, Double.NaN, window5, ClaudePace.FiveHours, Now, false);
+            string dry = ClaudeText.When(window5.ResetsAt.Value - TimeSpan.FromTicks((long)(ClaudePace.FiveHours.Ticks * (1 - 100 / 126.0))), Now, false);
+            Assert(over.All(f => !f.Contains("% by reset")) && over.Last() == "≈ empty " + dry, "Over 100% reads as a percentage: " + String.Join(" | ", over));
+            Assert(ClaudeText.PaceTimes(126, Double.NaN, new ClaudeLimitWindow { Percent = 84 }, ClaudePace.FiveHours, Now, false).SequenceEqual(new[] { "≈ empty before reset" }), "With no reset time, over 100% doesn't say empty before reset.");
+            var weekly = ClaudeText.PaceTimes(130, Double.NaN, new ClaudeLimitWindow { Percent = 70, ResetsAt = Now.AddDays(2) }, ClaudePace.Week, Now, false);
+            Assert(weekly.Last().StartsWith("≈ empty ") && !weekly.Any(f => f.Contains("%")), "The week over 100% doesn't say when it runs dry: " + String.Join(" | ", weekly));
+            // The samples' tanks never say "% by reset" over 100%.
+            foreach (var sample in new[] { ClaudeView.Fixture(Now, true), ClaudeView.Fixture(Now, false), ClaudeView.Fixture(Now, true, true) })
+            {
+                var w = sample.Limits.FiveHour;
+                double pct = ClaudeText.Percent(w, Now), projection = ClaudePace.Projection(pct, ClaudePace.Elapsed(w, ClaudePace.FiveHours, Now));
+                var said = ClaudeText.PaceTimes(projection, sample.LimitEtaMinutes, w, Now, false);
+                Assert(!(projection > 100) || (said.All(f => !f.Contains("% by reset")) && !Double.IsNaN(sample.LimitEtaMinutes)), "A sample over 100% has no ETA or says % by reset: " + String.Join(" | ", said));
+            }
+            Assert(ClaudeText.Place(new ClaudeSession { Where = "Desktop" }) == "Claude app" && ClaudeText.Where(new ClaudeSession { Running = true, Where = "Desktop", Since = Now.AddMinutes(-2) }, Now) == "Claude app · 2 min", "Week says Desktop where Today says Claude app.");
             var resets = ClaudeText.FiveHourResets(window5, Now, false);
             Assert(resets.Count == 3 && resets[0].StartsWith("resets ") && resets[0].Contains(" · in 1 h 40 m") && resets[1] == "resets " + ClaudeText.When(window5.ResetsAt.Value, Now, false), "The reset's forms are wrong: " + String.Join(" | ", resets));
         });

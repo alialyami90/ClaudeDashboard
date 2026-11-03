@@ -253,22 +253,33 @@ namespace ClaudeDashboard
 
         // v0.53.0, the plan row speaks in time. The tank's pace, longest first: "≈ empty 3:21 am, 37 min before reset",
         // "≈ empty 3:21 am"; or, when it lasts the window, "≈ 84% by reset" ("≈ 84%"). Estimates say ≈.
-        public static List<string> PaceTimes(double projection, double etaMinutes, ClaudeLimitWindow window, DateTime now, bool use24)
+        public static List<string> PaceTimes(double projection, double etaMinutes, ClaudeLimitWindow window, DateTime now, bool use24) { return PaceTimes(projection, etaMinutes, window, ClaudePace.FiveHours, now, use24); }
+        // Over 100% never reads as a percentage by reset (the Lead on #17): the window runs dry first, so it says when.
+        // The ETA from the last half hour wins; else the window's own pace so far (its projection) gives the time; else
+        // "≈ empty before reset".
+        public static List<string> PaceTimes(double projection, double etaMinutes, ClaudeLimitWindow window, TimeSpan length, DateTime now, bool use24)
         {
             var forms = new List<string>();
-            if (!Double.IsNaN(etaMinutes))
+            DateTime? empty = null;
+            if (!Double.IsNaN(etaMinutes)) empty = now.AddMinutes(etaMinutes);
+            else if (!Double.IsNaN(projection) && projection > 100 && window != null && window.ResetsAt.HasValue)
             {
-                var empty = now.AddMinutes(etaMinutes);
-                string at = "≈ empty " + When(empty, now, use24);
-                if (window != null && window.ResetsAt.HasValue && window.ResetsAt.Value > empty) forms.Add(at + ", " + Duration(window.ResetsAt.Value - empty) + " before reset");
+                var at = window.ResetsAt.Value - TimeSpan.FromTicks((long)(length.Ticks * (1 - 100 / projection)));
+                if (at > now) empty = at;
+            }
+            if (empty.HasValue)
+            {
+                string at = "≈ empty " + When(empty.Value, now, use24);
+                if (window != null && window.ResetsAt.HasValue && window.ResetsAt.Value > empty.Value) forms.Add(at + ", " + Duration(window.ResetsAt.Value - empty.Value) + " before reset");
                 forms.Add(at);
             }
+            else if (!Double.IsNaN(projection) && projection > 100) forms.Add("≈ empty before reset");
             else if (!Double.IsNaN(projection)) { forms.Add(PaceBy(projection)); forms.Add("≈ " + Math.Round(projection) + "%"); }
             else forms.Add("");
             return forms;
         }
-        // "≈ 84% by reset", or nothing early in a window.
-        public static string PaceBy(double projection) { return Double.IsNaN(projection) ? "" : "≈ " + Math.Round(projection) + "% by reset"; }
+        // "≈ 84% by reset", "≈ empty before reset" over 100%, or nothing early in a window.
+        public static string PaceBy(double projection) { return Double.IsNaN(projection) ? "" : projection > 100 ? "≈ empty before reset" : "≈ " + Math.Round(projection) + "% by reset"; }
         // The tank's reset, longest first: "resets 9:54 am · in 1 h 20 m", "resets 9:54 am", "9:54 am".
         public static List<string> FiveHourResets(ClaudeLimitWindow window, DateTime now, bool use24)
         {
@@ -400,11 +411,14 @@ namespace ClaudeDashboard
         }
         // Where a thread runs and for how long in its state ("Remote Control · 6 min"), or when it ended ("Remote
         // Control · ended 1 h ago").
+        // Where a thread runs, one name everywhere: the Claude app's Code tab ("Desktop" in its records) is "Claude app".
+        public static string Place(ClaudeSession thread) { return thread.Where == "Desktop" ? "Claude app" : thread.Where; }
         public static string Where(ClaudeSession thread, DateTime now)
         {
-            if (!thread.Running) return (thread.Where.Length > 0 ? thread.Where + " · " : "") + "ended " + Duration(now - thread.LastActive) + " ago";
+            string place = Place(thread);
+            if (!thread.Running) return (place.Length > 0 ? place + " · " : "") + "ended " + Duration(now - thread.LastActive) + " ago";
             string age = Duration(now - thread.Since);
-            return thread.Where.Length > 0 ? thread.Where + " · " + age : age;
+            return place.Length > 0 ? place + " · " + age : age;
         }
         // A thread's chip: what its car is doing.
         public static string Chip(PitState state)
@@ -1062,7 +1076,7 @@ namespace ClaudeDashboard
                 lap.Text = ClaudeText.Lap(ClaudePace.LapNow(elapsed));
                 resets.Text = w == null ? "" : w.Current(now) ? ClaudeText.WeekReset(w, use24) : "reset";
                 if (w == null) value.Text = "—"; else SetBig(value, pct, ClaudeText.Warns(pct) ? "Warning" : "Text");
-                pace.Text = ClaudeText.PaceBy(projection); pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
+                Fit(pace, notes.ActualWidth > 0 ? notes.ActualWidth : 160, ClaudeText.PaceTimes(projection, Double.NaN, w, ClaudePace.Week, now, use24)); pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                 extra.Text = ClaudeText.Extras(view.Limits, now);
                 laps.Percent = pct; laps.Projection = projection; laps.Now = ClaudePace.LapNow(elapsed); laps.Days = ClaudeText.LapDays(w); laps.InvalidateVisual();
             });
@@ -1420,7 +1434,7 @@ namespace ClaudeDashboard
                     // A stuck thread says why where it would say where it runs (decision 023).
                     bool stuck = t.Running && t.State == ClaudeState.Stuck;
                     // Live rows give the time its own labelled columns, so beside the title is only where it runs.
-                    where.Text = stuck ? ClaudeText.StuckReason(t, view, now, use24) : live ? (t.Where == "Desktop" ? "Claude app" : t.Where) : ClaudeText.Where(t, now);
+                    where.Text = stuck ? ClaudeText.StuckReason(t, view, now, use24) : live ? ClaudeText.Place(t) : ClaudeText.Where(t, now);
                     where.SetResourceReference(TextBlock.ForegroundProperty, stuck ? "Warning" : "Muted");
                     if (live)
                     {
@@ -1569,8 +1583,8 @@ namespace ClaudeDashboard
             var tiles = Columns(Star, new GridLength(10), Star); tiles.Height = CardSizing.ClaudeMiniHeight;
             if (view.Limits != null && view.Limits.Known)
             {
-                tiles.Children.Add(MiniTile(true));
-                tiles.Children.Add(At(MiniTile(false), 0, 2));
+                tiles.Children.Add(MiniTile(true, (width - 10) / 2));
+                tiles.Children.Add(At(MiniTile(false, (width - 10) / 2), 0, 2));
             }
             else
             {
@@ -1655,7 +1669,7 @@ namespace ClaudeDashboard
             return root;
         }
         // A mini plan tile: the 5-hour or the week's percentage, its reset and pace, over a pace meter.
-        private Border MiniTile(bool fiveHour)
+        private Border MiniTile(bool fiveHour, double tileWidth)
         {
             var stack = new StackPanel();
             var top = new DockPanel();
@@ -1675,7 +1689,10 @@ namespace ClaudeDashboard
                 if (w == null) value.Text = "—"; else SetBig(value, pct, ClaudeText.Warns(pct) ? "Warning" : "Text");
                 reset.Text = w == null ? (fiveHour ? "none now" : "") : !w.ResetsAt.HasValue ? "" : !w.Current(now) ? "reset" : pct >= 100 ? "back " + ClaudeText.When(w.ResetsAt.Value, now, use24) : ClaudeText.When(w.ResetsAt.Value, now, use24);
                 reset.SetResourceReference(TextBlock.ForegroundProperty, pct >= 100 ? "Warning" : "Muted");
-                pace.Text = Double.IsNaN(projection) ? "" : "pace " + Math.Round(projection) + "%"; pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
+                // v0.53.0: in time, like the tank ("≈ empty 9:34 am", "≈ 76% by reset"), in what room the reading leaves.
+                double tileRoom = (stack.ActualWidth > 0 ? stack.ActualWidth : tileWidth - 20) - ClaudeCard.Wide(value, value.Text.Length > 0 ? value.Text : "100%") - 8;
+                Fit(pace, tileRoom, ClaudeText.PaceTimes(projection, fiveHour ? view.LimitEtaMinutes : Double.NaN, w, fiveHour ? ClaudePace.FiveHours : ClaudePace.Week, now, use24).Where(f => !f.Contains(", ")).ToList());
+                pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                 bar.Value = pct / 100; bar.Projection = Double.IsNaN(projection) ? Double.NaN : projection / 100; bar.Pace = elapsed; bar.Warn = ClaudePace.Warns(projection) || ClaudeText.Warns(pct); bar.InvalidateVisual();
             });
             return Tile(stack, 12, new Thickness(10, 8, 10, 8));
@@ -1736,11 +1753,14 @@ namespace ClaudeDashboard
                     var w = weekly ? view.Limits.Week : view.Limits.FiveHour;
                     double pct = ClaudeText.Percent(w, now), elapsed = ClaudePace.Elapsed(w, weekly ? ClaudePace.Week : ClaudePace.FiveHours, now), projection = ClaudePace.Projection(pct, elapsed);
                     value.Text = w == null ? "—" : Math.Round(pct) + "%"; value.SetResourceReference(TextBlock.ForegroundProperty, ClaudeText.Warns(pct) ? "Warning" : "Text");
-                    var parts = new List<string>();
-                    if (!Double.IsNaN(projection)) parts.Add("pace " + Math.Round(projection) + "%");
-                    if (w != null && w.ResetsAt.HasValue && w.Current(now)) parts.Add(ClaudeText.When(w.ResetsAt.Value, now, use24));
-                    if (ClaudeText.Old(view, now) && width >= 280) parts.Add("as of " + ClaudeText.Clock(view.Limits.UpdatedAt, use24));
-                    right.Text = String.Join(" · ", parts); right.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
+                    // v0.53.0: the pace in time, then the reset and how old the reading is, as much as fits.
+                    var paces = ClaudeText.PaceTimes(projection, weekly ? Double.NaN : view.LimitEtaMinutes, w, weekly ? ClaudePace.Week : ClaudePace.FiveHours, now, use24).Where(f => !f.Contains(", ")).ToList();
+                    string when = w != null && w.ResetsAt.HasValue && w.Current(now) ? "resets " + ClaudeText.When(w.ResetsAt.Value, now, use24) : "", asOf = ClaudeText.Old(view, now) ? "as of " + ClaudeText.Clock(view.Limits.UpdatedAt, use24) : "";
+                    var forms = new List<string>();
+                    foreach (var p in paces) { forms.Add(String.Join(" · ", new[] { p, when, asOf }.Where(x => x.Length > 0))); forms.Add(String.Join(" · ", new[] { p, when }.Where(x => x.Length > 0))); }
+                    foreach (var p in paces) forms.Add(p);
+                    double lineRoom = (line.ActualWidth > 0 ? line.ActualWidth : width - 24) - ClaudeCard.Wide(label, label.Text) - 8 - ClaudeCard.Wide(value, value.Text) - 8;
+                    Fit(right, lineRoom, forms.Distinct().ToList()); right.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                     bar.Value = pct / 100; bar.Projection = Double.IsNaN(projection) ? Double.NaN : projection / 100; bar.Pace = elapsed; bar.Warn = ClaudePace.Warns(projection) || ClaudeText.Warns(pct); bar.InvalidateVisual();
                 });
                 root.Children.Add(At(bottom, 1));

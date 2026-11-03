@@ -344,6 +344,9 @@ namespace ClaudeDashboard
             view.Limits = new ClaudeLimits { FiveHour = new ClaudeLimitWindow { Percent = needsYou ? 84 : 23, ResetsAt = now.AddMinutes(100) }, Week = new ClaudeLimitWindow { Percent = 41, ResetsAt = now.AddDays(3).AddHours(5) }, UpdatedAt = now.AddMinutes(-1), Source = "online" };
             // The crowd runs the tank down: at the last half hour's pace it's empty 37 minutes before it resets.
             if (crowded) { view.Limits.FiveHour.Percent = 72; view.LimitEtaMinutes = 63; }
+            // The standard sample with a thread needing you is at 84%, on pace for 126%: the last half hour's pace runs
+            // it dry in 38 minutes, an hour before the reset (the Lead on #17: over 100% says when, never "126% by reset").
+            else if (needsYou) view.LimitEtaMinutes = 38;
             view.Limits.Extra.Add(new KeyValuePair<string, ClaudeLimitWindow>("Opus week", new ClaudeLimitWindow { Percent = 18, ResetsAt = now.AddDays(3).AddHours(5) }));
             view.Usage[ClaudePeriod.FiveHour] = new List<ClaudeProjectUsage> { P("widget-screen", 1830000, 2.01), P("api-server", 412000, 0.45), P("photo-manager", 96400, 0.11) };
             view.Usage[ClaudePeriod.Today] = new List<ClaudeProjectUsage> { P("widget-screen", 3660000, 4.03), P("api-server", 824000, 0.91), P("photo-manager", 192800, 0.21), P("Other", 54000, 0.06) };
