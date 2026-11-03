@@ -66,7 +66,7 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
 - **State timeline:** each session's state changes, with their times, for the last 5 hours.
 - **Last sign of life:** the latest of the bridge's events, the last log line and the last telemetry event. Hook events are counted by the `heard` time from v0.49.0, so the status line's refresh can't make a hung turn look alive. **Silent** means Working with no sign of life for 5 minutes. It is a display state, not a new hook state.
 - **Retrying:** an API error with retries still pending.
-- **Plan reading ring:** the last 5 hours of plan readings (percent and time). "≈ limit" comes from the last 30 minutes' pace, and from today's average. Today's average is turned from tokens an hour into percent an hour at this window's percent per token, so its tip says it is worked out from tokens. With fewer than 3 readings there is no projection, and the chart says why.
+- **Plan reading ring:** the last 5 hours of plan readings (percent and time). "≈ limit" comes from the last 30 minutes' pace, and from today's average. Today's average is turned from tokens an hour into percent an hour at this window's percent per token, so its tip says it is worked out from tokens. **There is one "≈ limit" in the app: `LimitAtPace`.** The header, Live's wall and Limits use it from the start. The Garage tank and Small's meter line used v0.53.0's token-based ETA, and move to it in v0.56.1, so no screen shows two different limit times or shows one without 3 readings. With fewer than 3 readings there is no projection, and the chart says why.
 - **Typical tool time:** the median of telemetry's tool run times, per tool, per session and across all sessions. With telemetry off, the table says so and shows only the log counts.
 - **Event feed:** the last 50 state changes, tool failures, API errors and compactions. It holds names and times only.
 
@@ -81,7 +81,8 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
    - v0.56.0: Live (Watcher);
    - v0.57.0: Limits and History (Builder);
    - v0.58.0: Reliability and Sources (Demolition);
-   - v0.58.1: these docs (Scribe).
+   - v0.56.1: one "≈ limit" everywhere (the Garage tank and Small move to `LimitAtPace`), and the moving Live cars (Watcher);
+- v0.58.1: these docs (Scribe).
 5. **The garage pit wall stays** as its own Garage tab, keeping 5 h / Today / Week. Ali can drop it after he has seen Live.
 6. **Keys:** Ctrl+1 to Ctrl+6 switch views in tab order, and "open the session that waited longest" moves from Ctrl+1 to Ctrl+G. The brief says Ctrl+1 to Ctrl+5 because it has no Garage tab.
 
