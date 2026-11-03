@@ -381,12 +381,14 @@ namespace ClaudeDashboard
             var view = claudeCard.View;
             var summary = Control<TextBlock>("ClaudeSummary"); var dot = Control<Ellipse>("ClaudeSummaryDot"); var flag = Control<TextBlock>("ClaudeFlag");
             bool needs = view != null && view.NeedsYou > 0;
-            // Always live (decision 030): the states now and the threads of the last 5 hours, whichever view or period
-            // is chosen, with when the 5-hour limit is reached at this pace ("≈ limit 4:12 PM") when it is before the reset.
+            // The states now, and the threads of Garage's chosen period while Garage is on screen (below 640 wide too,
+            // where it's the only view; as before v0.55.0), or of the last 5 hours on every other view (decision 030).
+            // Either way, when the 5-hour limit is reached at this pace ("≈ limit 4:12 pm") when it is before the reset.
             string limit = view == null ? "" : LimitText(view, DateTime.UtcNow, settings.Use24HourClock);
-            fullSummary = view == null ? "Reading Claude Code…" : ClaudeText.Summary(view, ClaudePeriod.FiveHour, true) + limit;
-            shortSummary = view == null ? fullSummary : ClaudeText.ShortSummary(view, ClaudePeriod.FiveHour) + limit;
-            shorterSummaries = view == null ? new string[0] : new[] { ClaudeText.ShortSummary(view, ClaudePeriod.FiveHour, 1, true) + limit, ClaudeText.ShortSummary(view, ClaudePeriod.FiveHour, 1, true), ClaudeText.ShortSummary(view, ClaudePeriod.FiveHour, 1, false) };
+            var period = SummaryPeriod;
+            fullSummary = view == null ? "Reading Claude Code…" : ClaudeText.Summary(view, period, true) + limit;
+            shortSummary = view == null ? fullSummary : ClaudeText.ShortSummary(view, period) + limit;
+            shorterSummaries = view == null ? new string[0] : new[] { ClaudeText.ShortSummary(view, period, 1, true) + limit, ClaudeText.ShortSummary(view, period, 1, true), ClaudeText.ShortSummary(view, period, 1, false) };
             summary.SetResourceReference(TextBlock.ForegroundProperty, needs ? "Warning" : "Text");
             dot.SetResourceReference(Shape.FillProperty, needs ? "Warning" : view != null && view.Working > 0 ? "Accent" : "Muted");
             flag.Text = view == null ? "" : ClaudeText.Flag(view, DateTime.UtcNow, settings.Use24HourClock, true);
@@ -413,6 +415,8 @@ namespace ClaudeDashboard
             var at = view == null ? null : view.LimitAtPace;
             return at == null || !at.BeforeReset ? "" : " · ≈ limit " + ClaudeText.Clock(at.LimitAt.Value, use24);
         }
+        // The period the header counts threads over: Garage's while it's on screen, else the last 5 hours.
+        public ClaudePeriod SummaryPeriod { get { return GarageShown ? claudeCard.Period : ClaudePeriod.FiveHour; } }
         // For the checks: the header summary's forms, longest first.
         public string[] SummaryForms { get { var forms = new List<string> { fullSummary, shortSummary }; forms.AddRange(shorterSummaries); return forms.ToArray(); } }
 
@@ -485,8 +489,7 @@ namespace ClaudeDashboard
             if (!garage) View(CurrentView);
             foreach (var pair in views) pair.Value.Visible = !garage && !minimised && pair.Key == CurrentView;
             UpdateClaudeLive();
-            FitHeader(0);
-            RefreshView();
+            UpdateHeader();
         }
         // Builds the view on screen when it's new or its room or text size changed, then fills it in from the snapshot the
         // card reads. Runs with every fill of the card (the heartbeat and the watchers), never while hidden.

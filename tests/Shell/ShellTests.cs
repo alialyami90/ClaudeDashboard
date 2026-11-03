@@ -316,9 +316,17 @@ internal static class ShellTests
                 AppController.Lay(window, new Size(1280, 760));
                 Click(window, "ShellPeriod0");
                 Assert(controller.ClaudeCardView.Period == ClaudePeriod.FiveHour && controller.CurrentSettings.ClaudePeriod == "FiveHour", "The header's 5 h button didn't choose the 5-hour window.");
-                // The summary is always live (decision 030): the last 5 hours, whichever period Garage shows.
+                // On Garage the summary follows its period (as before v0.55.0); on every other view it's the last 5 hours.
+                controller.ShowView(ClaudeViews.Garage);
                 Click(window, "ShellPeriod2");
-                Assert(controller.ClaudeCardView.Period == ClaudePeriod.Week && ((TextBlock)window.FindName("ClaudeSummary")).Text.Contains("in 5 h"), "The summary followed Garage's period.");
+                Assert(controller.ClaudeCardView.Period == ClaudePeriod.Week && controller.SummaryPeriod == ClaudePeriod.Week && controller.SummaryForms[0].Contains("this week"), "Garage's summary didn't follow its period: " + controller.SummaryForms[0]);
+                controller.ShowView(ClaudeViews.Limits);
+                Assert(controller.SummaryPeriod == ClaudePeriod.FiveHour && controller.SummaryForms[0].Contains("in 5 h"), "Another view's summary isn't the last 5 hours: " + controller.SummaryForms[0]);
+                // Below 640 wide Garage is the only view, so the summary follows the period there too.
+                AppController.Lay(window, new Size(600, 420));
+                Assert(!controller.TabsShown && controller.SummaryPeriod == ClaudePeriod.Week && controller.SummaryForms[0].Contains("this week"), "Below 640 the summary doesn't follow the period: " + controller.SummaryForms[0]);
+                AppController.Lay(window, new Size(1280, 760));
+                controller.ShowView(ClaudeViews.Garage);
                 Click(window, "ShellPeriod0");
                 Click(window, "QuietButton");
                 string warning; Assert(SettingsStore.Load(path, out warning).QuietMode && SettingsStore.Load(path, out warning).ClaudePeriod == "FiveHour", "Quiet mode or the period wasn't saved.");
