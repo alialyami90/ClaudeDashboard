@@ -188,7 +188,12 @@ internal static class ReliabilitySourcesTests
                 sources.Act = name => { asked.Add(name); return name == ClaudeSources.CheckPlan ? "Couldn't reach api.anthropic.com" : null; };
                 foreach (var b in buttons) b.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                 Assert(asked.Count == 5 && asked.Contains(ClaudeSources.OpenLogs) && asked.Contains(ClaudeSources.CheckPlan), "Each button should call Act once with its action: " + String.Join(",", asked));
+                // A failed action's words show above the rows, and the next action that works clears them.
+                var plan = buttons.First(b => (b.Tag as string) == ClaudeSources.CheckPlan);
+                plan.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                 Assert(Texts(root).Contains("Couldn't reach api.anthropic.com"), "Act's error should show.");
+                buttons.First(b => (b.Tag as string) == ClaudeSources.OpenLogs).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Assert(!Texts(root).Contains("Couldn't reach api.anthropic.com"), "A working action should clear the last error.");
             });
         });
 
