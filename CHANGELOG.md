@@ -6,6 +6,15 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.58.0 (unreleased)
+
+Claude Dashboard: the lap chart's Reliability and Sources views (decision 030, package E).
+
+- **Reliability** shows today's tool failure rate, API errors in the last hour (by status, in rose), asks and denials, compactions, and edits accepted and rejected. Under them, the API error strip marks each failed request over the last 60 minutes with its status and retry; a table lists every tool across all sessions with Runs, Typical (the median), Longest, Failed (Amber above 0) and Asked you; and Stuck turns today lists each run of API errors as Stuck now, Retrying now or Recovered, with its reason in plain words ("rate limited", "overloaded (529)") from the status or StopFailure, never the reply. With telemetry off each figure says "needs telemetry" and the table gives the logs' tool-call count. The runs, errors, compactions and asks per tool are the engine's (v0.54.0).
+- **Sources** lists Hooks, Logs, Telemetry, Plan meters and Claude app threads, each with its state (ClaudeHealth's levels, glyph and word), freshness (the engine's logs read, telemetry's last event and port, the app threads' read time and count, the plan's next check), what it gives and one action (Connect or Disconnect, Open folder, Change port, Check now or Sign in, Show archived). The actions go through the window's Act, the same path and confirmations as Settings → Claude; the view never writes Claude Code's settings itself, and an action's error shows above the rows.
+- **The render on Ali's PC, fixed.** Tool failures counts the same runs as the tools table ("5 failed of 140 runs"), where the sample said "no tool runs today". Both pages are tab stops with the app's 2-unit focus ring in Text (`CardParts.PageFocus`, shared with Limits and History), and Home and End go to the top and bottom. The sample's Sources buttons are off with "These are sample numbers, so there's nothing to change." in their tip, and their words stay at Muted's contrast with a Muted outline instead of fading. The Asked you card says "all asks", and a line under the table says its column counts the asks that named their tool.
+- **Checks:** medians, longest and failures per tool, the failure rate, the last hour's API errors, stuck turns split by a 10-minute gap with their reasons, no turn text reaching the view, telemetry off, the card and the table counting the same runs on every sample, the focus ring, off buttons at Muted on all four palettes, Tab and the scroll keys reaching each page, the five sources, each button calling Act once with its action and showing its error, and both views inside their width at 640 × 420, 1000 × 600 and 1600 × 900 at 100% and 140%. Renders `claude-{reliability,sources}-<size>-{100,140}.png` and `claude-reliability-1000x600-claude.png`.
+
 ## v0.57.2 (unreleased)
 
 Claude Dashboard: lap chart follow-ups (the Watcher's part).
