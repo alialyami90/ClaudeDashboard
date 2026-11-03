@@ -318,7 +318,9 @@ namespace ClaudeDashboard
             // From 640 wide the line sits at the tab row's right end, beside the tabs. From 1000 wide it keeps every reason
             // in full (as it did under the card), on a line of its own under the tabs when they leave it too little room.
             // Narrower, it shortens beside the tabs; when even its shortest form has no room there (640 at 140% text) it
-            // stays at the card's foot, which costs the card 8 units where a line under the tabs would cost a row.
+            // stays at the card's foot, which costs the card 8 units where a line under the tabs would cost a row (Medium
+            // keeps its two project rows at 640 × 420 and 140% text, v0.53.1). The card keeps its 24-unit padding, which
+            // its own layout counts on.
             if (tabsShown)
             {
                 double beside = room - Desired(Control<TabControl>("ViewTabs")) - 16;
@@ -454,10 +456,6 @@ namespace ClaudeDashboard
             if (shown == tabsShown) return;
             tabsShown = shown;
             Control<Grid>("TabRow").Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
-            // Under the tabs the card needs only 8 units of top padding (the tab row is its gap), which pays for most of
-            // the row's height, so Medium keeps its project rows at 640 × 420 and 140% text (v0.53.1).
-            var top = new Thickness(24, shown ? 8 : 24, 24, 24);
-            Control<Border>("ClaudeCard").Padding = top; Control<Border>("ViewHost").Padding = top;
             SetSourceRow();
             ApplyView();
         }
