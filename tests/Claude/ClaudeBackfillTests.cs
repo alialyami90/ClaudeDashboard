@@ -84,6 +84,8 @@ internal static class ClaudeBackfillTests
             foreach (var file in Directory.GetFiles(ClaudeHistory.Folder(bridge)))
             {
                 string text = File.ReadAllText(file);
+                // Since v0.60.0 (decision 031) a model id may appear, but only as a key of the detail's "models" and "effort".
+                text = text.Replace("\"claude-opus-5-5\":", "\"model\":");
                 Assert(text.IndexOf("SECRET", StringComparison.Ordinal) < 0 && text.IndexOf("opus", StringComparison.OrdinalIgnoreCase) < 0 && text.IndexOf("s1", StringComparison.Ordinal) < 0 && text.IndexOf("r1", StringComparison.Ordinal) < 0, "Text, a model, a session or a request id landed in " + Path.GetFileName(file) + ": " + text);
             }
             // Once done it stays done; the live History keeps the day it built marked as from the logs.
