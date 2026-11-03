@@ -45,7 +45,7 @@ The burn tile (v0.53.0, where the rev counter's dial was) is a 200-unit column, 
 
 The tank and the week say when, not how much: "≈ limit 3:21 am, 37 min before reset" when the window hits its limit before it resets, else "≈ 84% by reset". Every form keeps "≈". When the long form doesn't fit, the line shortens ("≈ limit 3:21 am", "resets 9:54 am") rather than cutting a word; widths are measured as the window draws text. Medium's tiles and Small's meter line use the short forms.
 
-**There is one "≈ limit" for the 5-hour window** (v0.56.1–v0.56.2): the engine's `LimitAtPace`, from the last 30 minutes of plan readings. The header, the tank, Medium's tile, Small's meter, Live's wall and Limits all show the same time, and only when it is known (3 readings or more) and falls before the reset. Once the newest reading is at 100%, every one of them says "Limit reached" in Amber, never a time that has passed. With fewer than 3 readings Live and Limits show no projection and say why; the tank falls back to the window's own pace so far ("≈ 84% by reset"), with no time. Over 100% never reads as a percentage. The week keeps its own pace and the same words.
+**There is one "≈ limit" for the 5-hour window, and "≈ limit" always means it** (v0.56.1–v0.57.2): the engine's `LimitAtPace`, from the last 30 minutes of plan readings. The header, the tank, Medium's tile, Small's meter, Live's wall and Limits all show the same time, and only when it is known (3 readings or more) and falls before the reset. Once the newest reading is at 100%, every one of them says "Limit reached" in Amber, never a time that has passed. With fewer than 3 readings Live and Limits show no projection and say why ("Only 2 plan readings so far"); the tank, Medium and Small fall back to the window's own pace so far and never say "limit": "≈ 84% by reset", or "≈ over by reset" when that pace runs past 100%. No other place gives a percentage over 100. The week keeps its own pace and the same words.
 
 ### Attention first (5 h and Today)
 
@@ -119,7 +119,7 @@ The card has no heading of its own since v0.45.0: the window's header carries th
 ## Motion
 
 - One frame clock per card (`PitClock`), at the rate the fastest moving car needs (at most 24 fps; 20 while rolling), and only while something visible moves.
-- The views share one more (v0.56.1): a view asks the window for frames while a car moves and lets go when all are still. It runs only while that view is on screen, the window isn't minimised and Quiet isn't keeping the cars still. Live's cars move on it since v0.56.2, as the Garage's do; the trails, curve and wall never move.
+- The views share one more (v0.56.1): a view asks the window for frames while a car moves and lets go when all are still. It runs only while that view is on screen, the window isn't minimised and Quiet isn't keeping the cars still. Live's cars move on it since v0.57.2, as the Garage's do; the trails, curve and wall never move.
 - It stops when the window is minimised. Minimised, the app still watches the session files (so Needs you still notifies and chimes) but doesn't scan logs or work out the view on the clock. In Quiet mode the cars keep still unless Settings → Claude says they may move, and the state swaps stay.
 - Clicking a garage (or Enter or Space on it) rolls its cars in (tail lights toward you) or out (headlights toward you), about 1.2 s, instant in Quiet mode.
 - No other animation: no spinners, no transitions, no hover effects.

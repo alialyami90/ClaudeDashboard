@@ -57,7 +57,7 @@ The prototype is the bottom artboard of "Claude Dashboard app layouts". Its numb
   - its tool runs.
 
   From 1000 wide it is a 360-unit panel. From 640 to 1000 it is a drawer that opens when a lane is clicked, and lane labels narrow to 200.
-- **Motion.** Working cars keep the 1-pixel jitter and turning wheels, and a Needs-you car blinks its hazards (v0.56.2). Everything else is still, and Quiet with "keep the cars still" stops it all, as on the Garage. The view asks the window's one frame clock for frames (`ClaudeViewContext.Frames`) only while a car moves; it runs only while that view is on screen and the window isn't minimised.
+- **Motion.** Working cars keep the 1-pixel jitter and turning wheels, and a Needs-you car blinks its hazards (v0.57.2). Everything else is still, and Quiet with "keep the cars still" stops it all, as on the Garage. The view asks the window's one frame clock for frames (`ClaudeViewContext.Frames`) only while a car moves; it runs only while that view is on screen and the window isn't minimised.
 
 ### Under 640 wide (Small)
 
@@ -68,7 +68,7 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
 - **State timeline:** each session's state changes, with their times, for the last 5 hours.
 - **Last sign of life:** the latest of the bridge's events, the last log line and the last telemetry event. Hook events are counted by the `heard` time from v0.49.0, so the status line's refresh can't make a hung turn look alive. **Silent** means Working with no sign of life for 5 minutes. It is a display state, not a new hook state.
 - **Retrying:** an API error with retries still pending.
-- **Plan reading ring:** the last 5 hours of plan readings (percent and time). "≈ limit" comes from the last 30 minutes' pace, and from today's average. Today's average is turned from tokens an hour into percent an hour at this window's percent per token, so its tip says it is worked out from tokens. **There is one "≈ limit" in the app: `LimitAtPace`.** The header, Live's wall and Limits use it from the start. The Garage tank, Medium's tile and Small's meter line used v0.53.0's token-based ETA, and moved to it in v0.56.2, so no screen shows two different limit times or shows one without 3 readings. With fewer than 3 readings there is no projection, and the chart says why. **Limit reached** (v0.56.1): once the newest reading is at 100%, `LimitAtPace.Reached` is set and `LimitAt` is null, and every place that would show "≈ limit" says "Limit reached" in Amber instead, never a time that has passed. "≈ limit" is the one word for it everywhere; v0.53.0's "≈ empty" is gone.
+- **Plan reading ring:** the last 5 hours of plan readings (percent and time). "≈ limit" comes from the last 30 minutes' pace, and from today's average. Today's average is turned from tokens an hour into percent an hour at this window's percent per token, so its tip says it is worked out from tokens. **There is one "≈ limit" in the app: `LimitAtPace`.** The header, Live's wall and Limits use it from the start. The Garage tank, Medium's tile and Small's meter line used v0.53.0's token-based ETA, and moved to it in v0.57.2, so no screen shows two different limit times or shows one without 3 readings. **"≈ limit" always means `LimitAtPace`.** With fewer than 3 readings there is no projection: Live and Limits say why ("Only 2 plan readings so far"), and the tank, Medium and Small fall back to the window's own pace so far without the word "limit", as "≈ N% by reset" or, past 100%, "≈ over by reset". **Limit reached** (v0.56.1): once the newest reading is at 100%, `LimitAtPace.Reached` is set and `LimitAt` is null, and every place that would show "≈ limit" says "Limit reached" in Amber instead, never a time that has passed. "≈ limit" is the one word for it everywhere; v0.53.0's "≈ empty" is gone.
 - **Typical tool time:** the median of telemetry's tool run times, per tool, per session and across all sessions. With telemetry off, the table says so and shows only the log counts.
 - **Event feed:** the last 50 state changes, tool failures, API errors and compactions. It holds names and times only.
 
@@ -77,14 +77,15 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
 1. **Current tool.** The hook does not store it. Now keeps v0.53.0's tool name from telemetry, in memory, and labels it "last" once that tool has finished. Nothing new is written to the session file. Storing the name on PreToolUse would add one field and a write per tool change, and that stays Ali's call.
 2. **Silent** stays at 5 minutes (`ClaudeAttention.SilentAfter`).
 3. **Retrying gets rose** (`#F09A9A`) as a state colour, recorded in DESIGN.md. Rose was already used for lines removed. It now also means API errors and Retrying, and nothing decorative is rose.
-4. **Shipping in steps**, one PR and version per package:
+4. **Shipping in steps**, one PR and version per package, in version order:
    - v0.54.0: engine (Watcher);
    - v0.55.0: tab shell (Shell);
    - v0.56.0: Live (Watcher);
-   - v0.57.0: Limits and History (Builder);
-   - v0.58.0: Reliability and Sources (Demolition);
    - v0.56.1: "Limit reached" from the engine (Watcher), and the views' frame clock and the header's "Limit reached" (Shell);
-   - v0.56.2: one "≈ limit" everywhere (the Garage tank, Medium and Small move to `LimitAtPace`), the moving Live cars, and archived lanes (Watcher);
+   - v0.57.0: Limits and History (Builder);
+   - v0.57.1: Home and End on the Limits and History pages, and the meter's own percent at the limit (Builder);
+   - v0.57.2: one "≈ limit" everywhere (the Garage tank, Medium and Small move to `LimitAtPace`), the moving Live cars, the time row and trail key, and archived lanes (Watcher). Main already had v0.57.0, so this went out as v0.57.2 rather than v0.56.2;
+   - v0.58.0: Reliability and Sources (Demolition);
    - v0.58.1: these docs (Scribe).
 5. **The garage pit wall stays** as its own Garage tab, keeping 5 h / Today / Week. Ali can drop it after he has seen Live.
 6. **Keys:** Ctrl+1 to Ctrl+6 switch views in tab order, and "open the session that waited longest" moves from Ctrl+1 to Ctrl+G. The brief says Ctrl+1 to Ctrl+5 because it has no Garage tab.
