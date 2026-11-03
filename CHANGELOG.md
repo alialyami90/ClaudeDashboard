@@ -6,6 +6,26 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.61.3 (unreleased)
+
+Docs: CLAUDE.md records the Insights tab (decision 031, v0.60.0 to v0.61.2) and Ali's approval to copy his logs for reviews. The v0.60.0 section above loses a repeated tools line and notes that v0.60.1 replaced "allowed without asking".
+
+## v0.61.2 (unreleased)
+
+Docs: Insights (Scribe). Docs only.
+
+- **Decision 031** (`docs/decisions/031-insights.md`), from the spec, recording what shipped in v0.60.0, v0.60.1 and v0.61.0:
+  - the log inventory;
+  - the v2 detail and how it counts;
+  - the privacy rule with its extended names;
+  - `ClaudeInsights` and its three ranges;
+  - the tab's six sections and honest states;
+  - the Lead's settled points;
+  - what was verified, and what isn't decided (custom ranges, damping comparisons over thin detail).
+- **PRODUCT.md.** The purpose names the Insights tab. What it reads now lists what the logs give since v0.60.0. What it keeps describes the day files' detail section. That section holds numbers, plus model, effort, tool, MCP server, skill and plugin names and project folders. It holds no text, no tool inputs, outputs or paths, no branch names and no ids. Ctrl+1 to Ctrl+7.
+- **README.md.** Seven views with Insights and Ctrl+7, an Insights bullet, and decision records 014–031.
+- **DESIGN.md.** The tab row has seven views. The views table gains Ctrl+7, and the keys say Ctrl+1 to Ctrl+7. A new "Insights" section covers the range row, each section, the series colours, where Amber is used, ≈ and the missing states. The page joins Limits and History in the scrolling-page rule.
+
 ## v0.61.1 (unreleased)
 
 Insights follow-up, from the Lead's render on Ali's logs.
@@ -52,9 +72,8 @@ Claude Dashboard: the Insights engine (decision 031, part A). Ali asked: "show m
   - models: replies, input, output, cache read and write, thinking tokens and ≈ $ for each;
   - effort level per model;
   - tools: calls, errors, ≈ time, and calls, errors and ≈ time by model for each;
-  - tools: calls, errors, ≈ time and calls by model for each;
   - MCP servers, skills and plugins;
-  - permissions: allowed without asking, allowed by a rule, asked, denied;
+  - permissions: allowed by a rule, asked, denied (v0.60.1 replaced "allowed without asking" with "allowed by a hook");
   - health: API errors, retries, compactions and stop reasons;
   - each session's length;
   - lines added and removed, overall and per project.

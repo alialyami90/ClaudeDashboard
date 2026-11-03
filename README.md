@@ -8,13 +8,14 @@ It is native WPF on .NET Framework 4.8, with no WebView, no packages and no serv
 
 ## What it shows
 
-From 640 wide the window has six views, one tab each ([decision 030](docs/decisions/030-claude-lap-chart.md)): **Live** (home), **Garage**, **Limits**, **History**, **Reliability** and **Sources**. Ctrl+1 to Ctrl+6 choose them. Narrower, the window is the Garage alone.
+From 640 wide the window has seven views, one tab each ([decision 030](docs/decisions/030-claude-lap-chart.md), [decision 031](docs/decisions/031-insights.md)): **Live** (home), **Garage**, **Limits**, **History**, **Reliability**, **Sources** and **Insights**. Ctrl+1 to Ctrl+7 choose them. Narrower, the window is the Garage alone.
 
 - **Live: the lap chart.** Every session is a lane on one time axis, from 100 minutes ago to the 5-hour reset, most urgent first. Its car rides the now line with a trail of its states behind it, so you can see how long each has been working, waiting or silent. Above the lanes is the plan's 5-hour curve; where its projection hits 100% before the reset, an Amber wall drops through every lane at "≈ limit 3:21 pm". Below, "What just happened" lists the latest changes, and clicking a lane shows that session: what it asks, its last sign of life, the tool it's in, context, today's numbers and its tool runs.
 - **Limits.** The 5-hour window from start to reset with its "≈ limit" at the last 30 minutes' pace and at today's average, the week as laps by day, the weekly windows and tokens by project.
 - **History.** Eight weeks of days, your hours compared with last week, and the last 7 days. Days from before the dashboard was watching are built from Claude Code's logs and marked "from logs".
 - **Reliability.** Tool failures, API errors in the last hour, asks, compactions and stuck turns with their reasons.
 - **Sources.** Hooks, logs, telemetry, the plan meters and the Claude app's threads: each one's state, how fresh it is, what it gives, and one button to fix it. Under them, History from the logs says how long Claude Code keeps its logs (30 days by default) and how many past days were built, with **Keep logs a year**, which sets Claude Code's `cleanupPeriodDays` to 365 with a dated backup, and Undo.
+- **Insights.** The long view of Claude Code's logs over 7 days, 30 days or everything kept, against the period before: models (share, tokens, ≈ $, thinking), effort levels per model, the most and least used tools with errors and ≈ times (filter by model), MCP servers, skills and plugins, projects with sessions and lines, when you work (hour × weekday), and health (API errors, retries, compactions, permissions, how replies ended).
 
 The Garage view, and the whole window below 640 wide:
 
@@ -28,7 +29,7 @@ The Garage view, and the whole window below 640 wide:
 - **The last 7 days.** Small bars beside tokens a minute, one a day, with a tick for what last week had used by this time of day.
 - **Export.** Settings → Claude → History → **Copy summary** (the last 7 days as a Markdown table) and **Save CSV…** (one row per day, project and thread).
 - **Plain list.** Settings → Claude → Show a plain list instead of the pit wall: the same projects, threads, states and numbers as rows of text, named for screen readers, with nothing moving.
-- **Keyboard.** Tab reaches every thread, car and garage; Enter or Space brings a session forward or folds a garage; Live's lanes are buttons too. **Ctrl+1** to **Ctrl+6** choose the views, and **Ctrl+G** opens the session that has waited longest. A screen reader hears when a session starts needing you, and every word follows the text size up to 140%.
+- **Keyboard.** Tab reaches every thread, car and garage; Enter or Space brings a session forward or folds a garage; Live's lanes are buttons too. **Ctrl+1** to **Ctrl+7** choose the views, and **Ctrl+G** opens the session that has waited longest. A screen reader hears when a session starts needing you, and every word follows the text size up to 140%.
 
 It's an ordinary window (at least 360 × 300) that remembers where it was and picks a Large, Medium or Small design from its size: the full pit wall, the top garages under two plan tiles, or just the car that needs you over the 5-hour meter. Its edge turns Amber when a session needs you, and Glacier when a reply you owe has waited 10 minutes. Settings has three tabs: Theme (Midnight, Slate, Warm or the light Claude palette, accent, text size, clock, Quiet mode), Claude (connection, sign-in, alerts, the plain list, intervals, History and export, projects), and Window (start with Windows, start minimised, open where I last closed it, keep on top).
 
@@ -96,7 +97,7 @@ CI on GitHub runs the same checks on every push and pull request. Every change g
 | `hook/` | `ClaudeHook.exe`, which Claude Code's hooks and status line call |
 | `installer/` | The setup exe |
 | `tests/Claude/`, `tests/Migration/` | The watcher's checks and the move from Widget Screen |
-| `docs/decisions/` | Decision records 014–029: why the watcher works the way it does |
+| `docs/decisions/` | Decision records 014–031: why the watcher works the way it does |
 | `docs/design/` | The watcher's design note, the approved pit wall mock and the setup note |
 | `docs/archive/` | Widget Screen's spec, records and notes, kept read-only as history |
 

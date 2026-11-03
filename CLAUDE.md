@@ -36,12 +36,18 @@ A Windows desktop app whose whole window is the Claude Code watcher: every Claud
 | F. Docs (decision 030, DESIGN, PRODUCT, README) | v0.58.3 | Scribe |
 | The six defaults confirmed | v0.58.4 | Scribe |
 | History from the logs: past days built from Claude Code's logs, a year kept, Keep logs a year | v0.59.0 | Watcher |
+| The backfill stepped on every heartbeat while it's behind | v0.59.3 | Watcher |
+| Insights engine: day files v2 (`detail`), `ClaudeInsights` ranges | v0.60.0, v0.60.1 | Watcher |
+| The Insights tab (Ctrl+7) | v0.61.0, v0.61.1 | Builder |
+| Docs for Insights, decision 031 | v0.61.2 | Scribe |
 
-Ali confirmed decision 030's six defaults and approved the tags v0.53.1 to v0.58.3 (3 Nov 2026). "≈ limit" always means the engine's `LimitAtPace` (3 plan readings or more, before the reset), and "Limit reached" replaces it once the window is full. The views live in `src/widgets/` (`LiveView`, `LapChart`, `LimitsView`, `HistoryView`, `ReliabilityView`, `SourcesView`), start no timers, and get frames only through `ClaudeViewContext.Frames`.
+Ali confirmed decision 030's six defaults and approved the tags v0.53.1 to v0.58.3 (3 Nov 2026). "≈ limit" always means the engine's `LimitAtPace` (3 plan readings or more, before the reset), and "Limit reached" replaces it once the window is full. The views live in `src/widgets/` (`LiveView`, `LapChart`, `LimitsView`, `HistoryView`, `ReliabilityView`, `SourcesView`, and since v0.61.0 `InsightsView`), start no timers, and get frames only through `ClaudeViewContext.Frames`.
 
 History from the logs (v0.59.0, Ali chose options A, B and C, 3 Nov 2026): Pro and Max plans have no usage-history API, so `ClaudeBackfill` builds missing or partial past days from Claude Code's `projects\` logs on the background scan, never today, numbers, project folders and their folder names only (no thread names), keeping a day file's own Needs and LongestWait and marking it `fromLogs`. Sources → Keep logs a year sets `cleanupPeriodDays` to 365 in Claude Code's `settings.json` only when pressed, with Connect's backups; Undo and Disconnect take out only the dashboard's own value (`logs-kept.json` in the bridge folder).
 
 Sign in with Claude stays as it is (Ali, 3 Nov 2026), after being told Anthropic's [legal page](https://code.claude.com/docs/en/legal-and-compliance) says other apps may not offer Claude.ai login or store its tokens.
+
+Insights (decision 031, Ali, 3 Nov 2026: "show me a detailed view of the logs"): a 7th tab, Ctrl+7, with models, effort and thinking, tools, projects, when and health over 7 days, 30 days or All against the previous period. Day files are v2 since v0.60.0: a `detail` section with numbers plus model, effort, tool, MCP server, skill and plugin names and project folders, never text, tool inputs or paths, branch names or ids. The engine works out all three ranges off the UI thread after each scan (`ClaudeView.Insights`); the view only picks one. Ali approved copying his Claude Code logs for review renders in the Lead's thread (3 Nov 2026); each copy is deleted after the render.
 
 Cloud garage (package 4.3) waits on a one-time look at the Claude app's cloud thread records on Ali's PC (Watcher).
 
@@ -50,9 +56,9 @@ Since v0.47.3 the C# namespace is `ClaudeDashboard` (the setup's is `ClaudeDashb
 ## The engine
 
 - `src/integrations/Claude/`: the bridge folder written by `hook/ClaudeHook.cs` (Claude Code's hooks and status line); Claude Code's `sessions\` and `projects\` logs under `%USERPROFILE%\.claude` or `CLAUDE_CONFIG_DIR`, read-only; the Claude app's thread records, read-only; the widget's own **Sign in with Claude** (PKCE, `user:profile`, DPAPI `claude-session.dat`, usage meters from `api.anthropic.com` every 5 minutes); OpenTelemetry to a loopback receiver on **127.0.0.1:43832** (next free up to 43839); `ClaudeWatch` file watchers with a 30 s fallback; alerts and `ClaudeToast`; since v0.47.0 the daily summary files (`ClaudeHistory`, `claude\history\`, kept a year since v0.59.0, numbers, project folders and their folder names only (no thread names), past days built from the logs by `ClaudeBackfill`) and Copy summary and Save CSV (`ClaudeExport`, which never writes a thread name taken from its first request).
-- The card: `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs`. Small, Medium and Large by the `CardSizing.Claude` members, which live at the bottom of `ClaudeCard.cs` since v0.45.0. The window is at least 360 × 300. From 640 wide a tab row shows six views (Live, Garage, Limits, History, Reliability, Sources; decision 030); below 640 it is the Garage card alone. Settings → Claude → Show a plain list swaps the pit wall for text rows (`BuildPlain`).
+- The card: `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs`. Small, Medium and Large by the `CardSizing.Claude` members, which live at the bottom of `ClaudeCard.cs` since v0.45.0. The window is at least 360 × 300. From 640 wide a tab row shows seven views (Live, Garage, Limits, History, Reliability, Sources; decision 030; Insights, Ctrl+7, decision 031); below 640 it is the Garage card alone. Settings → Claude → Show a plain list swaps the pit wall for text rows (`BuildPlain`).
 - Settings → Claude → Connect merges into Claude Code's `settings.json` with five dated backups and never overwrites the user's `OTEL_*`; Disconnect takes out exactly that. `ClaudeHook.exe` and the `.widgetscreen-backup` suffix keep their names so Disconnect finds its own entries.
-- Decisions 014, 015, 016 (projects and threads), 017–020, 022 (review fixes), 023–030 are current. Everything else is in `docs/archive/`, read-only history.
+- Decisions 014, 015, 016 (projects and threads), 017–020, 022 (review fixes), 023–031 are current. Everything else is in `docs/archive/`, read-only history.
 
 ## Build, run, test (Windows, PowerShell, from the root)
 
