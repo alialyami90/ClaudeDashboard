@@ -230,6 +230,10 @@ namespace ClaudeDashboard
         public bool LogsKeptByUs;
         // "Telemetry off: port 43832 in use" when the receiver couldn't listen where settings.json sends it (decision 023).
         public string TelemetryWarning = "";
+        // v0.59.0: the two parts of that line apart, so Sources and the health line put each on its own row: telemetry's
+        // own problem (null: take TelemetryWarning, as the fixture sets only that), and the bridge Claude Code's hooks
+        // run when Widget Screen took them back.
+        public string TelemetryProblem, HooksElsewhere;
         public int Stuck { get { return Sessions.Count(s => s.State == ClaudeState.Stuck); } }
         public int NeedsYou { get { return Sessions.Count(s => s.State == ClaudeState.NeedsYou); } }
         public int Working { get { return Sessions.Count(s => s.State == ClaudeState.Working); } }
@@ -1020,6 +1024,7 @@ namespace ClaudeDashboard
             foreach (var t in list) remember(t.Project, t.LastActive);
             view.Sessions = ClaudeView.Order(list.Where(s => s.Running));
             view.TelemetryWarning = ConnectionWarning();
+            view.TelemetryProblem = TelemetryWarning(); view.HooksElsewhere = Connected ? HooksElsewhere : null;
             foreach (var pair in starts) view.Starts[pair.Key] = pair.Value;
             if (usage != null) foreach (var pair in starts) view.Usage[pair.Key] = ClaudeUsage.ByProject(usage, pair.Value, 6, folderOf, shown);
             PitWall(view, now, usage, perSession, folderOf, shown);

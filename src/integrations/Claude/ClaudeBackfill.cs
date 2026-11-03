@@ -12,11 +12,13 @@ namespace ClaudeDashboard
     // default (cleanupPeriodDays), so the logs are the only record of those days on the PC. Pro and Max plans have no
     // history API.
     //
-    // Each past local day in the logs that has no day file gets one: tokens, cache reads, replies, threads, ≈ $ at API
+    // Each past local day in the logs that has no day file gets one, and a day file the live History wrote from a
+    // partial scan (fewer replies than the logs hold) gets the logs' counts, keeping its own needs and longest wait:
+    // tokens, cache reads, replies, threads, ≈ $ at API
     // prices (unpriced replies counted apart), tokens per hour and the share per project. Each reply counts once, by its
-    // request id (message.id when there is none), across every log. Numbers and project names only: no prompt, reply,
-    // title or command is kept, and no thread name is taken from a first request. A day file that exists is never
-    // replaced, and today is never written (the live History owns it). Needs and the longest wait can't be rebuilt from
+    // request id (message.id when there is none), across every log. Numbers and project folders only: no prompt, reply,
+    // title or command is kept, and no thread name is taken from a first request. A day file with as many replies as the
+    // logs is never replaced, and today is never written (the live History owns it). Needs and the longest wait can't be rebuilt from
     // the logs: such a day says FromLogs, and History says so instead of showing 0.
     //
     // It runs on the log scan's thread, after each scan, in budgeted chunks (StepBudget bytes), with no timer of its own,
@@ -151,6 +153,9 @@ namespace ClaudeDashboard
         // Adds a piece of a log to its days. The parser's titles and first requests go to throwaway dictionaries.
         private void Fold(string text, string session, bool helper, DateTime today, DateTime oldestKept)
         {
+            // The oldest day the logs hold, from any line's timestamp (a prompt or a note too, not only replies).
+            var first = Earliest(text);
+            if (first.HasValue) { var on = history.LocalDate(first.Value); if (!OldestLog.HasValue || on < OldestLog.Value) OldestLog = on; }
             foreach (var e in ClaudeUsage.Parse(text, counted, session, folders, null, null, null, helper))
             {
                 // The reply is counted; only its request id stays, against a placeholder.
@@ -174,9 +179,29 @@ namespace ClaudeDashboard
                 if (e.Session.Length > 0) set.Add(e.Session);
             }
         }
+        // The earliest "timestamp" in a piece of a log, read without parsing the lines (a prompt's or a note's too).
+        private static DateTime? Earliest(string text)
+        {
+            const string Key = "\"timestamp\":\"";
+            DateTime? earliest = null;
+            int at = 0;
+            while ((at = text.IndexOf(Key, at, StringComparison.Ordinal)) >= 0)
+            {
+                at += Key.Length;
+                int end = text.IndexOf('"', at);
+                if (end < 0) break;
+                if (end - at <= 40)
+                {
+                    var when = ClaudeBridge.ParseTime(text.Substring(at, end - at));
+                    if (when.HasValue && (!earliest.HasValue || when.Value < earliest.Value)) earliest = when;
+                }
+                at = end + 1;
+            }
+            return earliest;
+        }
         private int TimeZoneLocalHour(DateTime utc) { return Math.Max(0, Math.Min(23, history.LocalTime(utc).Hour)); }
 
-        // Writes each past day the logs cover that has no file yet; never today, never over a file.
+        // Writes each past day the logs cover that has no file yet, or whose file counted fewer replies; never today.
         private bool Write(DateTime today, DateTime oldestKept)
         {
             bool wrote = false;
@@ -187,7 +212,7 @@ namespace ClaudeDashboard
                 day.Threads = tally.Threads.Count;
                 foreach (var g in day.Garages) { HashSet<string> set; g.Threads = tally.GarageThreads.TryGetValue(g.Folder, out set) ? set.Count : 0; }
                 day.Garages = day.Garages.OrderByDescending(g => g.Tokens).ThenBy(g => g.Name, StringComparer.OrdinalIgnoreCase).ToList();
-                if (history.WriteNew(day, today)) { DaysWritten++; wrote = true; }
+                if (history.Rebuild(day, today)) { DaysWritten++; wrote = true; }
             }
             return wrote;
         }

@@ -41,19 +41,23 @@ internal static class ClaudeBackfillTests
         check("Claude history from the logs: past days built once, existing days and today left alone, a reply counted once, numbers only (v0.59.0)", () => {
             string config = Fresh(directory, "config"), bridge = Fresh(directory, "bridge");
             string project = Path.Combine(config, "projects", "C--Code-api");
-            DateTime d40 = Now.AddDays(-40), d3 = Now.AddDays(-3), d1 = Now.AddDays(-1), old = Now.AddDays(-400);
+            DateTime d40 = Now.AddDays(-40), d10 = Now.AddDays(-10), d3 = Now.AddDays(-3), d1 = Now.AddDays(-1), old = Now.AddDays(-400);
             // Session one: a prompt, a reply 40 days ago streamed over two lines (one request id), one 3 days ago, two
             // yesterday, one today, and one 400 days ago (past the year kept).
-            Log(Path.Combine(project, "s1.jsonl"), new[] { Prompt("s1", old), Reply("s1", old, "r0"), Reply("s1", d40, "r1"), Reply("s1", d40.AddSeconds(2), "r1"),
+            // Its first line is a prompt the day before that: the oldest day the logs hold comes from any line.
+            Log(Path.Combine(project, "s1.jsonl"), new[] { Prompt("s1", old.AddDays(-1)), Prompt("s1", old), Reply("s1", old, "r0"), Reply("s1", d40, "r1"), Reply("s1", d40.AddSeconds(2), "r1"),
                 Reply("s1", d3, "r2"), Reply("s1", d1, "r3"), Reply("s1", d1.AddHours(1), "r4", "gateway-model"), Reply("s1", Now, "r5") });
             // Session two, plus a helper's log that repeats r3 (the same reply, seen in both).
-            Log(Path.Combine(project, "s2.jsonl"), new[] { Prompt("s2", d40), Reply("s2", d40.AddHours(2), "r6") });
+            Log(Path.Combine(project, "s2.jsonl"), new[] { Prompt("s2", d40), Reply("s2", d40.AddHours(2), "r6"), Reply("s2", d10, "r7"), Reply("s2", d10.AddHours(1), "r8") });
             Log(Path.Combine(project, "s1", "subagents", "agent-a1.jsonl"), new[] { Reply("s1", d1, "r3") });
             // A day that already has its file, and a big line that crosses a chunk.
             var history = new ClaudeHistory(bridge, TimeZoneInfo.Utc);
             var kept = new ClaudeDay { Date = d3.Date, Tokens = 7, Replies = 1, Needs = 2 };
             ClaudeBridge.WriteAtomic(Path.Combine(ClaudeHistory.Folder(bridge), kept.Name + ".json"), ClaudeJson.Compact(kept.ToJson()));
             string keptText = File.ReadAllText(Path.Combine(ClaudeHistory.Folder(bridge), kept.Name + ".json"));
+            // A day the live History wrote from a partial scan: 1 reply where the logs hold 2, with needs it saw.
+            var partial = new ClaudeDay { Date = d10.Date, Tokens = 7, Replies = 1, Needs = 3, LongestWait = 90 };
+            ClaudeBridge.WriteAtomic(Path.Combine(ClaudeHistory.Folder(bridge), partial.Name + ".json"), ClaudeJson.Compact(partial.ToJson()));
 
             var backfill = new ClaudeBackfill(config, history) { StepBudget = 100 };
             Assert(!backfill.Step(Now) && !backfill.Started, "The backfill ran while History is off.");
@@ -61,7 +65,7 @@ internal static class ClaudeBackfillTests
             int steps = 0;
             while (!backfill.Done && steps < 100) { backfill.Step(Now); steps++; }
             Assert(backfill.Done && steps > 1 && backfill.FilesTotal == 3 && backfill.FilesRead == 3, "The backfill didn't finish in budgeted steps: " + steps + " steps, " + backfill.FilesRead + " of " + backfill.FilesTotal);
-            Assert(backfill.OldestLog.HasValue && backfill.OldestLog.Value == old.Date, "The oldest log day: " + backfill.OldestLog);
+            Assert(backfill.OldestLog.HasValue && backfill.OldestLog.Value == old.AddDays(-1).Date, "The oldest log day, from any line: " + backfill.OldestLog);
 
             var day40 = history.Read(d40.Date);
             Assert(day40 != null && day40.FromLogs && day40.Replies == 2 && day40.Tokens == 300 && day40.CacheRead == 2000 && day40.Threads == 2, "40 days ago: " + (day40 == null ? "none" : day40.Replies + " replies, " + day40.Tokens + " tokens, " + day40.Threads + " threads"));
@@ -70,7 +74,10 @@ internal static class ClaudeBackfillTests
             Assert(day1 != null && day1.Replies == 2 && day1.Tokens == 300 && day1.Unpriced == 1, "Yesterday counted the helper's copy of a reply, or the unpriced one: " + (day1 == null ? "none" : day1.Replies + " replies, " + day1.Unpriced + " unpriced"));
             Assert(File.ReadAllText(Path.Combine(ClaudeHistory.Folder(bridge), kept.Name + ".json")) == keptText, "A day that had its file was replaced.");
             Assert(history.Read(Now.Date) == null && history.Read(old.Date) == null, "Today, or a day past the year kept, was written.");
-            Assert(backfill.DaysWritten == 2, "Days written: " + backfill.DaysWritten);
+            var day10 = history.Read(d10.Date);
+            Assert(day10 != null && day10.Replies == 2 && day10.Tokens == 300 && day10.CacheRead == 2000 && day10.Threads == 1 && day10.Garages.Count == 1 && day10.Garages[0].Replies == 2
+                && day10.Needs == 3 && day10.LongestWait == 90 && day10.FromLogs, "The partial day wasn't corrected from the logs, keeping its needs: " + (day10 == null ? "none" : day10.Replies + " replies, " + day10.Tokens + " tokens, " + day10.Needs + " needs, " + day10.LongestWait + " s"));
+            Assert(backfill.DaysWritten == 3, "Days written: " + backfill.DaysWritten);
             foreach (var file in Directory.GetFiles(ClaudeHistory.Folder(bridge)))
             {
                 string text = File.ReadAllText(file);
@@ -95,6 +102,12 @@ internal static class ClaudeBackfillTests
             var m = HistoryModel.From(days, Now, false, "");
             var fromLogs = m.Last7.First(r => r.Date == local.AddDays(-2));
             Assert(fromLogs.FromLogs && fromLogs.Cells[4] == "—" && fromLogs.Cells[5] == HistoryModel.FromLogsCell, "A from-logs day shows 0 needs: " + String.Join(" | ", fromLogs.Cells));
+            Assert(m.FromLogsDays == 1 && m.FromLogs(local.AddDays(-2)) && !m.FromLogs(local.AddDays(-1)) && m.FromLogsLine().StartsWith("Dot: built from Claude Code's logs, 1 day (") && m.CalendarWords().Contains(m.FromLogsLine()), "The calendar doesn't say which days came from the logs: " + m.FromLogsLine());
+            // A day corrected from the logs keeps the wait the dashboard saw, and shows it.
+            days[0].LongestWait = 90;
+            var corrected = HistoryModel.From(days, Now, false, "").Last7.First(r => r.Date == local.AddDays(-2));
+            Assert(corrected.FromLogs && corrected.Cells[5] == HistoryModel.Wait(TimeSpan.FromSeconds(90)), "A corrected day's wait: " + corrected.Cells[5]);
+            days[0].LongestWait = 0;
             var watched = m.Last7.First(r => r.Date == local.AddDays(-1));
             Assert(!watched.FromLogs && watched.Cells[4] == "1", "A watched day's needs: " + watched.Cells[4]);
             var json = ClaudeDay.FromJson(ClaudeJson.Obj(ClaudeJson.Parse(ClaudeJson.Compact(days[0].ToJson()))));
@@ -113,6 +126,12 @@ internal static class ClaudeBackfillTests
             Assert(ClaudeSources.Backfill(view) == "Past days from the logs: reading 12 of 51 logs · logs from 3 Oct 2026", "Reading: " + ClaudeSources.Backfill(view));
             view.BackfillDone = true; view.BackfillDays = 24;
             Assert(ClaudeSources.Backfill(view) == "Past days built from the logs: 24 days · logs from 3 Oct 2026", "Done: " + ClaudeSources.Backfill(view));
+            // Widget Screen holding the hooks is the Hooks row's warning, not Telemetry's.
+            var away = ClaudeView.Fixture(Now, false); away.Sample = false; away.Connected = true; away.HooksElsewhere = @"C:\Users\a\AppData\Local\WidgetScreen\claude";
+            away.TelemetryWarning = "Live updates go to Widget Screen: reconnect in Settings → Claude"; away.TelemetryProblem = "";
+            var rows = ClaudeSources.Of(away, Now, false, null);
+            Assert(rows[0].Action == ClaudeSources.Reconnect && rows[0].Level == ClaudeHealthLevel.Failed && rows[2].Level != ClaudeHealthLevel.Failed && rows[2].State.IndexOf("Widget Screen", StringComparison.Ordinal) < 0,
+                "The Widget Screen warning: hooks " + rows[0].State + " / " + rows[0].Action + ", telemetry " + rows[2].State);
             Assert(ClaudeSources.Exempt.Contains("Claude desktop app") && ClaudeSources.Exempt.Contains("kept past") && ClaudeSources.Exempt.StartsWith("Claude Code's docs say"), "The desktop app's exemption isn't said, with its source.");
         });
 

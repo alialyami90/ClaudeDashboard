@@ -53,7 +53,7 @@ namespace ClaudeDashboard
         // The five rows, in the order the prototype lists them.
         public static List<SourceRow> Of(ClaudeView view, DateTime now, bool use24, ClaudeLinks links)
         {
-            if (links == null) links = view == null ? null : new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = view.TelemetryWarning ?? "" };
+            if (links == null) links = view == null ? null : new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = view.TelemetryProblem ?? view.TelemetryWarning ?? "", HooksElsewhere = view.HooksElsewhere };
             var health = ClaudeHealth.Of(view, now, use24, links);
             var threads = view == null ? new List<ClaudeSession>() : view.Threads.ToList();
             var rows = new List<SourceRow>();

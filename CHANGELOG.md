@@ -12,10 +12,12 @@ Claude Dashboard: History from the logs (Ali: "I've been using claude for more t
 
 - **Past days built from Claude Code's logs.** History used to begin the day it was turned on and read back only a week. Pro and Max plans have no history API, and Claude Code keeps its session logs 30 days by default (`cleanupPeriodDays`), so the logs are the only record of the days before. Now each past local day in the logs that has no day file gets one (`ClaudeBackfill`): tokens, cache reads, replies, threads, ≈ $ at API prices (unpriced replies counted apart), tokens by hour and the share per project.
   - Each reply counts once, by its request id (its message id when there is none), across every log, helpers' logs included.
-  - A day that has its file is never replaced, and today is never written.
-  - Numbers and project names only: no prompt, reply, title, model or command, and no thread name from a first request. Only request ids are held in memory while it reads, never the replies.
+  - A day file the live History wrote from a partial scan (fewer replies than the logs hold; the scan reads a week from the logs' tails) is corrected from the logs: tokens, cache reads, replies, threads, cost, hours and projects. Its own needs and longest wait stay, since only the live History sees those. A day file with as many replies as the logs is never replaced, and today is never written.
+  - The oldest day the logs hold comes from any line's timestamp, not only replies.
+  - Numbers and project folders only (the same keys the live day files use): no prompt, reply, title, model or command, and no thread name from a first request. Only request ids are held in memory while it reads, never the replies.
   - It runs on the background log scan's thread, 32 MB of log a step, after each scan, with no timer of its own, and writes the days once every log is read. It follows Settings → Claude → History: off, it does nothing; turned on again, it starts over.
-  - Needs and the longest wait can't be rebuilt from the logs. Such a day carries `fromLogs`, and History's "Last 7 days" shows "—" and "from logs" with a one-line note, instead of 0. The live History keeps the mark when it later adds to that day.
+  - Needs and the longest wait can't be rebuilt from the logs. Such a day carries `fromLogs`, and History's "Last 7 days" shows "—" and "from logs" with a one-line note, instead of 0 (a corrected day shows the wait it saw). The live History keeps the mark when it later adds to that day. The calendar puts a small dot on such days and says in words under it which days came from the logs.
+- **Sources' Hooks row** now carries the "Hooks with Widget Screen · Reconnect" warning. It used to show on the Telemetry row too, because the views took the card's one connection line as telemetry's problem.
 - **A year of day files.** `ClaudeHistory.KeptDays` goes from 56 to 365. The History calendar stays at 8 weeks (`HistoryModel.CalendarDays` = 56, decoupled). History's words say a year.
 - **Sources → History from the logs** shows:
   - how long Claude Code keeps its logs, or "30 days (Claude Code's default)";
@@ -28,7 +30,7 @@ Claude Dashboard: History from the logs (Ali: "I've been using claude for more t
   - Disconnect does the same, but only when the dashboard set the key and it still holds 365. A user's own value is left alone. `logs-kept.json` in the bridge folder records what was there before.
   - The setting is read along with the 10-second connection check (and right after a press), not on a timer of its own.
 - **Checks** (old-dated logs and a `settings.json` in throwaway folders, never the PC's own):
-  - the right days are built, in budgeted steps;
+  - the right days are built, in budgeted steps, and a partial day file is corrected with its needs kept;
   - existing days and today are skipped, and days past a year are left out;
   - a duplicate request id counts once, a helper's copy included;
   - no text, model, session or request id lands in a day file;

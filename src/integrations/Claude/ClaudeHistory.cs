@@ -213,6 +213,20 @@ namespace ClaudeDashboard
             if (day == null || day.Date.Date >= today.Date || Exists(day.Date)) return false;
             try { Directory.CreateDirectory(folder); ClaudeBridge.WriteAtomic(DayPath(day.Date.Date), ClaudeJson.Compact(day.ToJson())); return true; } catch (Exception) { return false; }
         }
+        // A past day from the logs (never today): written when the day has no file, or when its file counted fewer
+        // replies than the logs hold (the live History wrote it from a partial scan: the scan keeps a week, read from
+        // the logs' tails). The counts then come from the logs, the needs and longest wait stay the file's own (only
+        // the live History sees those), and the day says it was rebuilt from the logs. A file with as many replies or
+        // more is left as it is.
+        public bool Rebuild(ClaudeDay day, DateTime today)
+        {
+            if (day == null || day.Date.Date >= today.Date) return false;
+            var stored = Read(day.Date.Date);
+            if (stored == null) return WriteNew(day, today);
+            if (day.Replies <= stored.Replies) return false;
+            day.Needs = stored.Needs; day.LongestWait = stored.LongestWait; day.FromLogs = true;
+            try { ClaudeBridge.WriteAtomic(DayPath(day.Date.Date), ClaudeJson.Compact(day.ToJson())); return true; } catch (Exception) { return false; }
+        }
 
         // Deletes day files older than a year (and stray files that aren't days).
         public void Prune(DateTime now)

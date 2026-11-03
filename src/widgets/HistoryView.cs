@@ -12,7 +12,7 @@ namespace ClaudeDashboard
 {
     // The lap chart's History tab (decision 030, package D), from ClaudeHistory's day files: the 8-week calendar, the
     // hour-of-day profile against the same hour last week, the last 7 days (tokens, ≈ $, threads, times it needed you,
-    // longest wait) and the projects this week. Numbers and project names only, as the files keep.
+    // longest wait) and the projects this week. Numbers and project folders only, as the files keep.
     //
     // Built once per room and text size, filled in from the snapshot on Refresh. The day files are read through the context's History,
     // only when today's tokens or the date change (the service writes today's file once a minute) and never more than
@@ -124,9 +124,11 @@ namespace ClaudeDashboard
             calendar.Paint = (dc, size, c) => PaintCalendar(dc, size, c, m, label);
             AutomationProperties.SetName(calendar, m.CalendarWords());
             stack.Children.Add(calendar);
+            // v0.59.0: which days came from Claude Code's logs, said in words under the calendar, not only by its dots.
+            if (m.FromLogsDays > 0) { var logs = LapParts.Words(m.FromLogsLine(), S(12), "Muted"); logs.TextWrapping = TextWrapping.Wrap; logs.Margin = new Thickness(0, 6, 0, 0); stack.Children.Add(logs); }
             var foot = CardParts.Columns(CardParts.Star, CardParts.Auto); foot.Margin = new Thickness(0, 8, 0, 0);
             foot.Children.Add(CardParts.At(LapParts.Words(m.BusiestLine(), S(12), "Muted"), 0, 0));
-            var kept = LapParts.Words("Kept a year, numbers and project names only", S(12), "Muted"); kept.Margin = new Thickness(12, 0, 0, 0);
+            var kept = LapParts.Words("Kept a year, numbers and project folders only", S(12), "Muted"); kept.Margin = new Thickness(12, 0, 0, 0);
             foot.Children.Add(CardParts.At(kept, 0, 1));
             stack.Children.Add(foot);
 
@@ -207,6 +209,8 @@ namespace ClaudeDashboard
                     if (level == 0) dc.DrawRoundedRectangle(c.TrackInk, null, rect, 4, 4);
                     else { dc.PushOpacity(HistoryModel.Shades[level]); dc.DrawRoundedRectangle(c.AccentInk, null, rect, 4, 4); dc.Pop(); }
                     if (date == m.Today) dc.DrawRoundedRectangle(null, new Pen(c.TextInk, 2), new Rect(rect.X + 1, rect.Y + 1, rect.Width - 2, rect.Height - 2), 4, 4);
+                    // A day built from Claude Code's logs: a small dot in its corner (the line under the calendar says so).
+                    if (m.FromLogs(date)) { double r0 = Math.Max(1.5, Math.Min(rect.Width, rect.Height) * 0.09); dc.DrawEllipse(c.TextInk, null, new Point(rect.Right - r0 - 3, rect.Bottom - r0 - 3), r0, r0); }
                 }
             }
         }
@@ -255,9 +259,9 @@ namespace ClaudeDashboard
         // The calendar's shades: none, then four steps of the accent (darker is quieter).
         public static readonly double[] Shades = { 0, 0.22, 0.42, 0.7, 1 };
 
-        public const string Off = "History is off, so there are no day files to show. Turn it on in Settings → Claude → History; it keeps a year of daily numbers and project names only.";
+        public const string Off = "History is off, so there are no day files to show. Turn it on in Settings → Claude → History; it keeps a year of daily numbers and project folders only.";
         // v0.59.0: a day built from Claude Code's logs says so where its waits would be.
-        public const string FromLogsCell = "from logs", FromLogsNote = "\"from logs\": a day built from Claude Code's logs, before the dashboard was watching, so it has no needs or waits.";
+        public const string FromLogsCell = "from logs", FromLogsNote = "\"from logs\": a day built or corrected from Claude Code's logs, so its needs and waits are only those the dashboard saw.";
         public bool Sample, Empty;
         public string Missing = "";
         public DateTime Today, FirstMonday;
@@ -330,6 +334,18 @@ namespace ClaudeDashboard
             return m;
         }
 
+        // v0.59.0: the calendar's days built from Claude Code's logs (a dot each, and a line in words).
+        public int FromLogsDays { get { return ByDate.Values.Count(d => d.FromLogs && d.Date >= Oldest && d.Date <= Today); } }
+        public bool FromLogs(DateTime date) { ClaudeDay d; return date >= Oldest && ByDate.TryGetValue(date, out d) && d.FromLogs; }
+        public string FromLogsLine()
+        {
+            var dates = ByDate.Values.Where(d => d.FromLogs && d.Date >= Oldest && d.Date <= Today).Select(d => d.Date).OrderBy(d => d).ToList();
+            if (dates.Count == 0) return "";
+            var c = CultureInfo.InvariantCulture;
+            string span = dates.Count == 1 ? dates[0].ToString("d MMM", c) : dates[0].ToString("d MMM", c) + " to " + dates[dates.Count - 1].ToString("d MMM", c);
+            return "Dot: built from Claude Code's logs, " + dates.Count + (dates.Count == 1 ? " day" : " days") + " (" + span + "), needs and waits only where the dashboard saw them.";
+        }
+
         // The calendar cell's shade for a day: -1 before the files kept, 0 for none, 1–4 by its share of the busiest.
         public int Level(DateTime date)
         {
@@ -365,7 +381,7 @@ namespace ClaudeDashboard
         {
             long total = ByDate.Values.Where(d => d.Date >= Oldest && d.Date <= Today).Sum(d => d.Tokens);
             int active = ByDate.Values.Count(d => d.Date >= Oldest && d.Date <= Today && d.Tokens > 0);
-            return "8 weeks of tokens per day: " + active + " days with use, " + ClaudeUsage.Format(total) + " in all. " + BusiestLine();
+            return "8 weeks of tokens per day: " + active + " days with use, " + ClaudeUsage.Format(total) + " in all. " + BusiestLine() + (FromLogsDays > 0 ? " " + FromLogsLine() : "");
         }
         public string HourWords()
         {
