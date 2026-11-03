@@ -526,6 +526,17 @@ internal static class ShellTests
                 Assert(AppController.LimitText(few, DateTime.UtcNow, false) == "" && AppController.LimitText(lasts, DateTime.UtcNow, false) == "", "≈ limit shows from 2 readings, or when the window lasts to its reset.");
                 Assert(controller.HeaderAnnounces, "The header summary isn't an Assertive live region.");
                 Assert(AppController.LimitText(new ClaudeView(), DateTime.UtcNow, false) == "", "≈ limit shows with no pace to go by.");
+                // A full 5-hour window (v0.56.1's Reached): "Limit reached", no ≈ time, and the summary in Amber.
+                var full = new ClaudeView { LimitAtPace = new ClaudeLimitProjection { Known = true, Reached = true, Readings = 5, LimitAt = null } };
+                Assert(AppController.LimitText(full, DateTime.UtcNow, false) == " · Limit reached", "A reached limit says: " + AppController.LimitText(full, DateTime.UtcNow, false));
+                var wasPace = sample.LimitAtPace;
+                sample.LimitAtPace = full.LimitAtPace;
+                controller.ShowView(ClaudeViews.Garage);
+                var headerSummary = (TextBlock)window.FindName("ClaudeSummary");
+                Assert(controller.SummaryForms[0].Contains(" · Limit reached") && !controller.SummaryForms[0].Contains("≈ limit"), "The header doesn't say Limit reached: " + controller.SummaryForms[0]);
+                Assert(sample.NeedsYou > 0 || headerSummary.Foreground == window.Resources["Warning"], "A reached limit's summary isn't Amber.");
+                sample.LimitAtPace = wasPace;
+                controller.ShowView(ClaudeViews.Garage);
 
                 // The views' contract: only the one on screen is Visible, and none while minimised; unknown names do nothing.
                 controller.ShowView(ClaudeViews.History);
@@ -558,6 +569,49 @@ internal static class ShellTests
                 Assert(controller.Act("Nope") == "Unknown action: Nope.", "An unknown action crashed or ran.");
                 Assert(controller.Act("Disconnect") == "Claude Code isn't connected.", "Disconnect ran without a connection.");
                 Assert(controller.Act("ShowArchived") == null && controller.CurrentSettings.ClaudeShowArchived && controller.Act("HideArchived") == null && !controller.CurrentSettings.ClaudeShowArchived, "Show and hide archived didn't change the setting.");
+            }
+        });
+
+        check("Shell views' frame clock: runs only for the view on screen, Visible, not minimised and not Quiet (v0.56.1)", () => {
+            string folder = Fresh(directory, "view-frames");
+            var window = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(window, SettingsFile(folder, new AppSettings { ClaudeStillInQuiet = true })))
+            {
+                controller.UseClaudeSample(false);
+                // Each tab says its view's name to a screen reader (the Live render on Ali's PC: Tab after the last lane
+                // landed on a tab with no name).
+                for (int i = 0; i < ClaudeViews.Names.Length; i++)
+                    Assert(System.Windows.Automation.AutomationProperties.GetName((TabItem)window.FindName("ViewTab" + i)) == ClaudeViews.Names[i], "Tab " + i + " has no name for screen readers.");
+                controller.ShowView(ClaudeViews.Limits);
+                AppController.Lay(window, new Size(1000, 600));
+                var limits = controller.ViewContext();
+                Assert(!limits.Quiet && !controller.ViewFramesRunning, "The views' frame clock runs before a view asks.");
+                limits.Frames(seconds => { }, 60);
+                Assert(controller.ViewFramesAllowed && controller.ViewFramesRunning, "The frame clock didn't start for the view on screen.");
+                limits.Frames(null, 0);
+                Assert(!controller.ViewFramesRunning, "The frame clock kept running once the view was still.");
+                // Another tab drops the request; coming back doesn't restart it until the view asks again.
+                limits.Frames(seconds => { }, 12);
+                controller.ShowView(ClaudeViews.Garage);
+                Assert(!controller.ViewFramesRunning, "The frame clock runs behind Garage.");
+                limits.Frames(seconds => { }, 12);
+                Assert(!controller.ViewFramesRunning, "A view out of sight started the frame clock.");
+                controller.ShowView(ClaudeViews.Limits);
+                AppController.Lay(window, new Size(1000, 600));
+                Assert(!controller.ViewFramesRunning, "The frame clock came back without the view asking.");
+                // Below 640 wide there are no views on screen.
+                var again = controller.ViewContext();
+                again.Frames(seconds => { }, 12);
+                Assert(controller.ViewFramesRunning, "The view on screen couldn't ask again.");
+                AppController.Lay(window, new Size(600, 420));
+                Assert(!controller.ViewFramesRunning, "The frame clock runs below 640 wide, where only Garage shows.");
+                // Quiet with the cars kept still: no motion, and the view is told.
+                AppController.Lay(window, new Size(1000, 600));
+                ((Button)window.FindName("QuietButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var quiet = controller.ViewContext();
+                Assert(quiet.Quiet, "The view isn't told Quiet keeps the cars still.");
+                quiet.Frames(seconds => { }, 12);
+                Assert(!controller.ViewFramesAllowed && !controller.ViewFramesRunning, "The frame clock runs in Quiet mode with the cars kept still.");
             }
         });
 
