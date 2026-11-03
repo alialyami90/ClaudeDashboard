@@ -10,7 +10,7 @@ Nothing yet.
 
 Claude Dashboard: lap chart follow-ups (the Watcher's part).
 
-- **One ≈ limit.** The Garage tank, Medium's 5-hour tile and Small's meter line now say the engine's ≈ limit at the last half hour's pace (`LimitAtPace`), the same time Live's wall stands at, and only when Live draws that wall. The word is "≈ limit" everywhere, the week's pace included; "≈ empty" is gone. When the window is Reached or at 100%, the line says "Limit reached" in Amber and never predicts. Under 3 plan readings there's no time: the window's own pace ("≈ 84% by reset", "≈ limit before reset" over 100%) or nothing, and the tooltip says why.
+- **One ≈ limit.** The Garage tank, Medium's 5-hour tile and Small's meter line now say the engine's ≈ limit at the last half hour's pace (`LimitAtPace`), the same time Live's wall stands at, and only when Live draws that wall. The word is "≈ limit" everywhere, the week's pace included; "≈ empty" is gone. When the window is Reached or at 100%, the line says "Limit reached" in Amber and never predicts. Under 3 plan readings there's no time: the window's own pace ("≈ 84% by reset", "≈ over by reset" over 100%) or nothing, and the tooltip says why. That fallback never says "limit": "≈ limit" always means the engine's ≈ limit, as on Live.
 - **Moving cars on Live.** Each lane's car steps its frames by its state, as on the Garage, through the window's one frame clock (`ClaudeViewContext.Frames`). Live asks for frames only while a car moves and lets go when all are still. Quiet keeps every car still.
 - **Archived threads on Live** follow Settings → Claude: while archived threads are hidden, an archived or resolved thread has no lane and no feed line. Hide idle doesn't apply to Live.
 - **Readability.**

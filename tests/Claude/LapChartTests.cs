@@ -84,7 +84,11 @@ internal static class LapChartTests
             early.LimitAtPace = new ClaudeLimitProjection { Why = "Only 2 plan readings so far: ≈ limit needs 3" };
             Assert(!LapAxis.For(early, Now).Wall.HasValue, "Under 3 readings Live draws a wall.");
             Assert(ClaudeText.FiveHourPace(early, 40, 84.4, Now, false).SequenceEqual(new[] { "≈ 84% by reset", "≈ 84%" }), "Under 3 readings the tank's fallback: " + String.Join(" | ", ClaudeText.FiveHourPace(early, 40, 84.4, Now, false)));
-            Assert(ClaudeText.FiveHourPace(early, 40, 130, Now, false).SequenceEqual(new[] { "≈ limit before reset" }), "Under 3 readings over 100% gives a time or a percent.");
+            Assert(ClaudeText.FiveHourPace(early, 40, 130, Now, false).SequenceEqual(new[] { "≈ over by reset" }), "Under 3 readings over 100% gives a time or a percent.");
+            // "≈ limit" only ever means the engine's LimitAtPace: the window's own pace never says "limit" (the Lead on #29).
+            foreach (double p in new[] { 20.0, 84.4, 100, 130, 400 })
+                Assert(ClaudeText.FiveHourPace(early, 40, p, Now, false).All(f => !f.Contains("limit")) && ClaudeText.PaceBy(p).IndexOf("limit", StringComparison.Ordinal) < 0, "The window's own pace says limit at " + p);
+            Assert(ClaudeText.FiveHourPaceTip(early, 40, 130, Now).Contains("the window's own pace so far"), "The fallback's tip doesn't say it's the window's own pace.");
             Assert(ClaudeText.FiveHourPace(early, 0, Double.NaN, Now, false).SequenceEqual(new[] { "" }) && ClaudeText.FiveHourPaceTip(early, 40, 84.4, Now).StartsWith("Only 2 plan readings"), "Under 3 readings the tank doesn't say why.");
             // A pace that lasts the window: the engine's percent at reset; one in the past: no time.
             var lasting = ClaudeView.Fixture(Now, false, false);

@@ -274,19 +274,20 @@ namespace ClaudeDashboard
                 if (window != null && window.ResetsAt.HasValue && window.ResetsAt.Value > empty.Value) forms.Add(at + ", " + Duration(window.ResetsAt.Value - empty.Value) + " before reset");
                 forms.Add(at);
             }
-            else if (!Double.IsNaN(projection) && projection > 100) forms.Add("≈ limit before reset");
+            else if (!Double.IsNaN(projection) && projection > 100) forms.Add(PaceBy(projection));
             else if (!Double.IsNaN(projection)) { forms.Add(PaceBy(projection)); forms.Add("≈ " + Math.Round(projection) + "%"); }
             else forms.Add("");
             return forms;
         }
-        // "≈ 84% by reset", "≈ limit before reset" over 100%, or nothing early in a window.
-        public static string PaceBy(double projection) { return Double.IsNaN(projection) ? "" : projection > 100 ? "≈ limit before reset" : "≈ " + Math.Round(projection) + "% by reset"; }
+        // "≈ 84% by reset", "≈ over by reset" over 100%, or nothing early in a window. The window's own pace never says
+        // "limit": "≈ limit" is only the engine's LimitAtPace, Live's wall (the Lead on #29).
+        public static string PaceBy(double projection) { return Double.IsNaN(projection) ? "" : projection > 100 ? "≈ over by reset" : "≈ " + Math.Round(projection) + "% by reset"; }
         public const string LimitReached = "Limit reached";
         // v0.56.1, one ≈ limit: the 5-hour lines (the tank, Medium's tile, Small's meter) say the engine's ≈ limit at
         // the last half hour's pace (LimitAtPace), the time Live's wall stands at, and only when Live draws that wall.
         // Longest first: "Limit reached" once the window is full; "≈ limit 3:21 pm, 37 min before reset", "≈ limit
         // 3:21 pm"; when the pace lasts the window, "≈ 84% by reset", "≈ 84%". Under 3 plan readings there's no time:
-        // the window's own pace so far ("≈ 84% by reset", or "≈ limit before reset" over 100%), else nothing.
+        // the window's own pace so far ("≈ 84% by reset", or "≈ over by reset" over 100%), else nothing.
         public static List<string> FiveHourPace(ClaudeView view, double percent, double projection, DateTime now, bool use24)
         {
             var pace = view == null ? null : view.LimitAtPace;
