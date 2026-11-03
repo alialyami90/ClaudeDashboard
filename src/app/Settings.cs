@@ -29,7 +29,7 @@ namespace ClaudeDashboard
         // A Windows notification when a session needs you, gets stuck or finishes a turn of 10 minutes or more (package 3;
         // on by default, silent in Quiet mode).
         public bool ClaudeToast { get; set; }
-        // Package 4: a small summary file per day, kept 8 weeks, for the plan row's sparkline and Settings → Claude →
+        // Package 4: a small summary file per day, kept a year (8 weeks before v0.59.0), for the plan row's sparkline and Settings → Claude →
         // History (on by default; turning it off deletes the files).
         public bool ClaudeHistory { get; set; }
         // Package 4.6: the pit wall as a plain list of text rows (off by default).

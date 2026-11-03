@@ -123,7 +123,7 @@ internal static class ClaudeBackfillTests
             const string original = "{\n  \"model\": \"opus\",\n  \"env\": {\n    \"KEEP_ME\": \"1\"\n  },\n  \"permissions\": {\n    \"allow\": [\n      \"Bash(ls)\"\n    ]\n  }\n}\n";
             File.WriteAllText(settings, original, new UTF8Encoding(false));
             Func<JsonObject> load = () => ClaudeJson.Obj(ClaudeJson.Parse(File.ReadAllText(settings)));
-            Func<JsonObject, string> others = root => { var copy = ClaudeJson.Obj(ClaudeJson.Parse(ClaudeJson.Compact(root))); copy.Remove(ClaudeConnector.CleanupKey); return ClaudeJson.Compact(copy); };
+            Func<JsonObject, string> others = node => { var copy = ClaudeJson.Obj(ClaudeJson.Parse(ClaudeJson.Compact(node))); copy.Remove(ClaudeConnector.CleanupKey); return ClaudeJson.Compact(copy); };
             string before = others(load());
             Assert(connector.CleanupDays() == null && !connector.LogsKeptByUs, "Unset reads as set.");
 
