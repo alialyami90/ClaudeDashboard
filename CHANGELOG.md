@@ -14,6 +14,19 @@ Claude Dashboard: the lap chart's Reliability and Sources views (decision 030, p
 - **Sources** lists Hooks, Logs, Telemetry, Plan meters and Claude app threads, each with its state (ClaudeHealth's levels, glyph and word), freshness (the engine's logs read, telemetry's last event and port, the app threads' read time and count, the plan's next check), what it gives and one action (Connect or Disconnect, Open folder, Change port, Check now or Sign in, Show archived). The actions go through the host's Act; the view never writes Claude Code's settings itself, and until Act arrives (v0.55.0) the buttons are off and say so.
 - **Checks:** medians, longest and failures per tool, the failure rate, the last hour's API errors, stuck turns split by a 10-minute gap with their reasons, no turn text reaching the view, telemetry off, the five sources and their actions, and both views inside their width at 640 × 420, 1000 × 600 and 1600 × 900 at 100% and 140%. Renders `claude-{reliability,sources}-<size>-{100,140}.png` and `claude-reliability-1000x600-claude.png`.
 
+## v0.55.0 (unreleased)
+
+Claude Dashboard: the lap chart's tab shell (decision 030, package B).
+
+- **Views as tabs.** From 640 wide, a tab list under the header: Live, Garage, Limits, History, Reliability, Sources. Ctrl+1 to Ctrl+6 choose them. Screen readers get a real tab list. Below 640 wide there are no tabs and the window is the Garage card, as before.
+- **Garage is today's pit wall**, with its 5 h / Today / Week switch, which shows in the header only while Garage does. Another view's cars keep still.
+- **The other views are placeholders for now**, saying when they come: Live in v0.56.0, Limits and History in v0.57.0, Reliability and Sources in v0.58.0. Live opens first once it's in the build; until then Garage does.
+- **The header summary**: the states now, with the threads of Garage's chosen period while Garage is on screen (as before, and below 640 wide) and of the last 5 hours on every other view. It adds "≈ limit 4:12 pm" when the plan readings' pace (3 readings or more) fills the 5-hour window before it resets. It is still an assertive live region.
+- **The source-health line** moves to the tab row's right end from 640 wide. It is the same control, with Sample first. When the row has no room for it, it takes a line of its own under the tabs. Below 640 it stays under the card.
+- **Ctrl+G** opens the session that has waited longest (Ctrl+1 until now).
+- **For the views:** a view-host contract (`IClaudeView` in `ClaudeViews.cs`) that the next packages build on, with actions that take the same path as their Settings → Claude buttons, confirmations included.
+- **`--render-view <name>`** renders one view.
+
 ## v0.54.0 (unreleased)
 
 Claude Dashboard: the lap chart's engine (package A of the lap chart plan). Nothing on screen changes yet; the Live, Limits, Reliability and Sources views read these. Everything is in memory only and holds names, states and times, never prompts, replies, commands or file contents. No new polling.
