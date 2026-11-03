@@ -283,6 +283,14 @@ namespace ClaudeDashboard
         // "limit": "≈ limit" is only the engine's LimitAtPace, Live's wall (the Lead on #29).
         public static string PaceBy(double projection) { return Double.IsNaN(projection) ? "" : projection > 100 ? "≈ over by reset" : "≈ " + Math.Round(projection) + "% by reset"; }
         public const string LimitReached = "Limit reached";
+        // v0.57.2: the one test every 5-hour line uses (Live's, the tank, Medium, Small): the engine says Reached, or the
+        // meter itself reads 100% while the plan readings lag.
+        public static bool FiveHourReached(ClaudeView view, DateTime now)
+        {
+            if (view == null) return false;
+            if (view.LimitAtPace != null && view.LimitAtPace.Reached) return true;
+            return view.Limits != null && Percent(view.Limits.FiveHour, now) >= 100;
+        }
         // v0.56.1, one ≈ limit: the 5-hour lines (the tank, Medium's tile, Small's meter) say the engine's ≈ limit at
         // the last half hour's pace (LimitAtPace), the time Live's wall stands at, and only when Live draws that wall.
         // Longest first: "Limit reached" once the window is full; "≈ limit 3:21 pm, 37 min before reset", "≈ limit
@@ -292,7 +300,7 @@ namespace ClaudeDashboard
         {
             var pace = view == null ? null : view.LimitAtPace;
             var window = view == null || view.Limits == null ? null : view.Limits.FiveHour;
-            if ((pace != null && pace.Reached) || percent >= 100) return new List<string> { LimitReached };
+            if (FiveHourReached(view, now) || percent >= 100) return new List<string> { LimitReached };
             var wall = LapAxis.For(view, now).Wall;
             if (wall.HasValue)
             {
@@ -307,6 +315,14 @@ namespace ClaudeDashboard
             if (!Double.IsNaN(projection) && projection > 100) return new List<string> { PaceBy(projection) };
             if (!Double.IsNaN(projection)) return new List<string> { PaceBy(projection), "≈ " + Math.Round(projection) + "%" };
             return new List<string> { "" };
+        }
+        // v0.57.2: the tank's pace line. "Limit reached" once: when the reset line already says "Limit reached · back
+        // 3:23 pm", the pace line is empty.
+        public static List<string> TankPace(ClaudeView view, double percent, double projection, List<string> resets, DateTime now, bool use24)
+        {
+            var forms = FiveHourPace(view, percent, projection, now, use24);
+            if (forms.Count == 1 && forms[0] == LimitReached && resets != null && resets.Count > 0 && resets[0].StartsWith(LimitReached)) return new List<string> { "" };
+            return forms;
         }
         // Amber when the window is full, Live draws the wall, or (no ≈ limit yet) the window's own pace runs over.
         public static bool FiveHourPaceWarns(ClaudeView view, double percent, double projection, DateTime now)
@@ -1156,11 +1172,11 @@ namespace ClaudeDashboard
                 // Package 2: when the tank fills at the last half hour's pace, if that's before it resets.
                 // v0.53.0: pace in time, in the longest form that fits. v0.56.1: the engine's ≈ limit, Live's wall.
                 double width2 = pace.ActualWidth > 0 ? pace.ActualWidth : room;
-                paceForms = ClaudeText.FiveHourPace(view, pct, projection, now, use24);
+                resetForms = w == null ? new List<string> { ClaudeText.NoFiveHour } : ClaudeText.FiveHourResets(w, now, use24);
+                paceForms = ClaudeText.TankPace(view, pct, projection, resetForms, now, use24);
                 Fit(pace, width2, paceForms);
                 pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudeText.Warns(pct) || ClaudeText.FiveHourPaceWarns(view, pct, projection, now) ? "Warning" : "Muted");
                 pace.ToolTip = paceForms.Count == 1 && paceForms[0].Length == 0 ? null : ClaudeText.FiveHourPaceTip(view, pct, projection, now);
-                resetForms = w == null ? new List<string> { ClaudeText.NoFiveHour } : ClaudeText.FiveHourResets(w, now, use24);
                 Fit(reset, width2, resetForms);
                 reset.SetResourceReference(TextBlock.ForegroundProperty, pct >= 100 ? "Warning" : "Muted");
             });

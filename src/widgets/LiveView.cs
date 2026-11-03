@@ -173,11 +173,13 @@ namespace ClaudeDashboard
             var w = snapshot.Limits == null ? null : snapshot.Limits.FiveHour;
             curve.Axis = axis; curve.Readings = snapshot.PlanReadings; curve.Pace = snapshot.LimitAtPace;
             curve.Percent = w == null ? Double.NaN : w.Percent;
-            curve.Reached = snapshot.LimitAtPace.Reached;
+            // v0.57.2: the same test as the Garage's lines: Reached, or the meter itself at 100%.
+            bool reached = ClaudeText.FiveHourReached(snapshot, now);
+            curve.Reached = reached;
             curve.WallLabel = axis.Wall.HasValue ? "≈ limit " + ClaudeText.Clock(axis.Wall.Value, context.Use24Hour) : "";
             curve.Note = snapshot.LimitAtPace.Known ? "" : snapshot.LimitAtPace.Why;
             curveSub.Text = LimitWords(snapshot, now, context.Use24Hour);
-            if (snapshot.LimitAtPace.Reached) curveSub.SetResourceReference(TextBlock.ForegroundProperty, "Warning"); else curveSub.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+            if (reached) curveSub.SetResourceReference(TextBlock.ForegroundProperty, "Warning"); else curveSub.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
             curveSub.ToolTip = AverageTip(snapshot, context.Use24Hour);
             curve.InvalidateVisual();
             ticks.Axis = axis; ticks.Reset = w == null ? null : w.ResetsAt; ticks.InvalidateVisual();
@@ -194,8 +196,7 @@ namespace ClaudeDashboard
             }
             var errors = snapshot.ApiErrors.GroupBy(a => a.Session).ToDictionary(g => g.Key, g => g.Select(a => a.At).ToList());
             foreach (var t in threads) Fill(parts[t.Id], t, snapshot, axis, errors, now);
-            var firstColor = threads.Where(t => t.Lane == ClaudeLaneState.Working).Select(t => PitArt.Accent(t.Project)).FirstOrDefault();
-            trailKey.Color = firstColor == 0 ? PitArt.Lime : firstColor; trailKey.InvalidateVisual();
+            trailKey.InvalidateVisual();
             Motion();
 
             // The feed.
@@ -359,8 +360,8 @@ namespace ClaudeDashboard
             if (w == null) return "No plan reading";
             string percent = Math.Round(w.Percent) + "%";
             var pace = view.LimitAtPace;
+            if (ClaudeText.FiveHourReached(view, now)) return percent + " · Limit reached";
             if (pace == null || !pace.Known) return percent + " · " + (pace == null ? "no projection" : pace.Why);
-            if (pace.Reached) return percent + " · Limit reached";
             if (pace.BeforeReset) return percent + " · ≈ limit " + ClaudeText.Clock(pace.LimitAt.Value, use24);
             return percent + " · ≈ " + Math.Round(Math.Min(999, pace.AtReset)) + "% at reset";
         }

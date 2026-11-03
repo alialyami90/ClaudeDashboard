@@ -27,6 +27,8 @@ namespace ClaudeDashboard
             if (ahead > FutureMost) ahead = FutureMost;
             var axis = new LapAxis { From = now - Past, Now = now, To = now + ahead, WatchStart = view == null ? DateTime.MinValue : view.WatchStart };
             var pace = view == null ? null : view.LimitAtPace;
+            // v0.57.2: no wall once the limit is reached, by the engine or by the meter itself (the readings can lag).
+            if (ClaudeText.FiveHourReached(view, now)) return axis;
             if (pace != null && pace.BeforeReset && pace.LimitAt.Value > now && pace.LimitAt.Value <= axis.To) axis.Wall = pace.LimitAt.Value;
             return axis;
         }
@@ -159,7 +161,7 @@ namespace ClaudeDashboard
             }
             // The projection, dashed, from the newest reading at the pace.
             var last = Readings.OrderBy(r => r.At).LastOrDefault();
-            if (Pace != null && Pace.Known && last != null)
+            if (!Reached && Pace != null && Pace.Known && last != null)
             {
                 DateTime end = Pace.LimitAt.HasValue ? Pace.LimitAt.Value : Axis.To;
                 double endPercent = Pace.LimitAt.HasValue ? 100 : last.Percent + Math.Max(0, Pace.PerHour) * (Axis.To - last.At).TotalHours;
@@ -255,11 +257,11 @@ namespace ClaudeDashboard
     }
 
     // v0.57.2: the trails' key on one line (Scribe's render note): a swatch drawn as the trail draws it, then its word.
-    // What doesn't fit at the end is left out; the full key is the element's name for screen readers.
+    // What doesn't fit at the end is left out; the full key is the element's name for screen readers. The key tells
+    // states, not projects: Working and Compacting are drawn in the Text colour and say the trail takes the project's.
     public sealed class LapKey : LapPart
     {
-        public uint Color = PitArt.Lime;
-        public static readonly string[] Names = { "Working", "Needs you", "Stuck", "Your turn", "Compacting", "Idle or silent", "API error" };
+        public static readonly string[] Names = { "Working (project colour)", "Needs you", "Stuck", "Your turn", "Compacting", "Idle or silent", "API error" };
         public static string Spoken { get { return "Key: " + String.Join(", ", Names); } }
         public int Shown { get; private set; }
         protected override void OnRender(DrawingContext dc)
@@ -277,11 +279,11 @@ namespace ClaudeDashboard
                 var r = new Rect(x, mid - band / 2, swatch, band);
                 switch (i)
                 {
-                    case 0: dc.DrawRectangle(Fixed(Color), null, r); break;
+                    case 0: dc.DrawRectangle(B("Text"), null, r); break;
                     case 1: dc.DrawRectangle(B("Warning"), null, r); break;
                     case 2: dc.DrawRectangle(null, Line(B("Warning"), 1.5, false), new Rect(r.X + 0.75, r.Y + 0.75, r.Width - 1.5, r.Height - 1.5)); break;
                     case 3: dc.DrawRectangle(null, Line(B("Turn", Fixed(0xFF8ED8F8)), 1.5, false), new Rect(r.X + 0.75, r.Y + 0.75, r.Width - 1.5, r.Height - 1.5)); break;
-                    case 4: Hatch(dc, r, Fixed(Color), 0); break;
+                    case 4: Hatch(dc, r, B("Text"), 0); break;
                     case 5: dc.DrawRectangle(Fixed(Idle), null, new Rect(x, mid - 2, swatch, 4)); break;
                     default: dc.DrawLine(Line(Fixed(Rose), 2, false), new Point(x + swatch / 2, mid - band / 2 - 2), new Point(x + swatch / 2, mid + band / 2 + 2)); break;
                 }

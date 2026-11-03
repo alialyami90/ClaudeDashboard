@@ -79,6 +79,16 @@ internal static class LapChartTests
             var forced = ClaudeView.Fixture(Now, false, false);
             Assert(ClaudeText.FiveHourPace(forced, 100, 140, Now, false).SequenceEqual(new[] { ClaudeText.LimitReached }), "A window at 100% says something other than Limit reached.");
             Assert(ClaudeText.FiveHourPaceTip(full, 72, projection, Now).Contains("full"), "The Reached tip: " + ClaudeText.FiveHourPaceTip(full, 72, projection, Now));
+            // The meter at 100% while the readings lag (Reached still false): Live says Limit reached with no wall, like
+            // the Garage; the tank says it once, on the reset line ("Limit reached · back 3:23 pm").
+            var lagging = ClaudeView.Fixture(Now, true, true);
+            lagging.Limits.FiveHour.Percent = 100;
+            lagging.LimitAtPace = new ClaudeLimitProjection { Known = true, AtReset = 33, PerHour = 1 };
+            Assert(ClaudeText.FiveHourReached(lagging, Now) && LiveView.LimitWords(lagging, Now, false) == "100% · Limit reached" && !LapAxis.For(lagging, Now).Wall.HasValue, "Live predicts at a 100% meter: " + LiveView.LimitWords(lagging, Now, false));
+            var resets = ClaudeText.FiveHourResets(lagging.Limits.FiveHour, Now, false);
+            Assert(resets[0].StartsWith("Limit reached · back ") && ClaudeText.TankPace(lagging, 100, 140, resets, Now, false).SequenceEqual(new[] { "" }), "The tank says Limit reached twice: " + String.Join(" | ", ClaudeText.TankPace(lagging, 100, 140, resets, Now, false)) + " / " + resets[0]);
+            Assert(ClaudeText.FiveHourPace(lagging, 100, 140, Now, false).SequenceEqual(new[] { ClaudeText.LimitReached }), "Medium and Small don't say Limit reached at a 100% meter.");
+            Assert(LapKey.Names[0] == "Working (project colour)" && LapKey.Spoken.StartsWith("Key: Working (project colour)"), "The key's Working entry names a project.");
             // Under 3 readings: no time at all, the window's own pace or nothing, and the tip says why.
             var early = ClaudeView.Fixture(Now, true, true);
             early.LimitAtPace = new ClaudeLimitProjection { Why = "Only 2 plan readings so far: ≈ limit needs 3" };
@@ -188,7 +198,7 @@ internal static class LapChartTests
                             Assert(placed.Count > 0 && placed[0].Item1 == "now", name + ": the times under the curve are missing.");
                             for (int i = 0; i < placed.Count; i++) for (int j = i + 1; j < placed.Count; j++)
                                 Assert(placed[i].Item3 <= placed[j].Item2 || placed[j].Item3 <= placed[i].Item2, name + ": two times meet.");
-                            Assert(live.TrailKey.Shown >= 2 && AutomationProperties.GetName(live.TrailKey).StartsWith("Key: Working"), name + ": the trails' key shows " + live.TrailKey.Shown);
+                            Assert(live.TrailKey.Shown >= 2 && AutomationProperties.GetName(live.TrailKey).StartsWith("Key: Working (project colour)"), name + ": the trails' key shows " + live.TrailKey.Shown);
                             Assert(live.FramesAsked, name + ": the moving cars didn't ask for frames.");
                             if (live.SidePanel) Assert(live.PanelOpen && texts.Contains("Last sign of life") && texts.Contains("Go to it"), name + ": the side panel doesn't show the most urgent session.");
                             else

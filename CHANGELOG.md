@@ -11,11 +11,12 @@ Nothing yet.
 Claude Dashboard: lap chart follow-ups (the Watcher's part).
 
 - **One ≈ limit.** The Garage tank, Medium's 5-hour tile and Small's meter line now say the engine's ≈ limit at the last half hour's pace (`LimitAtPace`), the same time Live's wall stands at, and only when Live draws that wall. The word is "≈ limit" everywhere, the week's pace included; "≈ empty" is gone. When the window is Reached or at 100%, the line says "Limit reached" in Amber and never predicts. Under 3 plan readings there's no time: the window's own pace ("≈ 84% by reset", "≈ over by reset" over 100%) or nothing, and the tooltip says why. That fallback never says "limit": "≈ limit" always means the engine's ≈ limit, as on Live.
+- **One "Limit reached" test** for every 5-hour line: the engine says Reached, or the meter itself reads 100% while the plan readings lag. Live's line and the curve's label say "Limit reached", with no wall and no projection, as the Garage, Medium and Small do. The tank says it once, on its reset line ("Limit reached · back 3:23 pm"), and leaves the pace line empty.
 - **Moving cars on Live.** Each lane's car steps its frames by its state, as on the Garage, through the window's one frame clock (`ClaudeViewContext.Frames`). Live asks for frames only while a car moves and lets go when all are still. Quiet keeps every car still.
 - **Archived threads on Live** follow Settings → Claude: while archived threads are hidden, an archived or resolved thread has no lane and no feed line. Hide idle doesn't apply to Live.
 - **Readability.**
   - Time ticks under the curve: whole hours, "now" and "reset 2:16 pm". A label that would meet another is left out.
-  - A one-line key for the trail colours on the feed's heading line, as much as fits. Screen readers get the full key.
+  - A one-line key for the trail colours on the feed's heading line, as much as fits. Screen readers get the full key. The key tells states, not projects: Working and Compacting are drawn in the Text colour, and the label reads "Working (project colour)".
   - The curve's percent sits at the curve's end, by the now line.
   - Panel numbers wrap instead of being cut at 140%.
   - The panel ends on a whole line when it scrolls. The 800 × 500 drawer's last line was half cut.
