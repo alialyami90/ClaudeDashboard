@@ -120,6 +120,24 @@
     <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/></Grid.RowDefinitions><TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1"/><ContentPresenter x:Name="PART_SelectedContentHost" Grid.Row="1" ContentSource="SelectedContent" Margin="0,8,0,0"/></Grid>
   </ControlTemplate></Setter.Value></Setter></Style>
 
+  <!-- The window's view tabs (decision 030): a real tab list (UI Automation reads Tab and TabItem), headers only; the
+       window hosts the chosen view under them. Smaller than Settings' tabs, and at least 32 units tall. -->
+  <Style x:Key="ViewTab" TargetType="TabItem">
+    <Setter Property="Foreground" Value="{DynamicResource Muted}"/><Setter Property="FontSize" Value="{DynamicResource SmallSize}"/>
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
+      <Border x:Name="TabChrome" Background="Transparent" CornerRadius="6" Padding="12,4" Margin="0,0,4,0" MinHeight="32" BorderThickness="1" BorderBrush="Transparent"><ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/></Border>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsSelected" Value="True"><Setter Property="Foreground" Value="{DynamicResource Text}"/><Setter TargetName="TabChrome" Property="Background" Value="{DynamicResource Selected}"/><Setter TargetName="TabChrome" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter TargetName="TabChrome" Property="BorderThickness" Value="2"/></Trigger>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabChrome" Property="Background" Value="{DynamicResource Raised}"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="TabChrome" Property="BorderBrush" Value="{DynamicResource Text}"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="ViewTabs" TargetType="TabControl"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl">
+    <TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1"/>
+  </ControlTemplate></Setter.Value></Setter></Style>
+
   <Style TargetType="Slider">
     <Setter Property="MinHeight" Value="32"/><Setter Property="IsMoveToPointEnabled" Value="True"/>
     <Setter Property="SmallChange" Value="1"/><Setter Property="LargeChange" Value="5"/>
