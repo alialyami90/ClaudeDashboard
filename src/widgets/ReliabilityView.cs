@@ -11,22 +11,21 @@ using System.Windows.Media;
 
 namespace ClaudeDashboard
 {
-    // What the Reliability view reads (decision 030, package E). Telemetry's tool runs and API errors, the asks per tool
-    // and today's compactions arrive on the snapshot with the engine's package A; until then From fills what ClaudeView
-    // already carries (today's facts and the threads) and marks the rest unknown, so the view says so instead of
-    // showing a zero. Names, states and times only: never a command, a prompt or a reply.
+    // What the Reliability view reads (decision 030, package E): today's facts and threads, and from the engine's
+    // package A (v0.54.0) telemetry's tool runs today, the last day's API errors and today's compactions. Asks per tool
+    // today come from the engine's AskedToday. Names, states and times only: never a command, a prompt or a
+    // reply.
     public sealed class ReliabilityInput
     {
         public ClaudeFacts Facts = new ClaudeFacts();
         public List<ClaudeSession> Threads = new List<ClaudeSession>();
-        // Today's finished tool runs and the last day's API errors, from telemetry. Null: the snapshot doesn't carry
-        // them yet.
+        // Today's finished tool runs and the last day's API errors, from telemetry. Null: unknown.
         public List<ClaudeToolRun> Runs;
         public List<ClaudeApiError> Errors;
         // Times each tool asked you today, by tool name. Null: not known per tool.
         public Dictionary<string, int> AskedByTool;
-        // Today's compactions (session, start). Null: not counted yet.
-        public List<KeyValuePair<string, DateTime>> Compactions;
+        // Today's compactions. Null: unknown.
+        public List<ClaudeCompaction> Compactions;
         // Whether telemetry reaches the dashboard, and if not, why in words ("Telemetry off: port 43832 in use").
         public bool Telemetry;
         public string TelemetryWhy = "";
@@ -35,8 +34,12 @@ namespace ClaudeDashboard
         public static ReliabilityInput From(ClaudeView view, DateTime now)
         {
             if (view == null) return new ReliabilityInput();
-            if (view.Sample) return Fixture(view, now);
-            var input = new ReliabilityInput { Facts = view.FactsFor(ClaudePeriod.Today) ?? new ClaudeFacts(), Threads = view.Threads.ToList(), Telemetry = view.Facts.Telemetry };
+            if (view.Sample && view.ToolRunsToday.Count == 0) return Fixture(view, now);
+            var input = new ReliabilityInput { Facts = view.FactsFor(ClaudePeriod.Today) ?? new ClaudeFacts(), Threads = view.Threads.ToList(), Telemetry = view.Facts.Telemetry, Sample = view.Sample };
+            // Telemetry's runs and errors: known once it has named a tool run or reached the dashboard at all.
+            if (view.ToolTimesKnown || input.Telemetry) { input.Runs = view.ToolRunsToday.ToList(); input.Errors = view.ApiErrors.ToList(); }
+            input.Compactions = view.Compactions.ToList();
+            if (input.Telemetry && view.AskedToday != null) input.AskedByTool = new Dictionary<string, int>(view.AskedToday, StringComparer.Ordinal);
             input.TelemetryWhy = (view.TelemetryWarning ?? "").Length > 0 ? view.TelemetryWarning : !view.Connected ? "Telemetry off: not connected" : "No telemetry has arrived today";
             return input;
         }
@@ -67,7 +70,9 @@ namespace ClaudeDashboard
             return new ReliabilityInput {
                 Facts = facts, Threads = threads, Runs = runs, Errors = errors, Telemetry = true, Sample = true,
                 AskedByTool = new Dictionary<string, int> { { "Bash", 28 }, { "Edit", 9 }, { "WebFetch", 4 } },
-                Compactions = new List<KeyValuePair<string, DateTime>> { new KeyValuePair<string, DateTime>(id(3), now.AddMinutes(-200)), new KeyValuePair<string, DateTime>(id(2), now.AddMinutes(-120)), new KeyValuePair<string, DateTime>(id(3), now.AddMinutes(-40)), new KeyValuePair<string, DateTime>(id(3), now.AddSeconds(-30)) } };
+                Compactions = new List<ClaudeCompaction> { Compaction(id(3), now.AddMinutes(-200)), Compaction(id(2), now.AddMinutes(-120)), Compaction(id(3), now.AddMinutes(-40)), Compaction(id(3), now.AddSeconds(-30)) } };
+        }
+        private static ClaudeCompaction Compaction(string session, DateTime at) { return new ClaudeCompaction { Session = session, At = at };
         }
     }
 
@@ -167,7 +172,7 @@ namespace ClaudeDashboard
                     int status = e.GroupBy(x => x.Status).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Max(x => x.At)).First().Key;
                     var item = new ReliabilityStuck { Session = group.Key ?? "", Title = Title(thread, group.Key, now, use24), Start = e[0].At, End = e[e.Count - 1].At, Tries = Math.Max(e.Count, e.Max(x => x.Attempt)), Reason = Words(status), Kind = ReliabilityStuck.Recovered };
                     if (last && thread != null && thread.Running && thread.State == ClaudeState.Stuck) { item.Kind = ReliabilityStuck.StuckNow; if ((thread.Reason ?? "").Length > 0) item.Reason = Lower(ClaudeText.StuckReason(thread, view, now, use24)); }
-                    else if (last && thread != null && thread.Running && thread.Pit == PitState.Stuck && now - item.End < EpisodeGap) item.Kind = ReliabilityStuck.Retrying;
+                    else if (last && thread != null && thread.Running && (thread.Retrying || thread.Pit == PitState.Stuck) && now - item.End < EpisodeGap) item.Kind = ReliabilityStuck.Retrying;
                     result.Add(item);
                 }
                 withEpisode.Add(group.Key ?? "");
@@ -258,10 +263,10 @@ namespace ClaudeDashboard
             if (input.Compactions != null)
             {
                 DateTime from = Today(now);
-                compact.Value = input.Compactions.Count(c => c.Value >= from && c.Value <= now).ToString(CultureInfo.InvariantCulture);
+                compact.Value = input.Compactions.Count(c => c.At >= from && c.At <= now).ToString(CultureInfo.InvariantCulture);
                 compact.Note = "today" + (running > 0 ? " · " + running + " running now" : "");
             }
-            else { compact.Value = running > 0 ? running.ToString(CultureInfo.InvariantCulture) : "—"; compact.Note = running > 0 ? "running now · today's count from v0.54.0" : "today's count from v0.54.0"; compact.Brush = running > 0 ? "Text" : "Muted"; }
+            else { compact.Value = running > 0 ? running.ToString(CultureInfo.InvariantCulture) : "—"; compact.Note = running > 0 ? "running now · today's count unknown" : "today's count unknown"; compact.Brush = running > 0 ? "Text" : "Muted"; }
             figures.Add(compact);
             // Edits accepted and rejected (telemetry's metrics).
             var edits = new Figure { Key = Edits, Label = "Edits" };
@@ -433,7 +438,7 @@ namespace ClaudeDashboard
             var hour = ClaudeReliability.LastHour(input.Errors, now);
             strip.Errors = hour; strip.Now = now; strip.InvalidateVisual();
             stripStart.Text = ClaudeText.Clock(now - ClaudeReliability.StripSpan, use24); stripMiddle.Text = ClaudeText.Clock(now - TimeSpan.FromMinutes(30), use24); stripEnd.Text = "now " + ClaudeText.Clock(now, use24);
-            stripNote.Text = input.Errors == null && !input.Telemetry ? input.TelemetryWhy + ". API errors come from telemetry." : input.Errors == null ? "Each failed request will show as a mark from v0.54.0; " + input.Facts.Errors + " in the last hour." : hour.Count == 0 ? "No API errors in the last hour." : "Each mark is one failed request; a retry's attempt is beside its status.";
+            stripNote.Text = input.Errors == null && !input.Telemetry ? input.TelemetryWhy + ". API errors come from telemetry." : input.Errors == null ? "Waiting for telemetry's first event; " + input.Facts.Errors + " in the last hour." : hour.Count == 0 ? "No API errors in the last hour." : "Each mark is one failed request; a retry's attempt is beside its status.";
             AutomationProperties.SetName(strip, hour.Count == 0 ? "No API errors in the last hour" : hour.Count + " API errors in the last hour: " + ClaudeReliability.ByStatus(hour));
             // The tools table and the stuck turns, rebuilt only when what they show changes.
             ToolsShown = input.Runs == null ? null : ClaudeReliability.Tools(input.Runs, input.AskedByTool, now);
@@ -451,7 +456,7 @@ namespace ClaudeDashboard
             {
                 string words = !input.Telemetry
                     ? "Run times, failures and asks come from telemetry, which is off. Tool calls in the logs today: " + input.Facts.Tools.ToString(CultureInfo.InvariantCulture) + "."
-                    : ToolsShown == null ? "Tool calls today: " + input.Facts.Tools.ToString(CultureInfo.InvariantCulture) + ". Each tool's runs, typical and longest time arrive with v0.54.0."
+                    : ToolsShown == null ? "Tool calls today: " + input.Facts.Tools.ToString(CultureInfo.InvariantCulture) + ". Each tool's runs and times show once telemetry names a tool run."
                     : "No tool runs today.";
                 var message = CardParts.Text(words, S(13), "Muted"); message.TextWrapping = TextWrapping.Wrap;
                 tools.Children.Add(message);

@@ -88,7 +88,7 @@ internal static class ReliabilitySourcesTests
             var input = new ReliabilityInput { Telemetry = true, Facts = new ClaudeFacts { Telemetry = true, Metrics = true, Runs = 312, RunFailures = 13, Asked = 41, Denied = 3, EditsAccepted = 188, EditsRejected = 8 },
                 Runs = new List<ClaudeToolRun> { Run(now.AddMinutes(-3), "Bash", 100, true), Run(now.AddMinutes(-2), "Edit", 100, true), Run(now.AddMinutes(-1), "Bash", 100, true) },
                 Errors = new List<ClaudeApiError> { new ClaudeApiError { At = now.AddMinutes(-70), Status = 500 }, new ClaudeApiError { At = now.AddMinutes(-20), Status = 429 }, new ClaudeApiError { At = now.AddMinutes(-10), Status = 429, Attempt = 2 }, new ClaudeApiError { At = now.AddMinutes(-5), Status = 529 } },
-                Compactions = new List<KeyValuePair<string, DateTime>> { new KeyValuePair<string, DateTime>("s1", now.AddMinutes(-30)) } };
+                Compactions = new List<ClaudeCompaction> { new ClaudeCompaction { Session = "s1", At = now.AddMinutes(-30) } } };
             var f = ClaudeReliability.Figures(input, now).ToDictionary(x => x.Key);
             Assert(f[ClaudeReliability.Failures].Value == "4.2%" && f[ClaudeReliability.Failures].Note.StartsWith("13 of 312 runs, 2 of them Bash"), "Failures read: " + f[ClaudeReliability.Failures].Value + " / " + f[ClaudeReliability.Failures].Note);
             Assert(f[ClaudeReliability.Errors].Value == "3" && f[ClaudeReliability.Errors].Note == "last hour · 429 ×2, 529 ×1" && f[ClaudeReliability.Errors].Brush == "Rose", "API errors read: " + f[ClaudeReliability.Errors].Note);
@@ -107,7 +107,7 @@ internal static class ReliabilitySourcesTests
             var now = DateTime.UtcNow;
             Assert(ClaudeReliability.Words(429) == "rate limited" && ClaudeReliability.Words(529) == "overloaded (529)" && ClaudeReliability.Words(503) == "server error (503)"
                 && ClaudeReliability.Words(401) == "sign-in refused (401)" && ClaudeReliability.Words(400) == "request refused (400)" && ClaudeReliability.Words(418) == "API error (418)", "Status words wrong.");
-            var thread = new ClaudeSession { Id = "s1", Title = "Retry flaky upload test", Running = true, State = ClaudeState.Working, Pit = PitState.Stuck, Since = now.AddMinutes(-90) };
+            var thread = new ClaudeSession { Id = "s1", Title = "Retry flaky upload test", Running = true, State = ClaudeState.Working, Retrying = true, Since = now.AddMinutes(-90) };
             var input = new ReliabilityInput { Telemetry = true, Threads = new List<ClaudeSession> { thread }, Errors = new List<ClaudeApiError> {
                 new ClaudeApiError { At = now.AddMinutes(-60), Session = "s1", Status = 529, Attempt = 1 }, new ClaudeApiError { At = now.AddMinutes(-59), Session = "s1", Status = 529, Attempt = 2 },
                 new ClaudeApiError { At = now.AddMinutes(-3), Session = "s1", Status = 429, Attempt = 1 }, new ClaudeApiError { At = now.AddMinutes(-2), Session = "s1", Status = 429, Attempt = 2 }, new ClaudeApiError { At = now.AddMinutes(-1), Session = "s1", Status = 429, Attempt = 3 } } };
@@ -119,6 +119,20 @@ internal static class ReliabilitySourcesTests
             Assert(ClaudeReliability.Rest(stuck[0], false).StartsWith("rate limited, try 3 since "), "Retrying line reads: " + ClaudeReliability.Rest(stuck[0], false));
             Assert(stuck[1].Kind == ReliabilityStuck.Recovered && stuck[1].Reason == "overloaded (529)" && ClaudeReliability.Rest(stuck[1], false) == "overloaded (529), 2 tries", "The earlier episode should be recovered after 2 tries.");
             Assert(ClaudeReliability.Head(stuck[1], false).StartsWith("Recovered "), "Recovered episodes say when.");
+        });
+
+        check("Reliability reads the engine's runs, errors, compactions and asks per tool", () => {
+            var now = DateTime.UtcNow;
+            var view = ClaudeView.Fixture(now, true);
+            var input = ReliabilityInput.From(view, now);
+            Assert(input.Runs != null && input.Runs.Count == view.ToolRunsToday.Count && input.Errors != null && input.Compactions != null, "The engine's lists should come through.");
+            Assert(input.AskedByTool != null && input.AskedByTool.Count == view.AskedToday.Count, "Asks per tool should be AskedToday.");
+            var tools = ClaudeReliability.Tools(input.Runs, input.AskedByTool, now);
+            foreach (var t in tools)
+            {
+                int asked; view.AskedToday.TryGetValue(t.Name, out asked);
+                Assert(t.Asked == asked, t.Name + " asked " + t.Asked + ", the engine says " + asked + ".");
+            }
         });
 
         check("Reliability never shows a turn's own words", () => {
@@ -136,7 +150,7 @@ internal static class ReliabilitySourcesTests
 
         check("Reliability with telemetry off says so and shows the logs' tool count", () => {
             var view = ClaudeView.Fixture(DateTime.UtcNow, false);
-            view.Sample = false; view.Facts.Telemetry = false; view.FactsFor(ClaudePeriod.Today).Telemetry = false; view.FactsFor(ClaudePeriod.Today).Tools = 57;
+            view.Sample = false; view.ToolTimesKnown = false; view.Facts.Telemetry = false; view.FactsFor(ClaudePeriod.Today).Telemetry = false; view.FactsFor(ClaudePeriod.Today).Tools = 57;
             var reliability = new ReliabilityView();
             Host(reliability, view, new Size(1000, 700), 1, "Midnight", (window, root) => {
                 string all = Texts(root);
@@ -161,16 +175,23 @@ internal static class ReliabilitySourcesTests
             Assert(ClaudeSources.Of(view, DateTime.UtcNow, false, null)[0].Action == ClaudeSources.Connect, "Hooks off should offer Connect.");
         });
 
-        check("Sources buttons only call the host's Act, and say when it isn't there", () => {
+        check("Sources buttons only call the host's Act, with the action's name", () => {
             var view = ClaudeView.Fixture(DateTime.UtcNow, false);
             var sources = new SourcesView();
+            var asked = new List<string>();
             Host(sources, view, new Size(1000, 700), 1, "Midnight", (window, root) => {
                 var buttons = Descendants(root).OfType<Button>().ToList();
                 Assert(buttons.Count == 5, "Five buttons expected, got " + buttons.Count + ".");
                 foreach (var b in buttons)
                     Assert(AutomationProperties.GetName(b).Length > 0 && b.Focusable, "Each button needs a name and the keyboard.");
                 if (SourcesView.ActOf(new ClaudeViewContext()) == null)
-                    Assert(buttons.All(b => !b.IsEnabled && (b.ToolTip as string ?? "").Contains("v0.55.0")), "Without Act the buttons should be off and say why.");
+                    Assert(buttons.All(b => !b.IsEnabled && (b.ToolTip as string ?? "").Contains("v0.55.0")), "Without the host's Act the buttons should be off and say why.");
+                else Assert(buttons.All(b => b.IsEnabled), "With Act the buttons should be on.");
+                foreach (var b in buttons) b.IsEnabled = true;
+                sources.Act = name => { asked.Add(name); return name == ClaudeSources.CheckPlan ? "Couldn't reach api.anthropic.com" : null; };
+                foreach (var b in buttons) b.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Assert(asked.Count == 5 && asked.Contains(ClaudeSources.OpenLogs) && asked.Contains(ClaudeSources.CheckPlan), "Each button should call Act once with its action: " + String.Join(",", asked));
+                Assert(Texts(root).Contains("Couldn't reach api.anthropic.com"), "Act's error should show.");
             });
         });
 

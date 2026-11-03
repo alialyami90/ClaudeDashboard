@@ -73,14 +73,15 @@ namespace ClaudeDashboard
             // Logs.
             var l = health[1];
             var logs = Row(Logs, l, ClaudeLogsPlace(), "tokens per reply, models, tool names, lines changed; read-only");
-            logs.Fresh = view == null ? "" : view.LogsFailed ? "couldn't be read" : view.LogsRead ? "read " + Ago(view.MadeAt, now) : view.LogsEmpty ? "no logs yet" : "reading…";
+            logs.Fresh = view == null ? "" : view.LogsFailed ? "couldn't be read" : view.LogsEmpty ? "no logs yet" : view.LogsReadAt > DateTime.MinValue ? "read " + Ago(view.LogsReadAt, now) : view.LogsRead ? "read " + Ago(view.MadeAt, now) : "reading…";
             logs.Action = OpenLogs; logs.Button = "Open folder";
             rows.Add(logs);
 
             // Telemetry.
             var t0 = health[2];
-            var telemetry = Row(Telemetry, t0, "127.0.0.1:" + ClaudePort() + " · loopback only", "costs, tool run times and failures, API errors, asks and denials, commits");
-            telemetry.Fresh = view == null ? "" : view.Facts.Telemetry ? "events today" : t0.Level == ClaudeHealthLevel.Ok || t0.Level == ClaudeHealthLevel.Waiting ? "nothing yet today" : "not arriving";
+            int port = view == null ? 0 : view.TelemetryPort;
+            var telemetry = Row(Telemetry, t0, (port > 0 ? "127.0.0.1:" + port : "127.0.0.1, not listening") + " · loopback only", "costs, tool run times and failures, API errors, asks and denials, commits");
+            telemetry.Fresh = view == null ? "" : view.TelemetryAt > DateTime.MinValue ? "last event " + Ago(view.TelemetryAt, now) : view.Facts.Telemetry ? "events today" : t0.Level == ClaudeHealthLevel.Ok || t0.Level == ClaudeHealthLevel.Waiting ? "nothing yet" : "not arriving";
             telemetry.Action = UpdateConnection; telemetry.Button = t0.Level == ClaudeHealthLevel.Failed ? "Change port" : t0.Level == ClaudeHealthLevel.Off ? "Turn on" : "Change port";
             if (view != null && !view.Connected) { telemetry.Action = Connect; telemetry.Button = "Connect"; }
             rows.Add(telemetry);
@@ -95,17 +96,18 @@ namespace ClaudeDashboard
                 plan.Fresh = limits.Source == "online" ? "checked " + Ago(limits.UpdatedAt, now) : "from the status line";
             }
             else plan.Fresh = view == null ? "" : "no numbers yet";
+            if (view != null && view.PlanNextCheck.HasValue) plan.Fresh += (plan.Fresh.Length > 0 ? " · " : "") + "next check " + ClaudeText.Clock(view.PlanNextCheck.Value > now ? view.PlanNextCheck.Value : now, use24);
             if (view != null && (view.Plan == ClaudePlanState.Expired || view.Plan == ClaudePlanState.SignedOut)) { plan.Action = SignIn; plan.Button = "Sign in"; }
             else { plan.Action = CheckPlan; plan.Button = "Check now"; }
             rows.Add(plan);
 
             // The Claude app's thread records: names, folders, archived flags. Read with the snapshot, so as fresh as it.
-            int fromApp = threads.Count(t => t.Archived || t.Where == "Desktop" || t.Where == "Remote Control");
+            int fromApp = view == null ? 0 : view.AppThreadCount;
             int archived = threads.Count(t => t.Archived);
             var app = new SourceRow { Name = App, Where = "the Claude app's thread records", Gives = "thread names, folders, archived flags and last activity" };
             if (view == null) { app.Level = ClaudeHealthLevel.Waiting; app.State = "Waiting"; app.Tip = "Reading Claude Code…"; }
-            else if (fromApp > 0) { app.Level = ClaudeHealthLevel.Ok; app.State = "Live"; app.Fresh = "read " + Ago(view.MadeAt, now) + " · " + fromApp + (fromApp == 1 ? " thread" : " threads"); app.Tip = "Thread names and archived flags come from the Claude app's own records, read-only."; }
-            else { app.Level = ClaudeHealthLevel.Waiting; app.State = "None found"; app.Fresh = "checked " + Ago(view.MadeAt, now); app.Tip = "No Claude app threads on this PC yet, or the app isn't installed. Sessions still show from Claude Code's files."; }
+            else if (fromApp > 0) { app.Level = ClaudeHealthLevel.Ok; app.State = "Live"; app.Fresh = "read " + Ago(view.AppThreadsReadAt > DateTime.MinValue ? view.AppThreadsReadAt : view.MadeAt, now) + " · " + fromApp + (fromApp == 1 ? " thread" : " threads"); app.Tip = "Thread names and archived flags come from the Claude app's own records, read-only."; }
+            else { app.Level = ClaudeHealthLevel.Waiting; app.State = "None found"; app.Fresh = view.AppThreadsReadAt > DateTime.MinValue ? "checked " + Ago(view.AppThreadsReadAt, now) : "not read yet"; app.Tip = "No Claude app threads on this PC yet, or the app isn't installed. Sessions still show from Claude Code's files."; }
             bool showing = view != null && view.ShowArchived;
             app.Action = showing ? HideArchived : ShowArchived; app.Button = showing ? "Hide archived" : "Show archived" + (archived > 0 ? " (" + archived + ")" : "");
             rows.Add(app);
@@ -125,8 +127,6 @@ namespace ClaudeDashboard
             string config = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
             return String.IsNullOrWhiteSpace(config) ? @"%USERPROFILE%\.claude\projects" : @"CLAUDE_CONFIG_DIR\projects";
         }
-        // The telemetry port the receiver uses (decision 017's 43832, or the next free one) once package A reports it.
-        private static string ClaudePort() { return "43832"; }
     }
 
     // Sources (decision 030, package E): where every number comes from and how fresh it is, one row per source with
@@ -150,7 +150,10 @@ namespace ClaudeDashboard
 
         private double S(double size) { return context.Scaled(size); }
 
-        // The host's Act (Shell, v0.55.0), found by name so this view builds before the contract has it. Null: not there.
+        // Set by the checks in place of the host's.
+        public Func<string, string> Act;
+        // The host's Act (the tab shell, v0.55.0: the same path as Settings → Claude's buttons, confirmations
+        // included), found by name so this view builds before the contract has it. Null: not there yet.
         public static Func<string, string> ActOf(ClaudeViewContext context)
         {
             if (context == null) return null;
@@ -159,6 +162,7 @@ namespace ClaudeDashboard
             var property = context.GetType().GetProperty("Act", BindingFlags.Public | BindingFlags.Instance);
             return property == null ? null : property.GetValue(context, null) as Func<string, string>;
         }
+        private Func<string, string> Acts { get { return Act ?? ActOf(context); } }
 
         public FrameworkElement Build(ClaudeViewContext context, Size room)
         {
@@ -177,7 +181,6 @@ namespace ClaudeDashboard
             stack.Children.Add(intro);
             error = CardParts.Text("", S(13), "Warning"); error.TextWrapping = TextWrapping.Wrap; error.Visibility = Visibility.Collapsed; error.Margin = new Thickness(0, 0, 0, 8);
             stack.Children.Add(error);
-            var act = ActOf(this.context);
             foreach (string name in new[] { ClaudeSources.Hooks, ClaudeSources.Logs, ClaudeSources.Telemetry, ClaudeSources.Plan, ClaudeSources.App })
             {
                 var c = new Cells();
@@ -190,7 +193,7 @@ namespace ClaudeDashboard
                 c.Button = new Button { MinWidth = S(120), Padding = new Thickness(S(10), S(4), S(10), S(4)), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, FontSize = S(13) };
                 var button = c.Button;
                 button.Click += (s, e) => Run(button.Tag as string);
-                if (act == null) { button.IsEnabled = false; ToolTipService.SetShowOnDisabled(button, true); button.ToolTip = "Arrives with v0.55.0"; }
+                if (Acts == null) { button.IsEnabled = false; ToolTipService.SetShowOnDisabled(button, true); button.ToolTip = "Arrives with v0.55.0"; }
 
                 var namePart = new StackPanel(); namePart.Children.Add(c.Name); namePart.Children.Add(c.Where);
                 var statePart = new StackPanel();
@@ -233,7 +236,7 @@ namespace ClaudeDashboard
 
         private void Run(string action)
         {
-            var act = ActOf(context);
+            var act = Acts;
             if (act == null || String.IsNullOrEmpty(action)) return;
             string problem = null;
             try { problem = act(action); }
