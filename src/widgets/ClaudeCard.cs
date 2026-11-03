@@ -203,6 +203,9 @@ namespace ClaudeDashboard
             if (!f.Telemetry) return calls + " Which ones asked you comes from Claude Code's telemetry (Settings → Claude → Update connection).";
             return calls + " " + f.Asked + " asked you and " + f.Denied + " were denied" + (f.AskedPartial ? ", from the sessions that sent telemetry (not every session does, so this is partial)." : ".");
         }
+        public const string ForTip = "How long the thread has been in its state (Working, Your turn, Needs you…).";
+        public const string SignTip = "The last hook event or reply from the thread. A working thread quiet for 5 minutes or more says \"silent\".";
+        public const string NowHeadTip = "The tool a working thread is in now, by name only, from Claude Code's telemetry.";
         public const string TokensTip = "Fresh input, cache writes and output. Cache reads aren't counted here (see Cache hits).";
         // The attention queue's words (issue 1). "Pit stop: Fix login · api-server", "Stuck: …", "Your turn: …", "Silent: …".
         public static string AttentionWord(string kind) { return kind == ClaudeAttention.Need ? "Pit stop" : kind == ClaudeAttention.Stuck ? "Stuck" : kind == ClaudeAttention.Turn ? "Your turn" : "Silent"; }
@@ -215,6 +218,7 @@ namespace ClaudeDashboard
             if (kind == ClaudeAttention.Need) { string ask = Ask(t.Message); if (ask.Length > 0) parts.Add(ask); parts.Add("waiting " + Duration(now - t.Since)); }
             else if (kind == ClaudeAttention.Stuck) { string why = StuckReason(t, view, now, use24); if (!String.IsNullOrEmpty(why)) parts.Add(why); parts.Add("stuck " + Duration(now - t.Since)); }
             else if (kind == ClaudeAttention.Turn) parts.Add("Waiting for your reply · " + Duration(now - t.Since));
+            else if (t.Tool.Length > 0 && t.ToolSince > DateTime.MinValue) parts.Add("In " + ToolName(t.Tool) + " for " + Duration(now - t.ToolSince));
             else parts.Add(t.Pit == PitState.Rev ? "In a tool for " + Duration(now - t.LastSign) : "Working, no sign of life for " + Duration(now - t.LastSign));
             if (t.Where.Length > 0) parts.Add(t.Where == "Desktop" ? "Claude app" : t.Where);
             return String.Join(" · ", parts);
@@ -246,6 +250,74 @@ namespace ClaudeDashboard
             parts.AddRange(Waiting(needs, stuck, turn));
             return String.Join(" · ", parts);
         }
+
+        // v0.53.0, the plan row speaks in time. The tank's pace, longest first: "≈ empty 3:21 am, 37 min before reset",
+        // "≈ empty 3:21 am"; or, when it lasts the window, "≈ 84% by reset" ("≈ 84%"). Estimates say ≈.
+        public static List<string> PaceTimes(double projection, double etaMinutes, ClaudeLimitWindow window, DateTime now, bool use24) { return PaceTimes(projection, etaMinutes, window, ClaudePace.FiveHours, now, use24); }
+        // Over 100% never reads as a percentage by reset (the Lead on #17): the window runs dry first, so it says when.
+        // The ETA from the last half hour wins; else the window's own pace so far (its projection) gives the time; else
+        // "≈ empty before reset".
+        public static List<string> PaceTimes(double projection, double etaMinutes, ClaudeLimitWindow window, TimeSpan length, DateTime now, bool use24)
+        {
+            var forms = new List<string>();
+            DateTime? empty = null;
+            if (!Double.IsNaN(etaMinutes)) empty = now.AddMinutes(etaMinutes);
+            else if (!Double.IsNaN(projection) && projection > 100 && window != null && window.ResetsAt.HasValue)
+            {
+                var at = window.ResetsAt.Value - TimeSpan.FromTicks((long)(length.Ticks * (1 - 100 / projection)));
+                if (at > now) empty = at;
+            }
+            if (empty.HasValue)
+            {
+                string at = "≈ empty " + When(empty.Value, now, use24);
+                if (window != null && window.ResetsAt.HasValue && window.ResetsAt.Value > empty.Value) forms.Add(at + ", " + Duration(window.ResetsAt.Value - empty.Value) + " before reset");
+                forms.Add(at);
+            }
+            else if (!Double.IsNaN(projection) && projection > 100) forms.Add("≈ empty before reset");
+            else if (!Double.IsNaN(projection)) { forms.Add(PaceBy(projection)); forms.Add("≈ " + Math.Round(projection) + "%"); }
+            else forms.Add("");
+            return forms;
+        }
+        // "≈ 84% by reset", "≈ empty before reset" over 100%, or nothing early in a window.
+        public static string PaceBy(double projection) { return Double.IsNaN(projection) ? "" : projection > 100 ? "≈ empty before reset" : "≈ " + Math.Round(projection) + "% by reset"; }
+        // The tank's reset, longest first: "resets 9:54 am · in 1 h 20 m", "resets 9:54 am", "9:54 am".
+        public static List<string> FiveHourResets(ClaudeLimitWindow window, DateTime now, bool use24)
+        {
+            var forms = new List<string> { FiveHourReset(window, now, use24) };
+            if (window != null && window.ResetsAt.HasValue && window.Current(now) && window.Percent < 100) { forms.Add("resets " + When(window.ResetsAt.Value, now, use24)); forms.Add(When(window.ResetsAt.Value, now, use24)); }
+            return forms;
+        }
+
+        // v0.53.0, the live rows (5 h and Today). How long the thread has been in its state ("For"): "now", "12 min".
+        public static string StateFor(ClaudeSession t, DateTime now) { return t.Running ? Duration(now - t.Since) : ""; }
+        // Its last sign of life: "just now", "3 min ago", "silent 8 min" for a working thread quiet 5 minutes or more
+        // (the attention queue's Silent), "2 h ago" for an ended one.
+        public static string Sign(ClaudeSession t, DateTime now)
+        {
+            if (!t.Running) return t.LastActive == DateTime.MinValue ? "" : Ago(now - t.LastActive);
+            if (t.LastSign == DateTime.MinValue) return "";
+            if (Silent(t, now)) return "silent " + Duration(now - t.LastSign);
+            return Ago(now - t.LastSign);
+        }
+        public static bool Silent(ClaudeSession t, DateTime now) { return t.Running && t.State == ClaudeState.Working && t.LastSign > DateTime.MinValue && now - t.LastSign >= ClaudeAttention.SilentAfter; }
+        private static string Ago(TimeSpan span) { return span < TimeSpan.FromMinutes(1) ? "just now" : Duration(span) + " ago"; }
+        // What it's in now, by tool name only (telemetry's open call): "Bash", "Bash · 2 min"; "a tool" when telemetry
+        // only says a call runs long; "—" for a working thread with no tool known.
+        public static string NowWords(ClaudeSession t, DateTime now)
+        {
+            if (!t.Running) return "";
+            if (t.Tool.Length > 0) { string tool = ToolName(t.Tool); return now - t.ToolSince >= TimeSpan.FromMinutes(1) && t.ToolSince > DateTime.MinValue ? tool + " · " + Duration(now - t.ToolSince) : tool; }
+            if (t.Pit == PitState.Rev) return "a tool";
+            return t.State == ClaudeState.Working ? "—" : "";
+        }
+        // A tool's name for the row: 40 characters, then "…" (the tip has the whole name).
+        public static string ToolName(string tool) { return tool.Length > 40 ? tool.Substring(0, 39) + "…" : tool; }
+        public static string NowTip(ClaudeSession t, bool telemetry)
+        {
+            if (t.Tool.Length > 0) return "In " + t.Tool + " now (its name only, from Claude Code's telemetry).";
+            return telemetry ? "No tool running now, by Claude Code's telemetry." : "Which tool runs comes from Claude Code's telemetry (Settings → Claude → Update connection).";
+        }
+        public static string ContextTip(ClaudeSession t) { return Double.IsNaN(t.Context) ? "Context: not known yet (it comes from Claude Code's status line)." : "Context " + Math.Round(t.Context) + "% full"; }
 
         // Package 4.6, the plain list's words. The plan: "5-hour 23%, resets 3:40 pm · Week 41%, resets Thu 9:00 am".
         public static string PlainPlan(ClaudeView view, DateTime now, bool use24)
@@ -339,11 +411,14 @@ namespace ClaudeDashboard
         }
         // Where a thread runs and for how long in its state ("Remote Control · 6 min"), or when it ended ("Remote
         // Control · ended 1 h ago").
+        // Where a thread runs, one name everywhere: the Claude app's Code tab ("Desktop" in its records) is "Claude app".
+        public static string Place(ClaudeSession thread) { return thread.Where == "Desktop" ? "Claude app" : thread.Where; }
         public static string Where(ClaudeSession thread, DateTime now)
         {
-            if (!thread.Running) return (thread.Where.Length > 0 ? thread.Where + " · " : "") + "ended " + Duration(now - thread.LastActive) + " ago";
+            string place = Place(thread);
+            if (!thread.Running) return (place.Length > 0 ? place + " · " : "") + "ended " + Duration(now - thread.LastActive) + " ago";
             string age = Duration(now - thread.Since);
-            return thread.Where.Length > 0 ? thread.Where + " · " + age : age;
+            return place.Length > 0 ? place + " · " + age : age;
         }
         // A thread's chip: what its car is doing.
         public static string Chip(PitState state)
@@ -985,9 +1060,11 @@ namespace ClaudeDashboard
         private FrameworkElement PlanRow(double width)
         {
             bool revs = CardSizing.ClaudeRevs(width), known = view.Limits != null && view.Limits.Known;
-            var row = revs ? Columns(new GridLength(1.1, GridUnitType.Star), new GridLength(12), new GridLength(1.3, GridUnitType.Star), new GridLength(12), new GridLength(1.1, GridUnitType.Star)) : Columns(Star, new GridLength(12), Star);
+            // v0.53.0: the rev dial is gone; its sparkline and 7-day bars keep a narrow tile, so the tank and the week
+            // share the rest and their time words fit.
+            var row = revs ? Columns(Star, new GridLength(12), Star, new GridLength(12), new GridLength(CardSizing.ClaudeBurn(textScale))) : Columns(Star, new GridLength(12), Star);
             row.Height = CardSizing.ClaudePlan(textScale);
-            double tile = revs ? (width - 24) / 3.5 : (width - 12) / 2;
+            double tile = revs ? (width - 24 - CardSizing.ClaudeBurn(textScale)) / 2 : (width - 12) / 2;
             if (known) { row.Children.Add(names.Add(TankTile(tile), "ClaudeTank")); row.Children.Add(At(names.Add(WeekTile(), "ClaudeWeekTile"), 0, 2)); }
             else
             {
@@ -995,7 +1072,7 @@ namespace ClaudeDashboard
                 message.VerticalAlignment = VerticalAlignment.Center;
                 row.Children.Add(At(Tile(message, 12, new Thickness(14, 12, 14, 12)), 0, 0, 3));
             }
-            if (revs) row.Children.Add(At(names.Add(RevTile(tile * 1.1), "ClaudeRevs"), 0, 4));
+            if (revs) row.Children.Add(At(names.Add(BurnTile(), "ClaudeRevs"), 0, 4));
             return row;
         }
         private TextBlock Wrapped(string text, double size, double maxHeight)
@@ -1011,7 +1088,9 @@ namespace ClaudeDashboard
         }
         private Border TankTile(double width)
         {
-            double size = width >= 330 ? 140 : 112;
+            double size = width >= 380 ? 140 : width >= 290 ? 112 : 96;
+            double room = Math.Max(60, width - size - 12 - 30);
+            List<string> paceForms = null, resetForms = null;
             var gauge = names.Add(new PitGauge { Width = size, Height = size * 0.6, VerticalAlignment = VerticalAlignment.Center, TextScale = textScale }, "ClaudeTankGauge");
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
             text.Children.Add(Upper("5-hour tank", Scaled(13)));
@@ -1020,6 +1099,9 @@ namespace ClaudeDashboard
             var reset = Trimmed(Text("", Scaled(13), "Muted")); text.Children.Add(reset);
             names.Add(value, "ClaudeFiveHourPercent"); names.Add(pace, "ClaudeFiveHourPace"); names.Add(reset, "ClaudeFiveHourReset");
             var row = Columns(Auto, Star); row.Children.Add(gauge); row.Children.Add(At(text, 0, 1));
+            // The words are fitted again when the tile's width settles, so the longest form that fits shows.
+            pace.SizeChanged += (sender, e) => { if (paceForms != null && Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Fit(pace, e.NewSize.Width, paceForms); };
+            reset.SizeChanged += (sender, e) => { if (resetForms != null && Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Fit(reset, e.NewSize.Width, resetForms); };
             fills.Add(now => {
                 var w = view.Limits.FiveHour;
                 double pct = ClaudeText.Percent(w, now), elapsed = ClaudePace.Elapsed(w, ClaudePace.FiveHours, now), projection = ClaudePace.Projection(pct, elapsed);
@@ -1027,9 +1109,15 @@ namespace ClaudeDashboard
                 gauge.Value = pct / 100; gauge.Projection = Double.IsNaN(projection) ? Double.NaN : projection / 100; gauge.Pace = elapsed; gauge.Warn = pct >= 100; gauge.InvalidateVisual();
                 if (w == null) value.Text = "—"; else SetBig(value, pct, ClaudeText.Warns(pct) ? "Warning" : "Text");
                 // Package 2: when the tank fills at the last half hour's pace, if that's before it resets.
-                pace.Text = ClaudeText.PaceLine(projection, view.LimitEtaMinutes); pace.SetResourceReference(TextBlock.ForegroundProperty, warn || !Double.IsNaN(view.LimitEtaMinutes) ? "Warning" : "Muted");
-                pace.ToolTip = Double.IsNaN(view.LimitEtaMinutes) ? null : "At the last half hour's pace, across every project, the 5-hour limit fills before it resets.";
-                reset.Text = w == null ? ClaudeText.NoFiveHour : ClaudeText.FiveHourReset(w, now, use24); reset.SetResourceReference(TextBlock.ForegroundProperty, pct >= 100 ? "Warning" : "Muted");
+                // v0.53.0: pace in time, "≈ empty 3:21 am, 37 min before reset", in the longest form that fits.
+                double width2 = pace.ActualWidth > 0 ? pace.ActualWidth : room;
+                paceForms = ClaudeText.PaceTimes(projection, view.LimitEtaMinutes, w, now, use24);
+                Fit(pace, width2, paceForms);
+                pace.SetResourceReference(TextBlock.ForegroundProperty, warn || !Double.IsNaN(view.LimitEtaMinutes) ? "Warning" : "Muted");
+                pace.ToolTip = Double.IsNaN(view.LimitEtaMinutes) ? (Double.IsNaN(projection) ? null : "Where the 5-hour window ends at this window's pace so far.") : "At the last half hour's pace, across every project, the 5-hour limit runs out before it resets.";
+                resetForms = w == null ? new List<string> { ClaudeText.NoFiveHour } : ClaudeText.FiveHourResets(w, now, use24);
+                Fit(reset, width2, resetForms);
+                reset.SetResourceReference(TextBlock.ForegroundProperty, pct >= 100 ? "Warning" : "Muted");
             });
             return Tile(row, 12, new Thickness(12, 10, 14, 10));
         }
@@ -1054,19 +1142,18 @@ namespace ClaudeDashboard
                 lap.Text = ClaudeText.Lap(ClaudePace.LapNow(elapsed));
                 resets.Text = w == null ? "" : w.Current(now) ? ClaudeText.WeekReset(w, use24) : "reset";
                 if (w == null) value.Text = "—"; else SetBig(value, pct, ClaudeText.Warns(pct) ? "Warning" : "Text");
-                pace.Text = ClaudeText.Pace(projection); pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
+                Fit(pace, notes.ActualWidth > 0 ? notes.ActualWidth : 160, ClaudeText.PaceTimes(projection, Double.NaN, w, ClaudePace.Week, now, use24)); pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                 extra.Text = ClaudeText.Extras(view.Limits, now);
                 laps.Percent = pct; laps.Projection = projection; laps.Now = ClaudePace.LapNow(elapsed); laps.Days = ClaudeText.LapDays(w); laps.InvalidateVisual();
             });
             return Tile(stack, 12, new Thickness(14, 10, 14, 10));
         }
-        private Border RevTile(double width)
+        // The burn tile (v0.53.0, the rev dial dropped): tokens a minute now, the last hour's sparkline and the 7-day bars.
+        private Border BurnTile()
         {
-            double size = width >= 330 ? 140 : 112;
-            var gauge = names.Add(new PitGauge { Width = size, Height = size * 0.6, VerticalAlignment = VerticalAlignment.Center, Red = ClaudePace.Redline, TextScale = textScale }, "ClaudeRevGauge");
-            var text = new Grid { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            var text = new Grid { VerticalAlignment = VerticalAlignment.Center };
             foreach (var h in new[] { Auto, Auto, Auto, Auto }) text.RowDefinitions.Add(new RowDefinition { Height = h });
-            text.Children.Add(Upper("Revs · tok/min", Scaled(13)));
+            text.Children.Add(Upper("Burn · tok/min", Scaled(13)));
             var value = Big("—"); text.Children.Add(At(value, 1));
             var burn = names.Add(new BurnLine { Height = 24, Margin = new Thickness(0, 2, 0, 2) }, "ClaudeBurn"); text.Children.Add(At(burn, 2));
             var foot = new DockPanel();
@@ -1077,16 +1164,15 @@ namespace ClaudeDashboard
                 days = names.Add(new DaySpark { Width = 62, Height = 16, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }, "ClaudeDays");
                 DockPanel.SetDock(days, Dock.Right); foot.Children.Add(days);
             }
-            foot.Children.Add(Trimmed(Text("last 60 min", Scaled(13), "Muted")));
+            foot.Children.Add(names.Add(Trimmed(Text("last 60 min", Scaled(13), "Muted")), "ClaudeBurnFoot"));
             text.Children.Add(At(foot, 3));
-            var row = Columns(Auto, Star); row.Children.Add(gauge); row.Children.Add(At(text, 0, 1));
             fills.Add(now => {
-                gauge.Value = Math.Min(1, view.Rate / view.Scale); gauge.Low = "0"; gauge.High = ClaudeUsage.Format((long)view.Scale); gauge.InvalidateVisual();
                 string rate = ClaudeUsage.Format((long)view.Rate);
                 value.Inlines.Clear();
                 string digits = rate.TrimEnd('k', 'M', 'B'), unit = rate.Substring(digits.Length);
                 value.Inlines.Add(Colored(digits, view.Rate >= view.Scale * ClaudePace.Redline ? "Warning" : "Text"));
                 if (unit.Length > 0) { var small = Colored(unit, "Muted"); small.FontSize = 20; value.Inlines.Add(small); }
+                value.ToolTip = "Tokens a minute across every session now; the scale tops out at " + ClaudeUsage.Format((long)view.Scale) + ".";
                 burn.Values = view.Burn; burn.Maximum = view.Scale; burn.InvalidateVisual();
                 if (days != null && view.Days != null)
                 {
@@ -1094,7 +1180,35 @@ namespace ClaudeDashboard
                     days.ToolTip = ClaudeText.DaysTip(view.Days, view.LastWeekByNow, view.Sample);
                 }
             });
-            return Tile(row, 12, new Thickness(12, 10, 14, 10));
+            return Tile(text, 12, new Thickness(14, 10, 14, 10));
+        }
+        // Puts the first of the forms that fits the room into the block (the last one, trimmed, when none does).
+        // A block that sizes to its text (docked beside a reading) keeps the width the text needs however it is measured:
+        // the window draws in Display mode, whose widths can come out a few units under Ideal ones.
+        private static void Fit(TextBlock block, double room, IList<string> forms, bool reserve = false)
+        {
+            if (forms == null || forms.Count == 0) { block.Text = ""; return; }
+            string chosen = forms[forms.Count - 1];
+            foreach (var form in forms) if (Needs(block, form) <= room + 0.5) { chosen = form; break; }
+            block.Text = chosen;
+            if (reserve) block.MinWidth = Math.Min(Math.Max(0, room), Needs(block, chosen));
+        }
+        private static double Needs(TextBlock block, string text)
+        {
+            if (String.IsNullOrEmpty(text)) return 0;
+            var face = new Typeface(block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+            double ideal = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, face, block.FontSize, Brushes.Black, 1.0).WidthIncludingTrailingWhitespace;
+            return Math.Max(Wide(block, text), Math.Ceiling(ideal) + 1);
+        }
+        // A text's width in the block's font, measured as the window draws it (the header's way, AppController.Measure:
+        // a probe in the block's text formatting mode, rounded up, plus a unit of slack).
+        public static double Wide(TextBlock block, string text)
+        {
+            if (String.IsNullOrEmpty(text)) return 0;
+            var probe = new TextBlock { Text = text, FontFamily = block.FontFamily, FontSize = block.FontSize, FontWeight = block.FontWeight, FontStyle = block.FontStyle, FontStretch = block.FontStretch };
+            TextOptions.SetTextFormattingMode(probe, TextOptions.GetTextFormattingMode(block));
+            probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
+            return Math.Ceiling(probe.DesiredSize.Width) + 1;
         }
 
         // The pit stop strip: the thread that waited on you longest, what it wants, and Go to it.
@@ -1165,6 +1279,16 @@ namespace ClaudeDashboard
             var row = new Grid { Height = height };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = Star });
+            if (Live)
+            {
+                // v0.53.0: For, Last sign, Now, Tokens, Lines.
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Scaled(60) + 10) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Scaled(88) + 10) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CardSizing.ClaudeLiveNow(width, textScale) ? CardSizing.ClaudeNowWidth(textScale) : 0) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Scaled(72) + 10) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CardSizing.ClaudeLiveLines(width, textScale) ? Scaled(84) + 10 : 0) });
+                return row;
+            }
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Scaled(72) + 10) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CardSizing.ClaudeCache(width, textScale) ? Scaled(80) + 10 : 0) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Scaled(64) + 10) });
@@ -1177,12 +1301,16 @@ namespace ClaudeDashboard
             var groups = view.Groups(period);
             var table = Rows(new GridLength(24), Star, Auto);
             var head = LedgerRow(width, 24);
-            var labels = new[] { "", "Project · thread", "Tokens", "Cache reads", showApi ? "API value" : "Replies", "Models", "Lines" };
-            var tips = new[] { "", "", ClaudeText.TokensTip, ClaudeText.CacheTip, showApi ? ClaudeText.ApiValueTip : ClaudeText.RepliesTip, "The model each thread used; a mix shows its top two with their share of the tokens", "Lines added and removed, from Claude Code's logs" };
+            bool live = Live;
+            var labels = live ? new[] { "", "Project · thread", "For", "Last sign", "Now", "Tokens", "Lines" } : new[] { "", "Project · thread", "Tokens", "Cache reads", showApi ? "API value" : "Replies", "Models", "Lines" };
+            var tips = live ? new[] { "", "", ClaudeText.ForTip, ClaudeText.SignTip, ClaudeText.NowHeadTip, ClaudeText.TokensTip, "Lines added and removed, from Claude Code's logs" }
+                : new[] { "", "", ClaudeText.TokensTip, ClaudeText.CacheTip, showApi ? ClaudeText.ApiValueTip : ClaudeText.RepliesTip, "The model each thread used; a mix shows its top two with their share of the tokens", "Lines added and removed, from Claude Code's logs" };
+            int leftColumn = live ? 4 : 5;
             for (int i = 1; i < labels.Length; i++)
             {
                 if (head.ColumnDefinitions[i].Width.Value == 0 && !head.ColumnDefinitions[i].Width.IsStar) continue;
-                var label = Upper(labels[i], Scaled(12)); label.VerticalAlignment = VerticalAlignment.Center; if (i >= 2) { if (i != 5) Right(label); label.Margin = new Thickness(10, 0, 0, 0); }
+                var label = Upper(labels[i], Scaled(12)); label.VerticalAlignment = VerticalAlignment.Center; if (i >= 2) { if (i != leftColumn) Right(label); label.Margin = new Thickness(10, 0, 0, 0); }
+                names.Add(label, "ClaudeLedgerHead" + i);
                 if (tips[i].Length > 0) label.ToolTip = tips[i];
                 head.Children.Add(At(label, 0, i));
             }
@@ -1314,11 +1442,12 @@ namespace ClaudeDashboard
             share.SetResourceReference(MeterBar.TrackProperty, "Track");
             name.Children.Add(share);
             row.Children.Add(At(name, 0, 1));
-            var tokens = Right(Text("", Scaled(17), "Text")); tokens.Margin = new Thickness(10, 0, 0, 0); row.Children.Add(At(tokens, 0, 2));
-            var cached = Right(Text("", Scaled(15), "Muted")); cached.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeCache(width, textScale)) row.Children.Add(At(cached, 0, 3));
-            var dollars = Right(Text("", Scaled(15), "Muted")); dollars.Margin = new Thickness(10, 0, 0, 0); row.Children.Add(At(dollars, 0, 4));
-            var mix = Trimmed(Text("", Scaled(12), "Muted")); mix.VerticalAlignment = VerticalAlignment.Center; mix.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeModels(width, textScale)) row.Children.Add(At(mix, 0, 5));
-            var lines = Right(Text("", Scaled(12), "Muted")); lines.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeLines(width, textScale)) row.Children.Add(At(lines, 0, 6));
+            bool live = Live;
+            var tokens = Right(Text("", Scaled(17), "Text")); tokens.Margin = new Thickness(10, 0, 0, 0); row.Children.Add(At(tokens, 0, live ? 5 : 2));
+            var cached = Right(Text("", Scaled(15), "Muted")); cached.Margin = new Thickness(10, 0, 0, 0); if (!live && CardSizing.ClaudeCache(width, textScale)) row.Children.Add(At(cached, 0, 3));
+            var dollars = Right(Text("", Scaled(15), "Muted")); dollars.Margin = new Thickness(10, 0, 0, 0); if (!live) row.Children.Add(At(dollars, 0, 4));
+            var mix = Trimmed(Text("", Scaled(12), "Muted")); mix.VerticalAlignment = VerticalAlignment.Center; mix.Margin = new Thickness(10, 0, 0, 0); if (!live && CardSizing.ClaudeModels(width, textScale)) row.Children.Add(At(mix, 0, 5));
+            var lines = Right(Text("", Scaled(12), "Muted")); lines.Margin = new Thickness(10, 0, 0, 0); if (live ? CardSizing.ClaudeLiveLines(width, textScale) : CardSizing.ClaudeLines(width, textScale)) row.Children.Add(At(lines, 0, 6));
             row.Tag = "g:" + group.Folder;
             list.Children.Add(names.Add(row, "ClaudeProjectRow" + index));
             string folder = group.Folder;
@@ -1345,14 +1474,27 @@ namespace ClaudeDashboard
                 var what = new DockPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0), LastChildFill = true };
                 var chip = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
                 var chipText = Text("", Scaled(11), "Text"); chip.Child = chipText; DockPanel.SetDock(chip, Dock.Left); what.Children.Add(chip);
-                var where = Text("", Scaled(12), "Muted"); where.Margin = new Thickness(8, 0, 0, 0); where.VerticalAlignment = VerticalAlignment.Center; DockPanel.SetDock(where, Dock.Right); if (CardSizing.ClaudeWhere(width, textScale)) what.Children.Add(where);
+                var where = Text("", Scaled(12), "Muted"); where.Margin = new Thickness(8, 0, 0, 0); where.VerticalAlignment = VerticalAlignment.Center; DockPanel.SetDock(where, Dock.Right); if (live ? CardSizing.ClaudeLiveWhere(width, textScale) : CardSizing.ClaudeWhere(width, textScale)) what.Children.Add(where);
                 var name2 = names.Add(Trimmed(Text("", Scaled(14), "Text")), "ClaudeThreadTitle" + index + "_" + j); name2.VerticalAlignment = VerticalAlignment.Center; what.Children.Add(name2);
                 trow.Children.Add(At(what, 0, 1));
-                var ttokens = Right(Text("", Scaled(14), "Text")); ttokens.Margin = new Thickness(10, 0, 0, 0); trow.Children.Add(At(ttokens, 0, 2));
-                var tcached = Right(Text("", Scaled(14), "Muted")); tcached.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeCache(width, textScale)) trow.Children.Add(At(tcached, 0, 3));
-                var tdollars = Right(Text("", Scaled(14), "Muted")); tdollars.Margin = new Thickness(10, 0, 0, 0); trow.Children.Add(At(tdollars, 0, 4));
-                var tmix = Trimmed(Text("", Scaled(12), "Muted")); tmix.VerticalAlignment = VerticalAlignment.Center; tmix.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeModels(width, textScale)) trow.Children.Add(At(tmix, 0, 5));
-                var tlines = Right(Text("", Scaled(12), "Muted")); tlines.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeLines(width, textScale)) trow.Children.Add(At(tlines, 0, 6));
+                // v0.53.0: in 5 h and Today a thin context bar under every thread's title, always there (empty with a
+                // tip when the context isn't known yet).
+                MeterBar context = null;
+                if (live)
+                {
+                    context = names.Add(new MeterBar { Height = 3, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(4, 0, 0, 3) }, "ClaudeThreadContext" + index + "_" + j);
+                    context.SetResourceReference(MeterBar.TrackProperty, "Track");
+                    trow.Children.Add(At(context, 0, 1));
+                }
+                var tfor = names.Add(Right(Text("", Scaled(14), "Text")), "ClaudeThreadFor" + index + "_" + j); tfor.Margin = new Thickness(10, 0, 0, 0);
+                var tsign = names.Add(Right(Trimmed(Text("", Scaled(13), "Muted"))), "ClaudeThreadSign" + index + "_" + j); tsign.Margin = new Thickness(10, 0, 0, 0);
+                var tnow = names.Add(Trimmed(Text("", Scaled(13), "Text")), "ClaudeThreadNow" + index + "_" + j); tnow.Margin = new Thickness(10, 0, 0, 0); tnow.VerticalAlignment = VerticalAlignment.Center;
+                if (live) { trow.Children.Add(At(tfor, 0, 2)); trow.Children.Add(At(tsign, 0, 3)); if (CardSizing.ClaudeLiveNow(width, textScale)) trow.Children.Add(At(tnow, 0, 4)); }
+                var ttokens = Right(Text("", Scaled(14), "Text")); ttokens.Margin = new Thickness(10, 0, 0, 0); trow.Children.Add(At(ttokens, 0, live ? 5 : 2));
+                var tcached = Right(Text("", Scaled(14), "Muted")); tcached.Margin = new Thickness(10, 0, 0, 0); if (!live && CardSizing.ClaudeCache(width, textScale)) trow.Children.Add(At(tcached, 0, 3));
+                var tdollars = Right(Text("", Scaled(14), "Muted")); tdollars.Margin = new Thickness(10, 0, 0, 0); if (!live) trow.Children.Add(At(tdollars, 0, 4));
+                var tmix = Trimmed(Text("", Scaled(12), "Muted")); tmix.VerticalAlignment = VerticalAlignment.Center; tmix.Margin = new Thickness(10, 0, 0, 0); if (!live && CardSizing.ClaudeModels(width, textScale)) trow.Children.Add(At(tmix, 0, 5));
+                var tlines = Right(Text("", Scaled(12), "Muted")); tlines.Margin = new Thickness(10, 0, 0, 0); if (live ? CardSizing.ClaudeLiveLines(width, textScale) : CardSizing.ClaudeLines(width, textScale)) trow.Children.Add(At(tlines, 0, 6));
                 var tap = Tappable(trow, thread);
                 LiveTip(tap, thread.Id);
                 car.Row = tap; tap.Tag = thread.Id;
@@ -1372,8 +1514,20 @@ namespace ClaudeDashboard
                     ttokens.SetResourceReference(TextBlock.ForegroundProperty, dim ? "Muted" : "Text");
                     // A stuck thread says why where it would say where it runs (decision 023).
                     bool stuck = t.Running && t.State == ClaudeState.Stuck;
-                    where.Text = stuck ? ClaudeText.StuckReason(t, view, now, use24) : ClaudeText.Where(t, now);
+                    // Live rows give the time its own labelled columns, so beside the title is only where it runs.
+                    where.Text = stuck ? ClaudeText.StuckReason(t, view, now, use24) : live ? ClaudeText.Place(t) : ClaudeText.Where(t, now);
                     where.SetResourceReference(TextBlock.ForegroundProperty, stuck ? "Warning" : "Muted");
+                    if (live)
+                    {
+                        tfor.Text = ClaudeText.StateFor(t, now);
+                        tsign.Text = ClaudeText.Sign(t, now);
+                        tsign.SetResourceReference(TextBlock.ForegroundProperty, ClaudeText.Silent(t, now) ? "Text" : "Muted");
+                        tnow.Text = ClaudeText.NowWords(t, now); tnow.ToolTip = t.Running ? ClaudeText.NowTip(t, view.Facts != null && view.Facts.Telemetry) : null;
+                        context.Value = Double.IsNaN(t.Context) ? 0 : t.Context;
+                        context.SetResourceReference(MeterBar.FillProperty, !Double.IsNaN(t.Context) && t.Context >= 80 ? "Warning" : "Muted");
+                        context.ToolTip = ClaudeText.ContextTip(t);
+                        context.Visibility = t.Running ? Visibility.Visible : Visibility.Hidden;
+                    }
                     ttokens.Text = TokenCell(t.TokensFor(period)); ttokens.ToolTip = Unreadable; tcached.Text = Marked(ClaudeUsage.Format(t.CacheReadsFor(period))); tcached.ToolTip = Unreadable; tdollars.Text = Marked(showApi ? "$" + ClaudeText.Dollars(t.CostFor(period)) : t.RepliesFor(period).ToString(CultureInfo.InvariantCulture)); tdollars.ToolTip = Unreadable;
                     SetModels(tmix, t.ModelsFor(period));
                     var l = t.LinesFor(period); SetLines(tlines, l[0], l[1]);
@@ -1381,6 +1535,8 @@ namespace ClaudeDashboard
             }
         }
         private bool Counted { get { return view.LogsRead && !view.LogsFailed; } }
+        // 5 h and Today are the live status board; Week is the ledger (observability critique, issue 2).
+        private bool Live { get { return period != ClaudePeriod.Week; } }
         // A token cell: "≈1.2M" while the logs are still being read, "—" with why in its tip when they can't be
         // (observability critique, issue 3).
         private string TokenCell(long tokens) { return Marked(ClaudeUsage.Format(tokens)); }
@@ -1508,8 +1664,8 @@ namespace ClaudeDashboard
             var tiles = Columns(Star, new GridLength(10), Star); tiles.Height = CardSizing.ClaudeMini(textScale);
             if (view.Limits != null && view.Limits.Known)
             {
-                tiles.Children.Add(MiniTile(true));
-                tiles.Children.Add(At(MiniTile(false), 0, 2));
+                tiles.Children.Add(MiniTile(true, (width - 10) / 2));
+                tiles.Children.Add(At(MiniTile(false, (width - 10) / 2), 0, 2));
             }
             else
             {
@@ -1594,7 +1750,19 @@ namespace ClaudeDashboard
             return root;
         }
         // A mini plan tile: the 5-hour or the week's percentage, its reset and pace, over a pace meter.
-        private Border MiniTile(bool fiveHour)
+        // What a mini tile's middle line leaves the pace beside the big reading.
+        private static double PaceRoom(FrameworkElement middle, TextBlock value, double tileWidth)
+        {
+            double line = middle.ActualWidth > 0 ? middle.ActualWidth : tileWidth - 24;
+            // The reading fills the rest of its line, so it's measured by its text, not its width.
+            double reading = Wide(value, value.Text.Length > 0 ? value.Text : "100%");
+            return line - reading - 8;
+        }
+        private static double SmallRoom(FrameworkElement line, TextBlock label, TextBlock value, double width)
+        {
+            return (line.ActualWidth > 0 ? line.ActualWidth : width - 24) - Wide(label, label.Text) - 8 - Wide(value, value.Text) - 8;
+        }
+        private Border MiniTile(bool fiveHour, double tileWidth)
         {
             var stack = new StackPanel();
             var top = new DockPanel();
@@ -1606,6 +1774,9 @@ namespace ClaudeDashboard
             var value = Reading("—", 28); value.SetResourceReference(TextBlock.ForegroundProperty, "Text"); middle.Children.Add(value);
             stack.Children.Add(middle);
             var bar = new PaceBar { Height = 8 }; stack.Children.Add(bar);
+            // The pace is fitted again once the tile's width is known (the first fill runs before layout).
+            List<string> paceForms = null;
+            middle.SizeChanged += (sender, e) => { if (paceForms != null && Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Fit(pace, PaceRoom(middle, value, tileWidth), paceForms, true); };
             string name = fiveHour ? "ClaudeFiveHour" : "ClaudeWeek";
             names.Add(value, name + "Percent"); names.Add(reset, name + "Reset"); names.Add(pace, name + "Pace"); names.Add(bar, name + "Bar");
             fills.Add(now => {
@@ -1614,7 +1785,10 @@ namespace ClaudeDashboard
                 if (w == null) value.Text = "—"; else SetBig(value, pct, ClaudeText.Warns(pct) ? "Warning" : "Text");
                 reset.Text = w == null ? (fiveHour ? "none now" : "") : !w.ResetsAt.HasValue ? "" : !w.Current(now) ? "reset" : pct >= 100 ? "back " + ClaudeText.When(w.ResetsAt.Value, now, use24) : ClaudeText.When(w.ResetsAt.Value, now, use24);
                 reset.SetResourceReference(TextBlock.ForegroundProperty, pct >= 100 ? "Warning" : "Muted");
-                pace.Text = Double.IsNaN(projection) ? "" : "pace " + Math.Round(projection) + "%"; pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
+                // v0.53.0: in time, like the tank ("≈ empty 9:34 am", "≈ 76% by reset"), in what room the reading leaves.
+                paceForms = ClaudeText.PaceTimes(projection, fiveHour ? view.LimitEtaMinutes : Double.NaN, w, fiveHour ? ClaudePace.FiveHours : ClaudePace.Week, now, use24).Where(f => !f.Contains(", ")).ToList();
+                Fit(pace, PaceRoom(middle, value, tileWidth), paceForms, true);
+                pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                 bar.Value = pct / 100; bar.Projection = Double.IsNaN(projection) ? Double.NaN : projection / 100; bar.Pace = elapsed; bar.Warn = ClaudePace.Warns(projection) || ClaudeText.Warns(pct); bar.InvalidateVisual();
             });
             return Tile(stack, 12, new Thickness(10, 8, 10, 8));
@@ -1676,16 +1850,21 @@ namespace ClaudeDashboard
                 bottom.Children.Add(line);
                 var bar = names.Add(new PaceBar { Height = 8, Margin = new Thickness(0, 4, 0, 0) }, "ClaudeSmallMeter"); bottom.Children.Add(bar);
                 names.Add(value, "ClaudeSmallPercent"); names.Add(right, "ClaudeSmallPace");
+                List<string> smallForms = null;
+                line.SizeChanged += (sender, e) => { if (smallForms != null && Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Fit(right, SmallRoom(line, label, value, width), smallForms, true); };
                 fills.Add(now => {
                     bool weekly = view.Limits.FiveHour == null;
                     var w = weekly ? view.Limits.Week : view.Limits.FiveHour;
                     double pct = ClaudeText.Percent(w, now), elapsed = ClaudePace.Elapsed(w, weekly ? ClaudePace.Week : ClaudePace.FiveHours, now), projection = ClaudePace.Projection(pct, elapsed);
                     value.Text = w == null ? "—" : Math.Round(pct) + "%"; value.SetResourceReference(TextBlock.ForegroundProperty, ClaudeText.Warns(pct) ? "Warning" : "Text");
-                    var parts = new List<string>();
-                    if (!Double.IsNaN(projection)) parts.Add("pace " + Math.Round(projection) + "%");
-                    if (w != null && w.ResetsAt.HasValue && w.Current(now)) parts.Add(ClaudeText.When(w.ResetsAt.Value, now, use24));
-                    if (ClaudeText.Old(view, now) && width >= 280) parts.Add("as of " + ClaudeText.Clock(view.Limits.UpdatedAt, use24));
-                    right.Text = String.Join(" · ", parts); right.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
+                    // v0.53.0: the pace in time, then the reset and how old the reading is, as much as fits.
+                    var paces = ClaudeText.PaceTimes(projection, weekly ? Double.NaN : view.LimitEtaMinutes, w, weekly ? ClaudePace.Week : ClaudePace.FiveHours, now, use24).Where(f => !f.Contains(", ")).ToList();
+                    string when = w != null && w.ResetsAt.HasValue && w.Current(now) ? "resets " + ClaudeText.When(w.ResetsAt.Value, now, use24) : "", asOf = ClaudeText.Old(view, now) ? "as of " + ClaudeText.Clock(view.Limits.UpdatedAt, use24) : "";
+                    var forms = new List<string>();
+                    foreach (var p in paces) { forms.Add(String.Join(" · ", new[] { p, when, asOf }.Where(x => x.Length > 0))); forms.Add(String.Join(" · ", new[] { p, when }.Where(x => x.Length > 0))); }
+                    foreach (var p in paces) forms.Add(p);
+                    smallForms = forms.Distinct().ToList();
+                    Fit(right, SmallRoom(line, label, value, width), smallForms, true); right.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                     bar.Value = pct / 100; bar.Projection = Double.IsNaN(projection) ? Double.NaN : projection / 100; bar.Pace = elapsed; bar.Warn = ClaudePace.Warns(projection) || ClaudeText.Warns(pct); bar.InvalidateVisual();
                 });
                 root.Children.Add(At(bottom, 1));
@@ -1938,9 +2117,11 @@ namespace ClaudeDashboard
         public static Design Claude(double width, double height) { return width < 360 || height < 280 ? Design.Small : width >= 640 && height >= 420 ? Design.Large : Design.Medium; }
         // Large: the plan row's tiles, the rev counter from 860 units of body, the side panel from 1000, and the
         // ledger's models and lines columns when the table is wide enough for them.
-        public const double ClaudePlanHeight = 124, ClaudeSideWidth = 300;
+        public const double ClaudePlanHeight = 124, ClaudeSideWidth = 300, ClaudeBurnWidth = 200;
         // The plan row grows with the text: its tallest tile holds three 13-unit lines beside the big number.
         public static double ClaudePlan(double textScale) { return ClaudePlanHeight + Math.Max(0, Math.Ceiling(3 * 1.33 * (Math.Round(13 * textScale) - 13))); }
+        // The burn tile (v0.53.0) widens with the text so "last 60 min" and the 7-day bars keep their line.
+        public static double ClaudeBurn(double textScale) { return Math.Round(ClaudeBurnWidth + 60 * Math.Max(0, textScale - 1)); }
         public static bool ClaudeRevs(double bodyWidth) { return bodyWidth >= 860; }
         public static bool ClaudeSide(double bodyWidth) { return bodyWidth >= 1000; }
         // The optional columns step aside as the text grows, so a thread's title keeps at least 240 units: the fixed
@@ -1971,6 +2152,17 @@ namespace ClaudeDashboard
         }
         public static bool ClaudeWhere(double tableWidth, double textScale) { return ClaudeTitleRoom(tableWidth, textScale) - Math.Round(ClaudeChip * textScale) - Math.Round(ClaudeWhereWidth * textScale) >= ClaudeTitleMin(textScale); }
         public static bool ClaudeCache(double tableWidth, double textScale) { return ClaudeTitleRoom(tableWidth, textScale) - Math.Round(ClaudeChip * textScale) >= ClaudeTitleMin(textScale); }
+        // v0.53.0, the live ledger (5 h and Today): the car, For, Last sign and Tokens always; Now while the title keeps
+        // 200 units, then Lines while it keeps 240. Cache reads, Models and Replies are Week's.
+        public static double ClaudeLiveFixed(double textScale) { return 52 + Math.Round(60 * textScale) + 10 + Math.Round(88 * textScale) + 10 + Math.Round(72 * textScale) + 10; }
+        public static double ClaudeNowWidth(double textScale) { return Math.Round(104 * textScale) + 10; }
+        public static bool ClaudeLiveNow(double tableWidth, double textScale) { return tableWidth >= ClaudeLiveFixed(textScale) + ClaudeNowWidth(textScale) + 200; }
+        public static bool ClaudeLiveLines(double tableWidth, double textScale) { return ClaudeLiveNow(tableWidth, textScale) && tableWidth >= ClaudeLiveFixed(textScale) + ClaudeNowWidth(textScale) + Math.Round(84 * textScale) + 10 + 240; }
+        public static bool ClaudeLiveWhere(double tableWidth, double textScale)
+        {
+            double room = tableWidth - ClaudeLiveFixed(textScale) - (ClaudeLiveNow(tableWidth, textScale) ? ClaudeNowWidth(textScale) : 0) - (ClaudeLiveLines(tableWidth, textScale) ? Math.Round(84 * textScale) + 10 : 0);
+            return room - Math.Round(ClaudeChip * textScale) - Math.Round(ClaudeWhereWidth * textScale) >= ClaudeTitleMin(textScale);
+        }
         // Medium: two mini plan tiles, then a 44-unit row per garage (taller with bigger text) with up to three cars
         // beside the project's name when they leave it 110 units.
         public const double ClaudeMiniHeight = 84;

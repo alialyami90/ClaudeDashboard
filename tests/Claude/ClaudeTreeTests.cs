@@ -398,7 +398,7 @@ internal static class ClaudeTreeTests
             var bins = ClaudePace.Bins(new[] { new ClaudeUsageEntry { At = now.AddSeconds(-30), Tokens = 5 }, new ClaudeUsageEntry { At = now.AddMinutes(-59.5), Tokens = 7 }, new ClaudeUsageEntry { At = now.AddMinutes(-61), Tokens = 9 } }, now, TimeSpan.FromMinutes(1), 60);
             Assert(bins[59] == 5 && bins[0] == 7 && bins.Sum() == 12 && ClaudePace.Rate(new[] { new ClaudeUsageEntry { At = now.AddSeconds(-30), Tokens = 600 }, new ClaudeUsageEntry { At = now.AddMinutes(-3), Tokens = 999 } }, now) == 300, "Burn bins wrong.");
             Assert(ClaudeText.Added(1300) == "+1.3k" && ClaudeText.Removed(216) == "−216" && ClaudeText.Dollars(7.1) == "7.10" && ClaudeText.Mix(new[] { 0.8, 0.2, 0 }) == "Opus 80% · Sonnet 20%" && ClaudeText.Chip(PitState.Pit) == "Compacting"
-                && ClaudeText.Where(new ClaudeSession { Running = false, LastActive = now.AddHours(-1) }, now) == "ended 1 h ago" && ClaudeText.Where(new ClaudeSession { Running = true, Where = "Desktop", Since = now.AddMinutes(-6) }, now) == "Desktop · 6 min", "Pit words wrong.");
+                && ClaudeText.Where(new ClaudeSession { Running = false, LastActive = now.AddHours(-1) }, now) == "ended 1 h ago" && ClaudeText.Where(new ClaudeSession { Running = true, Where = "Desktop", Since = now.AddMinutes(-6) }, now) == "Claude app · 6 min", "Pit words wrong.");
         });
     }
 }
