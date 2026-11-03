@@ -6,13 +6,48 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
-## v0.58.2 (unreleased)
+## v0.58.3 (unreleased)
 
-Docs for the lap chart (decision 030). Docs only. It lands last, after v0.58.1.
+Docs for the lap chart (decision 030). Docs only. It lands last, after v0.58.2.
 
 - **Decision 030:** the lap chart. It covers the six views and their keys (Ctrl+1 to Ctrl+6, and Ctrl+G for the session waiting longest), the lanes and how each state is drawn, rose for Retrying, the sizes, the in-memory engine, and the six defaults that hold until Ali changes them.
 - **DESIGN.md:** the six views and the tab row from 640 wide, Live's lap chart (lanes in urgency order, how each state is drawn, the wall, the time row, the key, the panel and drawer), Limits, History, Reliability and Sources, rose for API errors and Retrying (deeper on paper), the one "≈ limit" and "Limit reached", Ctrl+1 to Ctrl+6 and Ctrl+G, and the views' frame clock.
 - **PRODUCT.md and README:** the views, what the lap chart keeps in memory only, and "≈ limit" in place of "≈ empty".
+- **Decision 030's Verified section:** the checks, what each render on Ali's PC found and where it was fixed (v0.56.0, v0.57.0, v0.57.2, v0.58.0 and its second render), and what wasn't verified live.
+
+## v0.58.0 (unreleased)
+
+Claude Dashboard: the lap chart's Reliability and Sources views (decision 030, package E).
+
+- **Reliability** shows today's tool failure rate, API errors in the last hour (by status, in rose), asks and denials, compactions, and edits accepted and rejected. Under them, the API error strip marks each failed request over the last 60 minutes with its status and retry; a table lists every tool across all sessions with Runs, Typical (the median), Longest, Failed (Amber above 0) and Asked you; and Stuck turns today lists each run of API errors as Stuck now, Retrying now or Recovered, with its reason in plain words ("rate limited", "overloaded (529)") from the status or StopFailure, never the reply. With telemetry off each figure says "needs telemetry" and the table gives the logs' tool-call count. The runs, errors, compactions and asks per tool are the engine's (v0.54.0).
+- **Sources** lists Hooks, Logs, Telemetry, Plan meters and Claude app threads, each with its state (ClaudeHealth's levels, glyph and word), freshness (the engine's logs read, telemetry's last event and port, the app threads' read time and count, the plan's next check), what it gives and one action (Connect or Disconnect, Open folder, Change port, Check now or Sign in, Show archived). The actions go through the window's Act, the same path and confirmations as Settings → Claude; the view never writes Claude Code's settings itself, and an action's error shows above the rows.
+- **The render on Ali's PC, fixed.** Tool failures counts the same runs as the tools table ("5 failed of 140 runs"), where the sample said "no tool runs today". Both pages are tab stops with the app's 2-unit focus ring in Text (`CardParts.PageFocus`, shared with Limits and History), and Home and End go to the top and bottom. The sample's Sources buttons are off with "These are sample numbers, so there's nothing to change." in their tip, and their words stay at Muted's contrast with a Muted outline instead of fading. The Asked you card says "all asks", and a line under the table says its column counts the asks that named their tool.
+- **Checks:** medians, longest and failures per tool, the failure rate, the last hour's API errors, stuck turns split by a 10-minute gap with their reasons, no turn text reaching the view, telemetry off, the card and the table counting the same runs on every sample, the focus ring, off buttons at Muted on all four palettes, Tab and the scroll keys reaching each page, the five sources, each button calling Act once with its action and showing its error, and both views inside their width at 640 × 420, 1000 × 600 and 1600 × 900 at 100% and 140%. Renders `claude-{reliability,sources}-<size>-{100,140}.png` and `claude-reliability-1000x600-claude.png`.
+
+## v0.57.2 (unreleased)
+
+Claude Dashboard: lap chart follow-ups (the Watcher's part).
+
+- **One ≈ limit.** The Garage tank, Medium's 5-hour tile and Small's meter line now say the engine's ≈ limit at the last half hour's pace (`LimitAtPace`), the same time Live's wall stands at, and only when Live draws that wall. The word is "≈ limit" everywhere, the week's pace included; "≈ empty" is gone. When the window is Reached or at 100%, the line says "Limit reached" in Amber and never predicts. Under 3 plan readings there's no time: the window's own pace ("≈ 84% by reset", "≈ over by reset" over 100%) or nothing, and the tooltip says why. That fallback never says "limit": "≈ limit" always means the engine's ≈ limit, as on Live.
+- **One "Limit reached" test** for every 5-hour line: the engine says Reached, or the meter itself reads 100% while the plan readings lag. Live's line and the curve's label say "Limit reached", with no wall and no projection, as the Garage, Medium and Small do. The tank says it once, on its reset line ("Limit reached · back 3:23 pm"), and leaves the pace line empty.
+- **Moving cars on Live.** Each lane's car steps its frames by its state, as on the Garage, through the window's one frame clock (`ClaudeViewContext.Frames`). Live asks for frames only while a car moves and lets go when all are still. Quiet keeps every car still.
+- **Archived threads on Live** follow Settings → Claude: while archived threads are hidden, an archived or resolved thread has no lane and no feed line. Hide idle doesn't apply to Live.
+- **Readability.**
+  - Time ticks under the curve: whole hours, "now" and "reset 2:16 pm". A label that would meet another is left out.
+  - A one-line key for the trail colours on the feed's heading line, as much as fits. Screen readers get the full key. The key tells states, not projects: Working and Compacting are drawn in the Text colour, and the label reads "Working (project colour)".
+  - The curve's percent sits at the curve's end, by the now line.
+  - Panel numbers wrap instead of being cut at 140%.
+  - The panel ends on a whole line when it scrolls. The 800 × 500 drawer's last line was half cut.
+- **Collisions, both present since v0.51.0.**
+  - The gauge's end labels: a tick that would cross "100" is left out. At 140% it read "T00".
+  - The Garage side panel's "Last 5 hours" times: one that would meet another is hidden, the middle first.
+- **At today's average: limit reached.** Live's tip keeps its lead-in when the average says Reached.
+- **Checks:**
+  - the tank, Medium and Small on Live's wall, and Limit reached at 100% (Ali's forced-full render);
+  - archived lanes and feed lines;
+  - Frames asked for and stepped, never in Quiet;
+  - no tick through an end label, no times meeting;
+  - Live at 800 × 500 as well.
 
 ## v0.57.1 (unreleased)
 

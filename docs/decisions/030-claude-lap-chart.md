@@ -1,8 +1,6 @@
 # 030: The lap chart: six views, with Live as home
 
-Status: decided (Ali, 3 Nov 2026), when he asked the team to build the lap chart from "Claude Dashboard app: lap chart build brief". It ships in steps, v0.54.0 to v0.58.2. Windows only. The six defaults below hold until Ali changes them.
-
-> Draft by the Scribe, written before packages A to E landed. Sections marked *(fill at F)* are completed from the merged PRs.
+Status: decided (Ali, 3 Nov 2026), when he asked the team to build the lap chart from "Claude Dashboard app: lap chart build brief". It shipped in steps, v0.54.0 to v0.58.3. Windows only. The six defaults below hold until Ali changes them.
 
 ## Context
 
@@ -86,8 +84,9 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
    - v0.57.1: Home and End on the Limits and History pages, and the meter's own percent at the limit (Builder);
    - v0.57.2: one "≈ limit" everywhere (the Garage tank, Medium and Small move to `LimitAtPace`), the moving Live cars, the time row and trail key, and archived lanes (Watcher). Main already had v0.57.0, so this went out as v0.57.2 rather than v0.56.2;
    - v0.58.0: Reliability and Sources (Demolition);
-   - v0.58.1: the keyboard focus ring on the Limits and History pages (Builder);
-   - v0.58.2: these docs (Scribe).
+   - v0.58.1: the keyboard focus ring on the Limits and History pages, inset off the heading (Builder);
+   - v0.58.2: Live's rose shares `ClaudeReliability.Rose`, so it is `#A93B35` on paper too (Watcher);
+   - v0.58.3: these docs (Scribe).
 5. **The garage pit wall stays** as its own Garage tab, keeping 5 h / Today / Week. Ali can drop it after he has seen Live.
 6. **Keys:** Ctrl+1 to Ctrl+6 switch views in tab order, and "open the session that waited longest" moves from Ctrl+1 to Ctrl+G. The brief says Ctrl+1 to Ctrl+5 because it has no Garage tab.
 
@@ -103,7 +102,18 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
 - **Unchanged:** the plain list, Settings, Connect and Disconnect, the sign-in, the toast rules and the export files.
 - Nobody runs Impeccable.
 
-## Verified *(fill at F)*
+## Verified
 
-- CI on each PR. The RC renders on Ali's PC at 640×420, 1000×600 and 1600×900, at 100% and 140%, for each view (`--render-view`).
-- What wasn't verified live.
+- **Checks.** CI was green on every PR. Each view has its own checks: `LapChartTests` (Live), `LimitsHistoryTests`, `ReliabilitySourcesTests`, and the shell's tabs, keys, frame clock and header checks in `ShellTests`. Each view renders at 640 × 420, 1000 × 600 and 1600 × 900, at 100% and 140%, and Live at 800 × 500 too. The checks point at throwaway folders and never touch the PC's real Claude Code.
+- **Renders on Ali's PC** (`artifacts\review\`, through `--render-view` with the sample), checked by the Lead, with each finding fixed before or right after its merge:
+  - **v0.56.0 (Live).** The curve's percent sat on the label, the axis had no times, and the trails had no key. At 140% the panel cut numbers, and the 800 × 500 drawer ended on a half line. Two older collisions also showed up: the tank gauge's "100" read "T00" at 140%, and the Garage side panel's times met. All of these were fixed in v0.57.2.
+  - **v0.57.0 (Limits and History).** Tab never reached the page, so the week and the last 7 days were out of a keyboard user's reach. That was fixed before the merge: each page is a named tab stop. Home and End went sideways, which v0.57.1 fixed.
+  - **v0.57.2.** Ali forced a full window. The header, the tank, Medium, Small, Live and Limits all said "Limit reached" in Amber, with no time and no wall.
+  - **v0.58.0 (Reliability and Sources), first render.** Tool failures disagreed with the tools table. The page's focus ring couldn't be seen. Off Sources buttons were faint on the Claude palette. The two "Asked you" counts didn't say which was which. All four were fixed before the merge, and the second render (v0.58.0b) was clean. There was no turn text, rose read well on the Claude palette, and nothing was cut at 140%. Builder's matching ring for Limits and History is v0.58.1.
+  - The tab order, with Quiet and Settings before the page, was accepted as it is.
+- **Not verified live:**
+  - a screen reader reading the lane names and the header's "Limit reached";
+  - moving Live cars and the frame clock over a long day of real sessions;
+  - Retrying and Silent lanes from real API errors and real hangs;
+  - "Limit reached" from a real full window rather than a forced one;
+  - Sources' Connect, Reconnect and Sign in clicked on the real PC (the checks drive them through a stand-in for `Act`).

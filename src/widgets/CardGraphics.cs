@@ -104,6 +104,27 @@ namespace ClaudeDashboard
             return grid;
         }
         public static readonly GridLength Star = new GridLength(1, GridUnitType.Star), Auto = GridLength.Auto;
+
+        // A page's focus ring (a view's ScrollViewer): the app's 2-unit ring in Text, like the Garage rows, inset 2 so
+        // the window's edge never clips it. Use as scroll.FocusVisualStyle = CardParts.PageFocus.
+        private static Style pageFocus;
+        public static Style PageFocus
+        {
+            get
+            {
+                if (pageFocus != null) return pageFocus;
+                var ring = new FrameworkElementFactory(typeof(Border));
+                ring.SetValue(Border.BorderThicknessProperty, new Thickness(2));
+                ring.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
+                ring.SetValue(FrameworkElement.MarginProperty, new Thickness(2));
+                ring.SetResourceReference(Border.BorderBrushProperty, "Text");
+                var style = new Style(typeof(Control));
+                style.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(Control)) { VisualTree = ring }));
+                style.Seal();
+                pageFocus = style;
+                return pageFocus;
+            }
+        }
     }
 
     // Parts of a built design that tests and the controller find by name; names are re-registered on each rebuild.
