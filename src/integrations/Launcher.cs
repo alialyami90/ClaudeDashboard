@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Opens a web page in the default browser: Sign in with Claude and the links in Settings → Claude.
     public static class Launcher

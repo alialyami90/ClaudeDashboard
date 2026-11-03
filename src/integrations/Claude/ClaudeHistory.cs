@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // One project's share of a day (package 4).
     public sealed class ClaudeDayGarage

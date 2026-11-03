@@ -10,7 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // Checks for the Claude watcher review fixes (1 Nov 2026; docs/decisions/022-claude-review-fixes.md): text that fits on
 // Medium and at 140%, the frame clock stopping when minimised, reads that never wait on a scan, whole ledger rows,

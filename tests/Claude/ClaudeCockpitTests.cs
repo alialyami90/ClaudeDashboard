@@ -5,7 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // Package 4 of the watcher plan, "Cockpit": the daily history files and the CSV and Markdown export. (Answering a
 // permission dialog from the dashboard was declined, decision 027.) Everything runs in throwaway folders with fixed

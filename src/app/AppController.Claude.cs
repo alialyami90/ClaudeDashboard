@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // The Claude Code watcher in Claude Dashboard's window (decisions 014–025, phase 4 of the transformation plan): the
     // card, the heartbeat, the Windows notification and Settings → Claude. The window is the card, so there are no

@@ -10,7 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // An answer from Anthropic that wasn't a success, with its status: 429 and 5xx mean "not now" (ClaudeIntervals.Backoff).
     public sealed class ClaudeHttpException : IOException
@@ -46,6 +46,7 @@ namespace WidgetScreen
             File.WriteAllBytes(temp, bytes);
             if (File.Exists(path)) File.Replace(temp, path, null); else File.Move(temp, path);
         }
+        // Kept from Widget Screen: the saved sign-in was encrypted with it, so a new value would sign everyone out.
         private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("WidgetScreen.ClaudeSignIn");
     }
 
@@ -76,7 +77,7 @@ namespace WidgetScreen
         {
             this.path = path; this.openBrowser = openBrowser;
             http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(20) };
-            http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "WidgetScreen/" + typeof(ClaudeAccount).Assembly.GetName().Version);
+            http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "ClaudeDashboard/" + typeof(ClaudeAccount).Assembly.GetName().Version);
             try { session = ClaudeSignIn.Load(path); }
             catch (Exception) { session = new ClaudeSignIn(); StartupWarning = "The Claude sign-in couldn't be read on this PC. Sign in again in Settings → Claude."; }
         }

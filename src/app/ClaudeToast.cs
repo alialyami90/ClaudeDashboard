@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // The Windows notification for a Claude Code session (package 3, decision 025): a notification-area icon shows it as
     // a Windows notification (Windows 10 and 11 show a balloon tip as one), so nothing needs a package, a shortcut's

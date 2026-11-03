@@ -6,7 +6,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // .NET Framework tries a host's addresses one at a time, IPv6 first. On networks where IPv6
     // is assigned but not routed, each attempt waits about 21 s before IPv4 is tried, which

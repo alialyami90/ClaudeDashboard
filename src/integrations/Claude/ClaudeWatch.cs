@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Package 3 (decision 025): the Claude card reacts the moment a source changes instead of looking every 2 seconds.
     // Windows says when a file in a watched folder is written, made, renamed or removed; the first change after the

@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // A project's tick in Settings → Claude → Projects, by its folder (docs/design/claude-watcher.md).
     public sealed class ClaudeProjectChoice

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // An object whose keys keep the order they were read or added in, so Claude Code's settings.json comes back
     // with its keys where they were.

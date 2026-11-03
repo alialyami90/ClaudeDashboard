@@ -3,7 +3,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Claude Dashboard's start (phase 4): one ordinary window and its controller. Renders draw the window at a size in
     // pixels and a display scaling, and exit (--shell, from the weeks both windows were built, is still accepted):

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // Projects with their threads (docs/design/claude-watcher.md, decision 016): the Claude app's thread records, grouping
 // under the folder a thread started in (worktrees under their parent), the period filter, folding a project into its

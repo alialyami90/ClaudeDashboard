@@ -6,7 +6,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Threading;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Phase 5 (decision 026): the first run's question, on the window's own confirm sheet before the dashboard starts,
     // whether to bring Widget Screen's Claude setup over from %LOCALAPPDATA%\WidgetScreen (Migration does the work).

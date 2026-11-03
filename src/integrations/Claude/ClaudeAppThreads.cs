@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // One thread in the Claude desktop app's Code tab, as its sidebar lists it: the Claude Code session behind it, the
     // folder it started in, the title the app shows, and when it was made and last active.

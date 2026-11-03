@@ -8,7 +8,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using WidgetScreen;
+using ClaudeDashboard;
 
 // The Claude watcher's sources since decision 015: Claude Code's own session list, its OpenTelemetry export on
 // loopback, the widget's own Claude sign-in and plan check, the env merge, prices, dedupe and the project filter.

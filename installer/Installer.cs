@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Win32;
 
-namespace WidgetScreenSetup
+namespace ClaudeDashboardSetup
 {
     // Everything setup does to the PC, with no UI: copy the app, make the shortcuts, register the
     // Installed apps entry, and undo all of it. Installs for the signed-in user only (no admin rights).

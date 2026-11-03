@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // One entry in Claude Code's own list of running sessions (sessions\<pid>.json under the Claude folder).
     public sealed class ClaudeRegistryEntry

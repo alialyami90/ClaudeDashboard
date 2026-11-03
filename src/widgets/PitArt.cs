@@ -7,7 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // One drawing step of a pit sprite, in the sprite's own units (a car is 140 × 60, a garage 100 × 100, a car seen
     // from the front or rear 80 × 56): a path, ellipse, rectangle or text, or a pushed or popped transform. Colours are

@@ -12,7 +12,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // Claude Dashboard's controller (phase 4 of the transformation plan): one ordinary window that is the pit wall, a
     // Settings window beside it, and one 1-second heartbeat. It owns the settings transaction (Settings previews the
@@ -56,7 +56,7 @@ namespace WidgetScreen
         }
         private static string Resource(string name)
         {
-            using (var stream = typeof(AppController).Assembly.GetManifestResourceStream("WidgetScreen." + name))
+            using (var stream = typeof(AppController).Assembly.GetManifestResourceStream("ClaudeDashboard." + name))
             {
                 if (stream == null) throw new InvalidOperationException("Missing resource " + name + ".");
                 using (var reader = new StreamReader(stream)) return reader.ReadToEnd();

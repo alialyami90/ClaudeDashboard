@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace WidgetScreen
+namespace ClaudeDashboard
 {
     // The processes behind a Claude Code session (docs/design/claude-watcher.md). The hook walks up from itself to the
     // Claude Code process (claude.exe, or node.exe for an npm install) and on to the first ancestor with a window
