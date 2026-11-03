@@ -140,6 +140,33 @@ internal static class ClaudeBackfillTests
             Directory.Delete(ClaudeBackfill.LongPath(Path.Combine(config, "projects")), true);
         });
 
+        check("Claude history from the logs: a backfill that's behind is stepped on each heartbeat, not only by the log scan (v0.59.3)", () => {
+            string config = Fresh(directory, "config-beat"), bridge = Fresh(directory, "bridge-beat");
+            string project = Path.Combine(config, "projects", "C--Code-api");
+            for (int f = 0; f < 6; f++) Log(Path.Combine(project, "s" + f + ".jsonl"), Enumerable.Range(0, 20).Select(r => Reply("s" + f, Now.AddDays(-5 - f).AddMinutes(r), "b" + f + "_" + r)));
+            var usage = new ClaudeUsage(config);
+            usage.Backfill = new ClaudeBackfill(config, new ClaudeHistory(bridge, TimeZoneInfo.Utc)) { StepBudget = 4000 };
+            Assert(!usage.BackfillBehind, "Off, the backfill says it's behind.");
+            usage.Backfill.Enabled = true;
+            Assert(usage.BackfillBehind, "On and not started, the backfill doesn't say it's behind.");
+            // The heartbeat's rule (AppController.TickClaude): behind, and the last step done, so step again. No log scan
+            // runs here at all.
+            int beats = 0, read = -1; bool moved = true;
+            while (usage.BackfillBehind && beats < 200)
+            {
+                usage.StepBackfill(Now.AddSeconds(beats)); beats++;
+                moved &= usage.Backfill.FilesRead >= read; read = usage.Backfill.FilesRead;
+            }
+            Assert(!usage.BackfillBehind && usage.Backfill.Done && beats > 2 && moved, "The backfill wasn't finished by consecutive heartbeats: " + beats + " beats, " + usage.Backfill.FilesRead + " of " + usage.Backfill.FilesTotal);
+            Assert(usage.Backfill.DaysWritten == 6, "Days written by the heartbeats: " + usage.Backfill.DaysWritten);
+            Assert(!usage.StepBackfill(Now.AddMinutes(5)), "A finished backfill stepped again.");
+            // Nothing to list: the pass ends rather than asking for a step every second.
+            var none = new ClaudeUsage(Path.Combine(config, "missing"));
+            none.Backfill = new ClaudeBackfill(Path.Combine(config, "missing"), new ClaudeHistory(bridge, TimeZoneInfo.Utc)) { Enabled = true };
+            none.StepBackfill(Now);
+            Assert(!none.BackfillBehind, "With no logs folder the backfill stays behind.");
+        });
+
         check("Claude history from the logs: History and Sources say so, and the calendar stays 8 weeks while the files keep a year (v0.59.0)", () => {
             Assert(ClaudeHistory.KeptDays == 365 && HistoryModel.CalendarDays == 56, "Kept " + ClaudeHistory.KeptDays + " days, calendar " + HistoryModel.CalendarDays);
             var local = Now.ToLocalTime().Date;

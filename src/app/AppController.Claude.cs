@@ -126,6 +126,9 @@ namespace ClaudeDashboard
             }
             // A log changed while minimised, a scan was running or one ran moments ago: it's read now.
             if (claudeLogsWaiting && shown && (claudeScan == null || claudeScan.IsCompleted) && now - lastClaudeScan >= ClaudeEvery - TimeSpan.FromMilliseconds(500)) ScanClaudeLogs();
+            // v0.59.3: while the past days' backfill is behind, each heartbeat steps it on a background task once the last
+            // scan or step is done, so a month of logs takes seconds rather than one step per 30 s scan. Shown only.
+            if (shown && (claudeScan == null || claudeScan.IsCompleted) && claude.Usage.BackfillBehind) StepClaudeBackfill();
             // Turns, revving and idling go by the clock, so a shown pit wall with something running is worked out again
             // at the chosen interval even when no file changed.
             if (claude.Watch.Running && shown && claudeView != null && claudeView.Sessions.Count > 0 && now - lastClaudeRefresh >= ClaudeEvery - TimeSpan.FromMilliseconds(500)) changed = true;
@@ -159,6 +162,16 @@ namespace ClaudeDashboard
             if (disposed) return;
             claudeDirty = true;
             if (claude.Watch.Running && CardShown) RefreshClaudeView();
+        }
+
+        private async void StepClaudeBackfill()
+        {
+            var step = Task.Run(() => claude.Usage.StepBackfill(DateTime.UtcNow));
+            claudeScan = step;
+            try { await step; } catch (Exception) { }
+            if (disposed) return;
+            // Sources' "reading X of Y logs" follows each step.
+            claudeDirty = true;
         }
 
         // A watched folder changed or telemetry arrived (package 3): only what changed is read, and the pit wall follows.

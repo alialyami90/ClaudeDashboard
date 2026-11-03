@@ -228,6 +228,10 @@ namespace ClaudeDashboard
         // v0.59.0: the past days' backfill from the same logs (ClaudeBackfill), stepped after a scan that asks for it:
         // the window's background scan does, a scan on the UI thread never does.
         public ClaudeBackfill Backfill;
+        // v0.59.3: the backfill on its own, one budgeted step (32 MB of log), for the heartbeat while it's behind; the
+        // live scan's snapshot stays as published. Returns whether it wrote any day file.
+        public bool BackfillBehind { get { var b = Backfill; return b != null && b.Behind; } }
+        public bool StepBackfill(DateTime now) { var b = Backfill; return b != null && b.Step(now); }
         public void Scan(DateTime now, bool backfill)
         {
             Scan(now);

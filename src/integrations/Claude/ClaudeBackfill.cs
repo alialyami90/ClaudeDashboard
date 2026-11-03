@@ -71,6 +71,8 @@ namespace ClaudeDashboard
         public int FilesSkipped { get; private set; }
         public DateTime? OldestLog { get; private set; }
         public bool Started { get { return files != null; } }
+        // v0.59.3: on and not finished, so the heartbeat steps it every second rather than once per log scan.
+        public bool Behind { get { lock (gate) return enabled && !Done && history != null; } }
 
         private void Reset()
         {
@@ -98,7 +100,11 @@ namespace ClaudeDashboard
                         // (App.config turns off .NET's legacy path handling so the prefix is taken; if it still isn't, the
                         // plain path lists what it can.)
                         try { files = List(LongPath(projects), cutoff); }
-                        catch (Exception) { files = List(projects, cutoff); }
+                        catch (Exception)
+                        {
+                            // Nothing listable at all: the pass ends (counted as skipped) rather than retrying every second.
+                            try { files = List(projects, cutoff); } catch (Exception) { files = new List<string>(); FilesSkipped++; }
+                        }
                         FilesTotal = files.Count; FilesRead = 0; index = 0; offset = 0;
                     }
                     long budget = StepBudget;

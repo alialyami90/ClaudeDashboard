@@ -6,6 +6,15 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.59.3 (unreleased)
+
+Faster History from the logs (Ali: "why is log rreading so slow").
+
+- **The backfill is stepped on every heartbeat while it's behind.** It read 32 MB of log only once per background log scan, and with the watchers running that scan comes every 30 s or when a log changes, so Ali's 287 MB took about 4.5 minutes while the disk read itself takes seconds. Now, while the past days' backfill is on and not finished and the window is shown, the 1 s heartbeat starts the next 32 MB step on a background task as soon as the last scan or step is done. 287 MB takes about 10 seconds.
+  - No new timer: it rides the existing heartbeat and, like the log scan, runs only while the window is shown and never on the UI thread. The live scan and its snapshot are untouched between steps.
+  - Logs that can't be listed at all end the pass, counted as unreadable, instead of asking for a step every second.
+- **Check:** a backfill that's behind finishes over consecutive heartbeats with no log scan, writes its days, stops once done, and a missing logs folder doesn't keep it behind.
+
 ## v0.59.2 (unreleased)
 
 Docs catch up with v0.59.0 (Scribe). Docs only.
