@@ -30,8 +30,9 @@ namespace ClaudeDashboard
             {
                 case "Slate": return new[] { "#101923", "#1B2938", "#293C50", "#142130", "#40546A", "#4C637C", "#3A536E", "#B6C7DA", "#F0F6FF", "#1E3341", "#476175", "#B6CDD9", "#F5C47D", "#8ED8F8", "#11170E", "#E8101923", "#11170E" };
                 case "Warm": return new[] { "#181411", "#27211D", "#3B3028", "#1F1915", "#544638", "#665344", "#564534", "#C8B8A6", "#FAF3E9", "#30291F", "#61533C", "#D2C4A8", "#F5C47D", "#8ED8F8", "#11170E", "#E8181411", "#11170E" };
-                // Warm paper, soft black text and quiet borders; Amber and Glacier darkened so they read on paper.
-                case "Claude": return new[] { "#F0EEE6", "#FAF9F5", "#EBE7DC", "#FFFFFF", "#D8D2C4", "#D6D0C2", "#E3DCCB", "#65615A", "#1F1E1D", "#F4F1E8", "#D6D0C2", "#65615A", "#9E5A0A", "#27709A", "#FFFFFF", "#E0F0EEE6", "#FFFFFF" };
+                // Warm paper, soft black text and quiet borders; Amber and Glacier darkened so they read on paper, at least
+                // 4.5:1 on Raised and Selected too (critique issue 4).
+                case "Claude": return new[] { "#F0EEE6", "#FAF9F5", "#EBE7DC", "#FFFFFF", "#D8D2C4", "#D6D0C2", "#E3DCCB", "#65615A", "#1F1E1D", "#F4F1E8", "#D6D0C2", "#65615A", "#8F5108", "#21668D", "#FFFFFF", "#E0F0EEE6", "#FFFFFF" };
                 default: return new[] { "#0C0E13", "#161A22", "#252B36", "#10141C", "#353D49", "#343C49", "#394252", "#A0AABB", "#F2F4F8", "#1C2420", "#344235", "#A8BAAA", "#F5C47D", "#8ED8F8", "#11170E", "#E80C0E13", "#11170E" };
             }
         }

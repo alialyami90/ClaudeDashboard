@@ -89,6 +89,8 @@ A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud s
 ## Accessibility & Inclusion
 
 - State is never colour alone: each car state has its own motion and a still frame, and every chip names its state in words.
-- Quiet mode stops the loops and keeps the state swaps. Text size goes from 100% to 140%.
+- Quiet mode stops the loops and keeps the state swaps. Text size goes from 100% to 140%, and every word on the card follows it.
+- The keyboard reaches every thread row, car and garage: Tab moves between them, Enter or Space brings a session forward or folds a garage, and each says its state, ended ones included. When a session starts needing you, a screen reader announces the header's summary at once.
+- Ended and parked threads step back by colour, not by fading, so their words keep 4.5:1 contrast on every palette.
 - The plain list (Settings → Claude) shows the same projects, threads, states and numbers as text rows, each named for screen readers, with nothing moving. Click a row to bring its session forward.
 - Windows notifications for Needs you, Stuck and long turns reach the user when the window is behind others; they are on by default and silent in Quiet mode.

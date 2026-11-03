@@ -123,7 +123,9 @@ internal static class ClaudeReviewTests
                 }
                 finally { window.Close(); }
             }
-            double narrow = 1216 - 48 - 16 - CardSizing.ClaudeSideWidth;
+            // The chip's width grows with the text too (v0.51.0), so at 1216 × 576 and 140% both step aside; 900 units of
+            // table still shows the order.
+            double narrow = 900;
             Assert(!CardSizing.ClaudeWhere(narrow, 1.4) && CardSizing.ClaudeCache(narrow, 1.4) && CardSizing.ClaudeWhere(narrow, 1) && CardSizing.ClaudeCache(narrow, 1), "Where-and-age and Cache reads step aside in the wrong order.");
             Assert(!CardSizing.ClaudeCache(640 - 48, 1.4) && CardSizing.ClaudeCache(1856 - 48 - 16 - CardSizing.ClaudeSideWidth, 1.4), "Cache reads don't step aside on a small card at 140%.");
         });

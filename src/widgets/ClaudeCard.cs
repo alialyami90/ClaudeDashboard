@@ -345,7 +345,7 @@ namespace ClaudeDashboard
             if (!String.IsNullOrWhiteSpace(thread.Model)) detail.Add(thread.Model);
             if (!String.IsNullOrWhiteSpace(thread.Where)) detail.Add(thread.Where);
             if (detail.Count > 0) lines.Add(String.Join(" · ", detail));
-            if (thread.Running && thread.CanFocus) lines.Add("Tap to show its window.");
+            if (thread.Running && thread.CanFocus) lines.Add("Click to show its window.");
             return String.Join("\n", lines);
         }
         // "2 helpers working · tasks 3 / 5" (package 3), or "".
@@ -509,7 +509,7 @@ namespace ClaudeDashboard
     // pace, the week as seven laps, the rev counter with the hour's burn); a pit stop strip for the thread waiting on
     // you; and the ledger of garages and cars beside the 5-hour lanes and today's facts. Medium: the two plan meters
     // with pace and the top garages with their cars. Small: the car that needs you (or the busiest) and the 5-hour
-    // meter. Tapping a garage rolls its cars in (they back out of their rows and drive into the bay, tail lights toward
+    // meter. Clicking a garage (or Enter or Space on it) rolls its cars in (they back out of their rows and drive into the bay, tail lights toward
     // you) or out (headlights toward you, then into their rows); Quiet mode swaps states without motion. The phone's
     // ClaudeWidget.java draws the same.
     public sealed class ClaudeCard : CardParts
@@ -683,7 +683,9 @@ namespace ClaudeDashboard
 
         // ----- Parts -----
 
+        // Every size of words on the card follows Settings' text size, 100 to 140% (critique issue 4).
         private double Scaled(double size) { return Math.Round(size * textScale); }
+        private new TextBlock Caption(string text) { return Text(text, Scaled(13), "Muted"); }
         private static Run Colored(string text, string brush) { var run = new Run(text); run.SetResourceReference(TextElement.ForegroundProperty, brush); return run; }
         private TextBlock Trimmed(TextBlock block) { block.TextTrimming = TextTrimming.CharacterEllipsis; return block; }
         private static TextBlock Right(TextBlock block) { block.TextAlignment = TextAlignment.Right; block.HorizontalAlignment = HorizontalAlignment.Stretch; block.VerticalAlignment = VerticalAlignment.Center; return block; }
@@ -706,17 +708,62 @@ namespace ClaudeDashboard
             cars.Add(part); clock.Add(sprite);
             return part;
         }
-        // A tappable thread: its whole area brings the thread's window forward, when one is known.
-        private FrameworkElement Tappable(FrameworkElement child, ClaudeSession session)
+        // A thread as a button (critique issue 4): Tab reaches every row and car, a screen reader reads its name, and
+        // when its window is known a click, Enter or Space brings it forward. A row with no window to show says so.
+        private Button Tappable(FrameworkElement child, ClaudeSession session)
         {
-            var area = new Border { Child = child, Background = Brushes.Transparent };
-            if (session != null && session.Running && session.CanFocus)
-            {
-                string id = session.Id; area.Cursor = Cursors.Hand;
-                AutomationProperties.SetName(area, session.Shown + ". Tap to show its window.");
-                area.MouseLeftButtonUp += (sender, e) => { e.Handled = true; focus(id); };
-            }
+            var area = Pressable(child);
+            if (session == null) { area.Focusable = false; return area; }
+            bool live = session.Running && session.CanFocus;
+            string key = session.Id;
+            AutomationProperties.SetName(area, ThreadName(session, DateTime.UtcNow));
+            fills.Add(now => {
+                var t = view.Threads.FirstOrDefault(x => x.Id == key) ?? view.Sessions.FirstOrDefault(x => x.Id == key);
+                if (t != null) AutomationProperties.SetName(area, ThreadName(t, now));
+            });
+            if (live) { string id = session.Id; area.Cursor = Cursors.Hand; area.Click += (sender, e) => { e.Handled = true; focus(id); }; }
             return area;
+        }
+        // What a screen reader says for a thread's row or car, ended and idle ones too.
+        private string ThreadName(ClaudeSession t, DateTime now)
+        {
+            string title = ClaudeText.ThreadTitle(t, now, use24);
+            string state = t.Running ? ClaudeText.Chip(t) : "Ended, last active " + ClaudeText.Ago(t.LastActive, now, use24);
+            return title + ", " + t.ProjectName + ". " + state + (t.Running && t.CanFocus ? ". Click to show its window." : ". No window to show.");
+        }
+        // A plain button around a row, car or garage: no chrome of its own, the theme's text and font, and a 2-unit Text
+        // outline only when the keyboard brings focus to it.
+        private static Button Pressable(FrameworkElement child)
+        {
+            return new Button { Style = PressStyle, Content = child };
+        }
+        private static Style pressStyle;
+        private static Style PressStyle
+        {
+            get
+            {
+                if (pressStyle != null) return pressStyle;
+                var chrome = new FrameworkElementFactory(typeof(Border));
+                chrome.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+                chrome.AppendChild(new FrameworkElementFactory(typeof(ContentPresenter)));
+                var ring = new FrameworkElementFactory(typeof(Border));
+                ring.SetValue(Border.BorderThicknessProperty, new Thickness(2));
+                ring.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+                ring.SetValue(FrameworkElement.MarginProperty, new Thickness(-2));
+                ring.SetResourceReference(Border.BorderBrushProperty, "Text");
+                var focusStyle = new Style(typeof(Control));
+                focusStyle.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(Control)) { VisualTree = ring }));
+                var style = new Style(typeof(Button));
+                style.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(Button)) { VisualTree = chrome }));
+                style.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, focusStyle));
+                style.Setters.Add(new Setter(Control.ForegroundProperty, new DynamicResourceExtension("Text")));
+                style.Setters.Add(new Setter(Control.FontFamilyProperty, new FontFamily("Segoe UI")));
+                style.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+                style.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Stretch));
+                style.Setters.Add(new Setter(FrameworkElement.CursorProperty, Cursors.Arrow));
+                style.Seal();
+                return pressStyle = style;
+            }
         }
         // A thread's tip, written when it opens from the view shown then (package 3), so it never shows the numbers of
         // the view the row was built from.
@@ -739,12 +786,12 @@ namespace ClaudeDashboard
         private GaragePart Garage(ClaudeProjectGroup group, double size, string name)
         {
             var sprite = names.Add(new PitSprite { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, name);
-            var tap = new Border { Child = sprite, Background = Brushes.Transparent, Cursor = Cursors.Hand, MinWidth = 48, MinHeight = 48 };
+            var tap = Pressable(sprite); tap.Cursor = Cursors.Hand; tap.MinWidth = 48; tap.MinHeight = 48;
             string folder = group.Folder;
             bool folded = collapsed.Contains(folder);
             tap.ToolTip = folded ? "Roll " + group.Name + "'s cars out" : "Roll " + group.Name + "'s cars into the garage";
-            AutomationProperties.SetName(tap, group.Name + ", " + ClaudeText.Threads(group.Threads.Count) + (folded ? ", in the garage. Tap to roll them out." : ". Tap to roll them into the garage."));
-            tap.MouseLeftButtonUp += (sender, e) => { e.Handled = true; Toggle(folder); };
+            AutomationProperties.SetName(tap, group.Name + ", " + ClaudeText.Threads(group.Threads.Count) + (folded ? ", in the garage. Click to roll them out." : ". Click to roll them into the garage."));
+            tap.Click += (sender, e) => { e.Handled = true; Toggle(folder); };
             var part = new GaragePart { Folder = folder, Sprite = sprite, Tap = names.Add(tap, name + "Tap") };
             garages.Add(part); clock.Add(sprite);
             return part;
@@ -781,7 +828,7 @@ namespace ClaudeDashboard
             var blocks = new List<TextBlock>();
             for (int i = 0; i < ClaudeText.MostPlanChips; i++)
             {
-                var text = Trimmed(Text("", 12, "Muted"));
+                var text = Trimmed(Text("", Scaled(12), "Muted"));
                 var chip = new Border { CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 0, 6, 4), Child = text, BorderThickness = new Thickness(1) };
                 chip.SetResourceReference(Border.BorderBrushProperty, "Track");
                 blocks.Add(text); row.Children.Add(names.Add(chip, "ClaudePlanChip" + i));
@@ -807,7 +854,7 @@ namespace ClaudeDashboard
         {
             var list = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
             AutomationProperties.SetName(list, "Claude Code threads, plain list");
-            var plan = names.Add(Trimmed(Text("", 15, "Text")), "ClaudePlainPlan"); plan.TextWrapping = TextWrapping.Wrap; plan.Margin = new Thickness(0, 0, 0, 12);
+            var plan = names.Add(Trimmed(Text("", Scaled(15), "Text")), "ClaudePlainPlan"); plan.TextWrapping = TextWrapping.Wrap; plan.Margin = new Thickness(0, 0, 0, 12);
             list.Children.Add(plan);
             fills.Add(now => { plan.Text = ClaudeText.PlainPlan(view, now, use24); AutomationProperties.SetName(plan, plan.Text); });
             var groups = view.Groups(period);
@@ -815,8 +862,8 @@ namespace ClaudeDashboard
             int index = 0;
             foreach (var group in groups)
             {
-                var heading = Text(group.Name, 15, "Text"); heading.FontWeight = FontWeights.SemiBold; heading.Margin = new Thickness(0, index == 0 ? 0 : 14, 0, 4);
-                var totals = Text("", 13, "Muted"); totals.Margin = new Thickness(10, 0, 0, 0);
+                var heading = Text(group.Name, Scaled(15), "Text"); heading.FontWeight = FontWeights.SemiBold; heading.Margin = new Thickness(0, index == 0 ? 0 : 14, 0, 4);
+                var totals = Text("", Scaled(13), "Muted"); totals.Margin = new Thickness(10, 0, 0, 0);
                 var head = new WrapPanel(); head.Children.Add(heading); head.Children.Add(totals); totals.VerticalAlignment = VerticalAlignment.Bottom; totals.Margin = new Thickness(10, 0, 0, 5);
                 list.Children.Add(names.Add(head, "ClaudePlainProject" + index));
                 string folder = group.Folder;
@@ -834,6 +881,8 @@ namespace ClaudeDashboard
                 if (group.Hidden > 0) { var hidden = Caption(group.Hidden + (group.Hidden == 1 ? " thread hidden by Settings" : " threads hidden by Settings")); hidden.Margin = new Thickness(0, 2, 0, 0); list.Children.Add(hidden); }
                 index++;
             }
+            // The rows are buttons that take focus, and a focused row scrolls itself into view, so the list itself
+            // needn't be a tab stop.
             return new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
         }
         private FrameworkElement PlainRow(ClaudeSession thread, double width, string name)
@@ -841,11 +890,11 @@ namespace ClaudeDashboard
             var grid = Columns(new GridLength(Math.Min(130, Math.Max(96, width * 0.16))), Star, Auto);
             grid.Margin = new Thickness(0, 2, 0, 2);
             var chip = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 2, 8, 2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
-            var chipText = Text("", 12, "Text"); chip.Child = chipText; grid.Children.Add(chip);
+            var chipText = Text("", Scaled(12), "Text"); chip.Child = chipText; grid.Children.Add(chip);
             var words = new StackPanel { Margin = new Thickness(10, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
-            var title = Trimmed(Text("", 14, "Text")); var detail = Trimmed(Text("", 12, "Muted"));
+            var title = Trimmed(Text("", Scaled(14), "Text")); var detail = Trimmed(Text("", Scaled(12), "Muted"));
             words.Children.Add(title); words.Children.Add(detail); grid.Children.Add(At(words, 0, 1));
-            var numbers = Right(Text("", 13, "Text")); grid.Children.Add(At(numbers, 0, 2));
+            var numbers = Right(Text("", Scaled(13), "Text")); grid.Children.Add(At(numbers, 0, 2));
             var area = Tappable(grid, thread);
             string id = thread.Id;
             fills.Add(now => {
@@ -855,7 +904,7 @@ namespace ClaudeDashboard
                 title.Text = ClaudeText.ThreadTitle(t, now, use24);
                 detail.Text = ClaudeText.PlainDetail(t, view, now, use24);
                 numbers.Text = ClaudeText.PlainNumbers(t, period, Counted);
-                string said = ClaudeText.Chip(t) + ". " + title.Text + ". " + detail.Text + ". " + numbers.Text + (t.Running && t.CanFocus ? ". Tap to show its window." : ".");
+                string said = ClaudeText.Chip(t) + ". " + title.Text + ". " + detail.Text + ". " + numbers.Text + (t.Running && t.CanFocus ? ". Click to show its window." : ". No window to show.");
                 AutomationProperties.SetName(area, said);
             });
             return names.Add(area, name);
@@ -866,12 +915,12 @@ namespace ClaudeDashboard
         {
             bool revs = CardSizing.ClaudeRevs(width), known = view.Limits != null && view.Limits.Known;
             var row = revs ? Columns(new GridLength(1.1, GridUnitType.Star), new GridLength(12), new GridLength(1.3, GridUnitType.Star), new GridLength(12), new GridLength(1.1, GridUnitType.Star)) : Columns(Star, new GridLength(12), Star);
-            row.Height = CardSizing.ClaudePlanHeight;
+            row.Height = CardSizing.ClaudePlan(textScale);
             double tile = revs ? (width - 24) / 3.5 : (width - 12) / 2;
             if (known) { row.Children.Add(names.Add(TankTile(tile), "ClaudeTank")); row.Children.Add(At(names.Add(WeekTile(), "ClaudeWeekTile"), 0, 2)); }
             else
             {
-                var message = names.Add(Wrapped(ClaudeText.LimitsMissing(view), 15, CardSizing.ClaudePlanHeight - 24), "ClaudeLimits");
+                var message = names.Add(Wrapped(ClaudeText.LimitsMissing(view), Scaled(15), CardSizing.ClaudePlan(textScale) - 24), "ClaudeLimits");
                 message.VerticalAlignment = VerticalAlignment.Center;
                 row.Children.Add(At(Tile(message, 12, new Thickness(14, 12, 14, 12)), 0, 0, 3));
             }
@@ -892,12 +941,12 @@ namespace ClaudeDashboard
         private Border TankTile(double width)
         {
             double size = width >= 330 ? 140 : 112;
-            var gauge = names.Add(new PitGauge { Width = size, Height = size * 0.6, VerticalAlignment = VerticalAlignment.Center }, "ClaudeTankGauge");
+            var gauge = names.Add(new PitGauge { Width = size, Height = size * 0.6, VerticalAlignment = VerticalAlignment.Center, TextScale = textScale }, "ClaudeTankGauge");
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
-            text.Children.Add(Upper("5-hour tank", 13));
+            text.Children.Add(Upper("5-hour tank", Scaled(13)));
             var value = Big("—"); text.Children.Add(value);
-            var pace = Trimmed(Text("", 13, "Muted")); text.Children.Add(pace);
-            var reset = Trimmed(Text("", 13, "Muted")); text.Children.Add(reset);
+            var pace = Trimmed(Text("", Scaled(13), "Muted")); text.Children.Add(pace);
+            var reset = Trimmed(Text("", Scaled(13), "Muted")); text.Children.Add(reset);
             names.Add(value, "ClaudeFiveHourPercent"); names.Add(pace, "ClaudeFiveHourPace"); names.Add(reset, "ClaudeFiveHourReset");
             var row = Columns(Auto, Star); row.Children.Add(gauge); row.Children.Add(At(text, 0, 1));
             fills.Add(now => {
@@ -917,16 +966,16 @@ namespace ClaudeDashboard
         {
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             var top = new DockPanel();
-            var resets = Text("", 13, "Muted"); DockPanel.SetDock(resets, Dock.Right); top.Children.Add(resets);
-            var lap = Upper("Week", 13); top.Children.Add(lap);
+            var resets = Text("", Scaled(13), "Muted"); DockPanel.SetDock(resets, Dock.Right); top.Children.Add(resets);
+            var lap = Upper("Week", Scaled(13)); top.Children.Add(lap);
             stack.Children.Add(top);
             var middle = Columns(Auto, Star); middle.Margin = new Thickness(0, 2, 0, 4);
             var value = Big("—"); middle.Children.Add(value);
             var notes = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
-            var pace = Right(Trimmed(Text("", 13, "Muted"))); var extra = Right(Trimmed(Text("", 13, "Muted")));
+            var pace = Right(Trimmed(Text("", Scaled(13), "Muted"))); var extra = Right(Trimmed(Text("", Scaled(13), "Muted")));
             notes.Children.Add(pace); notes.Children.Add(extra); middle.Children.Add(At(notes, 0, 1));
             stack.Children.Add(middle);
-            var laps = names.Add(new WeekLaps { Height = 30 }, "ClaudeLaps"); stack.Children.Add(laps);
+            var laps = names.Add(new WeekLaps { Height = 16 + Math.Ceiling(Scaled(11) * 1.33), TextScale = textScale }, "ClaudeLaps"); stack.Children.Add(laps);
             names.Add(value, "ClaudeWeekPercent"); names.Add(pace, "ClaudeWeekPace"); names.Add(resets, "ClaudeWeekReset");
             fills.Add(now => {
                 var w = view.Limits.Week;
@@ -943,10 +992,10 @@ namespace ClaudeDashboard
         private Border RevTile(double width)
         {
             double size = width >= 330 ? 140 : 112;
-            var gauge = names.Add(new PitGauge { Width = size, Height = size * 0.6, VerticalAlignment = VerticalAlignment.Center, Red = ClaudePace.Redline }, "ClaudeRevGauge");
+            var gauge = names.Add(new PitGauge { Width = size, Height = size * 0.6, VerticalAlignment = VerticalAlignment.Center, Red = ClaudePace.Redline, TextScale = textScale }, "ClaudeRevGauge");
             var text = new Grid { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
             foreach (var h in new[] { Auto, Auto, Auto, Auto }) text.RowDefinitions.Add(new RowDefinition { Height = h });
-            text.Children.Add(Upper("Revs · tok/min", 13));
+            text.Children.Add(Upper("Revs · tok/min", Scaled(13)));
             var value = Big("—"); text.Children.Add(At(value, 1));
             var burn = names.Add(new BurnLine { Height = 24, Margin = new Thickness(0, 2, 0, 2) }, "ClaudeBurn"); text.Children.Add(At(burn, 2));
             var foot = new DockPanel();
@@ -957,7 +1006,7 @@ namespace ClaudeDashboard
                 days = names.Add(new DaySpark { Width = 62, Height = 16, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }, "ClaudeDays");
                 DockPanel.SetDock(days, Dock.Right); foot.Children.Add(days);
             }
-            foot.Children.Add(Trimmed(Text("last 60 min", 13, "Muted")));
+            foot.Children.Add(Trimmed(Text("last 60 min", Scaled(13), "Muted")));
             text.Children.Add(At(foot, 3));
             var row = Columns(Auto, Star); row.Children.Add(gauge); row.Children.Add(At(text, 0, 1));
             fills.Add(now => {
@@ -981,7 +1030,7 @@ namespace ClaudeDashboard
         private Border AskStrip()
         {
             var thread = view.Sessions.First(s => s.State == ClaudeState.NeedsYou);
-            var strip = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 6, 8, 6), BorderThickness = new Thickness(1), Height = Math.Max(60, Scaled(16) * 1.35 + 13 * 1.35 + 14) };
+            var strip = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 6, 8, 6), BorderThickness = new Thickness(1), Height = Math.Max(60, Scaled(16) * 1.35 + Scaled(13) * 1.35 + 14) };
             strip.Background = Tint("Warning", 0.12); strip.BorderBrush = Tint("Warning", 0.45);
             var row = Columns(Auto, Star, Auto);
             var car = Car(thread, thread.Project, 62, "ClaudeAskCar", false);
@@ -989,7 +1038,7 @@ namespace ClaudeDashboard
             row.Children.Add(car.View);
             var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             var title = names.Add(Trimmed(Text("", Scaled(16), "Text")), "ClaudeAskTitle"); title.FontWeight = FontWeights.SemiBold; words.Children.Add(title);
-            var reason = names.Add(Trimmed(Text("", 13, "Warning")), "ClaudeAskReason"); words.Children.Add(reason);
+            var reason = names.Add(Trimmed(Text("", Scaled(13), "Warning")), "ClaudeAskReason"); words.Children.Add(reason);
             row.Children.Add(At(words, 0, 1));
             if (thread.CanFocus)
             {
@@ -1047,7 +1096,7 @@ namespace ClaudeDashboard
             for (int i = 1; i < labels.Length; i++)
             {
                 if (head.ColumnDefinitions[i].Width.Value == 0 && !head.ColumnDefinitions[i].Width.IsStar) continue;
-                var label = Upper(labels[i], 12); label.VerticalAlignment = VerticalAlignment.Center; if (i >= 2) { if (i != 5) Right(label); label.Margin = new Thickness(10, 0, 0, 0); }
+                var label = Upper(labels[i], Scaled(12)); label.VerticalAlignment = VerticalAlignment.Center; if (i >= 2) { if (i != 5) Right(label); label.Margin = new Thickness(10, 0, 0, 0); }
                 if (tips[i].Length > 0) label.ToolTip = tips[i];
                 head.Children.Add(At(label, 0, i));
             }
@@ -1073,14 +1122,14 @@ namespace ClaudeDashboard
             var car = Car(null, "", 62, "ClaudeIdleCar", true);
             row.Children.Add(car.View);
             string words = !view.Connected && view.Threads.Count == 0 ? ClaudeText.NotConnected : ClaudeText.NoThreads(period);
-            var text = names.Add(Wrapped(words, 15, 60), "ClaudeMessage"); text.VerticalAlignment = VerticalAlignment.Center; text.Margin = new Thickness(16, 0, 0, 0);
+            var text = names.Add(Wrapped(words, Scaled(15), 60), "ClaudeMessage"); text.VerticalAlignment = VerticalAlignment.Center; text.Margin = new Thickness(16, 0, 0, 0);
             row.Children.Add(At(text, 0, 1));
             return row;
         }
         private void AddGarageRows(StackPanel list, ClaudeProjectGroup group, int index, double width)
         {
             bool folded = collapsed.Contains(group.Folder);
-            double projectHeight = Math.Max(52, Math.Ceiling(Scaled(17) * 1.33 + 12 * 1.33 + 10)), threadHeight = Math.Max(36, Math.Ceiling(Scaled(14) * 1.33 + 10));
+            double projectHeight = Math.Max(52, Math.Ceiling(Scaled(17) * 1.33 + Scaled(12) * 1.33 + 10)), threadHeight = Math.Max(36, Math.Ceiling(Scaled(14) * 1.33 + 10));
             var row = LedgerRow(width, projectHeight);
             var top = new Border { BorderThickness = new Thickness(0, index == 0 ? 0 : 1, 0, 0) }; top.SetResourceReference(Border.BorderBrushProperty, "ControlBorder"); Grid.SetColumnSpan(top, 7); row.Children.Add(top);
             var garage = Garage(group, 40, "ClaudeGarage" + index);
@@ -1090,11 +1139,11 @@ namespace ClaudeDashboard
             TextBlock info;
             if (folded)
             {
-                info = Trimmed(Text("", 12, "Muted"));
+                info = Trimmed(Text("", Scaled(12), "Muted"));
                 info.Inlines.Add(new InlineUIContainer(Bubble(group.Threads.Count)) { BaselineAlignment = BaselineAlignment.Center });
-                info.Inlines.Add(new Run(" " + ClaudeText.Cars(group.Threads.Count) + " in the garage · tap to roll them out"));
+                info.Inlines.Add(new Run(" " + ClaudeText.Cars(group.Threads.Count) + " in the garage · click to roll them out"));
             }
-            else info = Trimmed(Text(ClaudeText.GroupDetail(group), 12, "Muted"));
+            else info = Trimmed(Text(ClaudeText.GroupDetail(group), Scaled(12), "Muted"));
             name.Children.Add(names.Add(info, "ClaudeProjectDetail" + index));
             var share = new MeterBar { Height = 4, Margin = new Thickness(0, 4, 0, 0), Fill = Solid(PitArt.Accent(group.Name)) };
             share.SetResourceReference(MeterBar.TrackProperty, "Track");
@@ -1103,8 +1152,8 @@ namespace ClaudeDashboard
             var tokens = Right(Text("", Scaled(17), "Text")); tokens.Margin = new Thickness(10, 0, 0, 0); row.Children.Add(At(tokens, 0, 2));
             var cached = Right(Text("", Scaled(15), "Muted")); cached.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeCache(width, textScale)) row.Children.Add(At(cached, 0, 3));
             var dollars = Right(Text("", Scaled(15), "Muted")); dollars.Margin = new Thickness(10, 0, 0, 0); row.Children.Add(At(dollars, 0, 4));
-            var mix = Trimmed(Text("", 12, "Muted")); mix.VerticalAlignment = VerticalAlignment.Center; mix.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeModels(width, textScale)) row.Children.Add(At(mix, 0, 5));
-            var lines = Right(Text("", 12, "Muted")); lines.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeLines(width, textScale)) row.Children.Add(At(lines, 0, 6));
+            var mix = Trimmed(Text("", Scaled(12), "Muted")); mix.VerticalAlignment = VerticalAlignment.Center; mix.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeModels(width, textScale)) row.Children.Add(At(mix, 0, 5));
+            var lines = Right(Text("", Scaled(12), "Muted")); lines.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeLines(width, textScale)) row.Children.Add(At(lines, 0, 6));
             list.Children.Add(names.Add(row, "ClaudeProjectRow" + index));
             string folder = group.Folder;
             fills.Add(now => {
@@ -1129,15 +1178,15 @@ namespace ClaudeDashboard
                 garage.Cars.Add(car);
                 var what = new DockPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0), LastChildFill = true };
                 var chip = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
-                var chipText = Text("", 11, "Text"); chip.Child = chipText; DockPanel.SetDock(chip, Dock.Left); what.Children.Add(chip);
-                var where = Text("", 12, "Muted"); where.Margin = new Thickness(8, 0, 0, 0); where.VerticalAlignment = VerticalAlignment.Center; DockPanel.SetDock(where, Dock.Right); if (CardSizing.ClaudeWhere(width, textScale)) what.Children.Add(where);
+                var chipText = Text("", Scaled(11), "Text"); chip.Child = chipText; DockPanel.SetDock(chip, Dock.Left); what.Children.Add(chip);
+                var where = Text("", Scaled(12), "Muted"); where.Margin = new Thickness(8, 0, 0, 0); where.VerticalAlignment = VerticalAlignment.Center; DockPanel.SetDock(where, Dock.Right); if (CardSizing.ClaudeWhere(width, textScale)) what.Children.Add(where);
                 var name2 = names.Add(Trimmed(Text("", Scaled(14), "Text")), "ClaudeThreadTitle" + index + "_" + j); name2.VerticalAlignment = VerticalAlignment.Center; what.Children.Add(name2);
                 trow.Children.Add(At(what, 0, 1));
                 var ttokens = Right(Text("", Scaled(14), "Text")); ttokens.Margin = new Thickness(10, 0, 0, 0); trow.Children.Add(At(ttokens, 0, 2));
                 var tcached = Right(Text("", Scaled(14), "Muted")); tcached.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeCache(width, textScale)) trow.Children.Add(At(tcached, 0, 3));
                 var tdollars = Right(Text("", Scaled(14), "Muted")); tdollars.Margin = new Thickness(10, 0, 0, 0); trow.Children.Add(At(tdollars, 0, 4));
-                var tmix = Trimmed(Text("", 12, "Muted")); tmix.VerticalAlignment = VerticalAlignment.Center; tmix.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeModels(width, textScale)) trow.Children.Add(At(tmix, 0, 5));
-                var tlines = Right(Text("", 12, "Muted")); tlines.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeLines(width, textScale)) trow.Children.Add(At(tlines, 0, 6));
+                var tmix = Trimmed(Text("", Scaled(12), "Muted")); tmix.VerticalAlignment = VerticalAlignment.Center; tmix.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeModels(width, textScale)) trow.Children.Add(At(tmix, 0, 5));
+                var tlines = Right(Text("", Scaled(12), "Muted")); tlines.Margin = new Thickness(10, 0, 0, 0); if (CardSizing.ClaudeLines(width, textScale)) trow.Children.Add(At(tlines, 0, 6));
                 var tap = Tappable(trow, thread);
                 LiveTip(tap, thread.Id);
                 car.Row = tap;
@@ -1146,11 +1195,15 @@ namespace ClaudeDashboard
                 fills.Add(now => {
                     var t = view.Threads.FirstOrDefault(x => x.Id == id);
                     if (t == null) return;
-                    tap.Opacity = ClaudePace.Parked(t.Pit) ? 0.45 : t.Running ? 1 : 0.62;
+                    // Ended and parked rows step back by colour, not opacity, so their words keep the palette's contrast
+                    // (critique issue 4); the car still fades.
+                    bool dim = !t.Running || ClaudePace.Parked(t.Pit);
+                    car.View.Opacity = ClaudePace.Parked(t.Pit) ? 0.45 : t.Running ? 1 : 0.62;
                     chipText.Text = ClaudeText.Chip(t).ToUpperInvariant();
                     SetChip(chip, chipText, t.Pit);
                     name2.Text = ClaudeText.ThreadTitle(t, now, use24);
-                    name2.SetResourceReference(TextBlock.ForegroundProperty, t.Pit == PitState.Need ? "Warning" : "Text");
+                    name2.SetResourceReference(TextBlock.ForegroundProperty, t.Pit == PitState.Need ? "Warning" : dim ? "Muted" : "Text");
+                    ttokens.SetResourceReference(TextBlock.ForegroundProperty, dim ? "Muted" : "Text");
                     // A stuck thread says why where it would say where it runs (decision 023).
                     bool stuck = t.Running && t.State == ClaudeState.Stuck;
                     where.Text = stuck ? ClaudeText.StuckReason(t, view, now, use24) : ClaudeText.Where(t, now);
@@ -1165,16 +1218,16 @@ namespace ClaudeDashboard
         private static Brush Solid(uint color) { var b = new SolidColorBrush(Color.FromArgb((byte)(color >> 24), (byte)(color >> 16), (byte)(color >> 8), (byte)color)); b.Freeze(); return b; }
         private FrameworkElement Bubble(int count)
         {
-            var bubble = new Border { MinWidth = 20, Height = 20, CornerRadius = new CornerRadius(10), Padding = new Thickness(5, 0, 5, 0) };
+            double size = Math.Max(20, Scaled(12) + 8);
+            var bubble = new Border { MinWidth = size, Height = size, CornerRadius = new CornerRadius(size / 2), Padding = new Thickness(5, 0, 5, 0) };
             bubble.SetResourceReference(Border.BackgroundProperty, "Text");
-            var number = Text(count.ToString(CultureInfo.InvariantCulture), 12, "Page"); number.FontWeight = FontWeights.Bold; number.HorizontalAlignment = HorizontalAlignment.Center; number.VerticalAlignment = VerticalAlignment.Center;
+            var number = Text(count.ToString(CultureInfo.InvariantCulture), Scaled(12), "Page"); number.FontWeight = FontWeights.Bold; number.HorizontalAlignment = HorizontalAlignment.Center; number.VerticalAlignment = VerticalAlignment.Center;
             bubble.Child = number;
             return bubble;
         }
         private void SetChip(Border chip, TextBlock text, PitState state)
         {
             chip.BorderThickness = new Thickness(state == PitState.End || state == PitState.Idle ? 1 : 0);
-            chip.Opacity = ClaudePace.Parked(state) ? 0.7 : 1;
             chip.SetResourceReference(Border.BorderBrushProperty, "ControlBorder");
             if (state == PitState.Need) { chip.SetResourceReference(Border.BackgroundProperty, "Warning"); text.Foreground = OnWarning(); text.FontWeight = FontWeights.Bold; return; }
             text.FontWeight = FontWeights.Normal;
@@ -1218,7 +1271,7 @@ namespace ClaudeDashboard
         {
             var side = new StackPanel();
             var lanes = new StackPanel();
-            lanes.Children.Add(Upper("Last 5 hours · laps of 10 min", 11));
+            lanes.Children.Add(Upper("Last 5 hours · laps of 10 min", Scaled(11)));
             var bins = new List<LaneBins>();
             foreach (var lane in view.Lanes)
             {
@@ -1232,10 +1285,10 @@ namespace ClaudeDashboard
                 bins.Add(b); row.Children.Add(At(b, 0, 1));
                 lanes.Children.Add(row);
             }
-            if (view.Lanes.Count == 0) { var none = Text("Nothing in the last 5 hours.", 12, "Muted"); none.Margin = new Thickness(0, 6, 0, 0); lanes.Children.Add(none); }
+            if (view.Lanes.Count == 0) { var none = Text("Nothing in the last 5 hours.", Scaled(12), "Muted"); none.Margin = new Thickness(0, 6, 0, 0); lanes.Children.Add(none); }
             var axis = Columns(new GridLength(104), Star); axis.Margin = new Thickness(0, 4, 0, 0);
             var times = new Grid { Margin = new Thickness(8, 0, 0, 0) };
-            var start = Text("", 11, "Muted"); var middle = Text("", 11, "Muted"); middle.HorizontalAlignment = HorizontalAlignment.Center; var end = Text("now", 11, "Muted"); end.HorizontalAlignment = HorizontalAlignment.Right;
+            var start = Text("", Scaled(11), "Muted"); var middle = Text("", Scaled(11), "Muted"); middle.HorizontalAlignment = HorizontalAlignment.Center; var end = Text("now", Scaled(11), "Muted"); end.HorizontalAlignment = HorizontalAlignment.Right;
             times.Children.Add(start); times.Children.Add(middle); times.Children.Add(end);
             axis.Children.Add(At(times, 0, 1));
             lanes.Children.Add(axis);
@@ -1246,13 +1299,13 @@ namespace ClaudeDashboard
             {
                 var fact = new WrapPanel { Margin = new Thickness(0, 0, 8, 4) };
                 values[i] = Reading("", Scaled(20)); values[i].SetResourceReference(TextBlock.ForegroundProperty, "Text"); values[i].Margin = new Thickness(0, 0, 6, 0);
-                keys[i] = Upper("", 11); keys[i].VerticalAlignment = VerticalAlignment.Bottom; keys[i].Margin = new Thickness(0, 0, 0, 3);
+                keys[i] = Upper("", Scaled(11)); keys[i].VerticalAlignment = VerticalAlignment.Bottom; keys[i].Margin = new Thickness(0, 0, 0, 3);
                 fact.Children.Add(values[i]); fact.Children.Add(keys[i]);
                 facts.Children.Add(names.Add(fact, "ClaudeFact" + i));
             }
             side.Children.Add(facts);
             // Telemetry can't arrive (decision 023): "Telemetry off: port 43832 in use".
-            var warning = names.Add(Trimmed(Text("", 12, "Warning")), "ClaudeTelemetryWarning"); warning.Margin = new Thickness(4, 2, 4, 0);
+            var warning = names.Add(Trimmed(Text("", Scaled(12), "Warning")), "ClaudeTelemetryWarning"); warning.Margin = new Thickness(4, 2, 4, 0);
             warning.ToolTip = "Claude Dashboard couldn't listen on the port Claude Code sends telemetry to. Settings → Claude → Update connection picks a free one.";
             side.Children.Add(warning);
             fills.Add(now => {
@@ -1285,7 +1338,7 @@ namespace ClaudeDashboard
         {
             // Rows 0 and 1 were the heading, which the window's header took over (phase 4).
             var root = Rows(new GridLength(0), new GridLength(0), Auto, Star);
-            var tiles = Columns(Star, new GridLength(10), Star); tiles.Height = CardSizing.ClaudeMiniHeight;
+            var tiles = Columns(Star, new GridLength(10), Star); tiles.Height = CardSizing.ClaudeMini(textScale);
             if (view.Limits != null && view.Limits.Known)
             {
                 tiles.Children.Add(MiniTile(true));
@@ -1293,12 +1346,12 @@ namespace ClaudeDashboard
             }
             else
             {
-                var message = names.Add(Wrapped(ClaudeText.LimitsMissing(view), 13, CardSizing.ClaudeMiniHeight - 16), "ClaudeLimits"); message.VerticalAlignment = VerticalAlignment.Center;
+                var message = names.Add(Wrapped(ClaudeText.LimitsMissing(view), Scaled(13), CardSizing.ClaudeMini(textScale) - 16), "ClaudeLimits"); message.VerticalAlignment = VerticalAlignment.Center;
                 tiles.Children.Add(At(Tile(message, 12, new Thickness(10, 8, 10, 8)), 0, 0, 3));
             }
             root.Children.Add(At(tiles, 2));
             var groups = view.Groups(period);
-            double rowHeight = CardSizing.ClaudeMediumRow(textScale), room = height - CardSizing.ClaudeMiniHeight - 6;
+            double rowHeight = CardSizing.ClaudeMediumRow(textScale), room = height - CardSizing.ClaudeMini(textScale) - 6;
             int fit = Math.Max(1, (int)Math.Floor(room / rowHeight));
             var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
             if (groups.Count == 0) list.Children.Add(Empty(width));
@@ -1334,7 +1387,7 @@ namespace ClaudeDashboard
                 var name = names.Add(Trimmed(Text(group.Name, Scaled(15), "Text")), "ClaudeProject" + i); name.FontWeight = FontWeights.SemiBold; name.VerticalAlignment = VerticalAlignment.Center;
                 first.Children.Add(name);
                 text.Children.Add(first);
-                var sub = names.Add(Trimmed(Text("", 12, "Muted")), "ClaudeProjectDetail" + i); text.Children.Add(sub);
+                var sub = names.Add(Trimmed(Text("", Scaled(12), "Muted")), "ClaudeProjectDetail" + i); text.Children.Add(sub);
                 row.Children.Add(At(text, 0, 1));
                 var tokens = Right(Text("", Scaled(15), "Text")); tokens.Margin = new Thickness(10, 0, 0, 0); row.Children.Add(At(tokens, 0, 2));
                 var dollars = Right(Text("", Scaled(14), "Muted")); dollars.Margin = new Thickness(10, 0, 0, 0); if (money) row.Children.Add(At(dollars, 0, 3));
@@ -1361,11 +1414,11 @@ namespace ClaudeDashboard
         {
             var stack = new StackPanel();
             var top = new DockPanel();
-            var reset = Text("", 12, "Muted"); DockPanel.SetDock(reset, Dock.Right); top.Children.Add(reset);
-            top.Children.Add(Upper(fiveHour ? "5-hour" : "Week", 12));
+            var reset = Text("", Scaled(12), "Muted"); DockPanel.SetDock(reset, Dock.Right); top.Children.Add(reset);
+            top.Children.Add(Upper(fiveHour ? "5-hour" : "Week", Scaled(12)));
             stack.Children.Add(top);
             var middle = new DockPanel { Margin = new Thickness(0, 2, 0, 4) };
-            var pace = Text("", 12, "Muted"); pace.VerticalAlignment = VerticalAlignment.Bottom; pace.Margin = new Thickness(0, 0, 0, 4); DockPanel.SetDock(pace, Dock.Right); middle.Children.Add(pace);
+            var pace = Text("", Scaled(12), "Muted"); pace.VerticalAlignment = VerticalAlignment.Bottom; pace.Margin = new Thickness(0, 0, 0, 4); DockPanel.SetDock(pace, Dock.Right); middle.Children.Add(pace);
             var value = Reading("—", 28); value.SetResourceReference(TextBlock.ForegroundProperty, "Text"); middle.Children.Add(value);
             stack.Children.Add(middle);
             var bar = new PaceBar { Height = 8 }; stack.Children.Add(bar);
@@ -1392,21 +1445,21 @@ namespace ClaudeDashboard
             var root = Rows(Star, Auto);
             var first = view.Sessions.FirstOrDefault();
             var top = Columns(Auto, Star); top.VerticalAlignment = VerticalAlignment.Center;
-            double size = CardSizing.ClaudeSmallCar(width, height - (caption ? CardSizing.ClaudeSmallMeterHeight : 0));
+            double size = CardSizing.ClaudeSmallCar(width, height - (caption ? CardSizing.ClaudeSmallMeter(textScale) : 0));
             var car = Car(first, first == null ? "" : first.Project, size, "ClaudeSmallCar", true);
             var tap = Tappable(car.View, first); car.Row = tap;
             top.Children.Add(tap);
             var side = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
             if (first == null)
             {
-                var message = names.Add(Wrapped(view.Connected ? ClaudeText.NoSessions : ClaudeText.NotConnected, width < 300 ? 13 : 15, height - (caption ? CardSizing.ClaudeSmallMeterHeight : 0)), "ClaudeMessage");
+                var message = names.Add(Wrapped(view.Connected ? ClaudeText.NoSessions : ClaudeText.NotConnected, width < 300 ? Scaled(13) : Scaled(15), height - (caption ? CardSizing.ClaudeSmallMeter(textScale) : 0)), "ClaudeMessage");
                 side.Children.Add(message);
             }
             else
             {
                 var project = names.Add(Trimmed(Text("", Scaled(17), "Text")), "ClaudeTitle0"); project.FontWeight = FontWeights.SemiBold; side.Children.Add(project);
-                var state = names.Add(Trimmed(Text("", 13, "Muted")), "ClaudeState0"); side.Children.Add(state);
-                var more = names.Add(Trimmed(Text("", 12, "Muted")), "ClaudeMore"); side.Children.Add(more);
+                var state = names.Add(Trimmed(Text("", Scaled(13), "Muted")), "ClaudeState0"); side.Children.Add(state);
+                var more = names.Add(Trimmed(Text("", Scaled(12), "Muted")), "ClaudeMore"); side.Children.Add(more);
                 string id = first.Id;
                 fills.Add(now => {
                     var s = view.Sessions.FirstOrDefault(x => x.Id == id); if (s == null) return;
@@ -1428,8 +1481,8 @@ namespace ClaudeDashboard
             {
                 var bottom = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
                 var line = new DockPanel();
-                var right = Text("", 12, "Muted"); right.VerticalAlignment = VerticalAlignment.Center; DockPanel.SetDock(right, Dock.Right); line.Children.Add(right);
-                var label = Upper(view.Limits.FiveHour == null ? "Week" : "5-hour", 12); label.VerticalAlignment = VerticalAlignment.Center; label.Margin = new Thickness(0, 0, 8, 0); DockPanel.SetDock(label, Dock.Left); line.Children.Add(label);
+                var right = Text("", Scaled(12), "Muted"); right.VerticalAlignment = VerticalAlignment.Center; DockPanel.SetDock(right, Dock.Right); line.Children.Add(right);
+                var label = Upper(view.Limits.FiveHour == null ? "Week" : "5-hour", Scaled(12)); label.VerticalAlignment = VerticalAlignment.Center; label.Margin = new Thickness(0, 0, 8, 0); DockPanel.SetDock(label, Dock.Left); line.Children.Add(label);
                 var value = Reading("—", 28); value.SetResourceReference(TextBlock.ForegroundProperty, "Text"); line.Children.Add(value);
                 bottom.Children.Add(line);
                 var bar = names.Add(new PaceBar { Height = 8, Margin = new Thickness(0, 4, 0, 0) }, "ClaudeSmallMeter"); bottom.Children.Add(bar);
@@ -1696,6 +1749,8 @@ namespace ClaudeDashboard
         // Large: the plan row's tiles, the rev counter from 860 units of body, the side panel from 1000, and the
         // ledger's models and lines columns when the table is wide enough for them.
         public const double ClaudePlanHeight = 124, ClaudeSideWidth = 300;
+        // The plan row grows with the text: its tallest tile holds three 13-unit lines beside the big number.
+        public static double ClaudePlan(double textScale) { return ClaudePlanHeight + Math.Max(0, Math.Ceiling(3 * 1.33 * (Math.Round(13 * textScale) - 13))); }
         public static bool ClaudeRevs(double bodyWidth) { return bodyWidth >= 860; }
         public static bool ClaudeSide(double bodyWidth) { return bodyWidth >= 1000; }
         // The optional columns step aside as the text grows, so a thread's title keeps at least 240 units: the fixed
@@ -1724,12 +1779,13 @@ namespace ClaudeDashboard
         {
             return tableWidth - ClaudeFixedColumns(textScale) - (ClaudeModels(tableWidth, textScale) ? Math.Round(150 * textScale) + 10 : 0) - (ClaudeLines(tableWidth, textScale) ? Math.Round(84 * textScale) + 10 : 0);
         }
-        public static bool ClaudeWhere(double tableWidth, double textScale) { return ClaudeTitleRoom(tableWidth, textScale) - ClaudeChip - ClaudeWhereWidth >= ClaudeTitleMin(textScale); }
-        public static bool ClaudeCache(double tableWidth, double textScale) { return ClaudeTitleRoom(tableWidth, textScale) - ClaudeChip >= ClaudeTitleMin(textScale); }
+        public static bool ClaudeWhere(double tableWidth, double textScale) { return ClaudeTitleRoom(tableWidth, textScale) - Math.Round(ClaudeChip * textScale) - Math.Round(ClaudeWhereWidth * textScale) >= ClaudeTitleMin(textScale); }
+        public static bool ClaudeCache(double tableWidth, double textScale) { return ClaudeTitleRoom(tableWidth, textScale) - Math.Round(ClaudeChip * textScale) >= ClaudeTitleMin(textScale); }
         // Medium: two mini plan tiles, then a 44-unit row per garage (taller with bigger text) with up to three cars
         // beside the project's name when they leave it 110 units.
         public const double ClaudeMiniHeight = 84;
-        public static double ClaudeMediumRow(double textScale) { return Math.Max(44, Math.Ceiling(Math.Round(15 * textScale) * 1.33 + 12 * 1.33 + 8)); }
+        public static double ClaudeMini(double textScale) { return ClaudeMiniHeight + Math.Max(0, Math.Ceiling(1.33 * (Math.Round(12 * textScale) - 12))); }
+        public static double ClaudeMediumRow(double textScale) { return Math.Max(44, Math.Ceiling(Math.Round(15 * textScale) * 1.33 + Math.Round(12 * textScale) * 1.33 + 8)); }
         public static int ClaudeInlineCars(double nameRoom, int threads)
         {
             int fit = (int)Math.Max(0, Math.Floor((nameRoom - 110) / 32));
@@ -1739,7 +1795,9 @@ namespace ClaudeDashboard
         // Small: the 5-hour meter (its line and bar) only when the project, state, count and Sample flag still fit
         // beside the car above it.
         public const double ClaudeSmallMeterHeight = 52;
-        public static bool ClaudeSmallMeter(double bodyHeight, double textScale) { return bodyHeight >= ClaudeSmallMeterHeight + Math.Ceiling(Math.Round(17 * textScale) * 1.33) + 34 + 17; }
+        public static bool ClaudeSmallMeter(double bodyHeight, double textScale) { return bodyHeight >= ClaudeSmallMeter(textScale) + Math.Ceiling(Math.Round(17 * textScale) * 1.33 + Math.Round(13 * textScale) * 1.33 + Math.Round(12 * textScale) * 1.33) + Math.Ceiling(Math.Round(13 * textScale) * 1.33); }
+        // The meter's own height: its 12-unit line (beside the 28-unit number) and bar, growing with the text.
+        public static double ClaudeSmallMeter(double textScale) { return ClaudeSmallMeterHeight + Math.Max(0, Math.Ceiling(1.33 * (Math.Round(12 * textScale) - 12))); }
         // The Small car: a third of the card's width, as long as the room above the meter allows.
         public static double ClaudeSmallCar(double bodyWidth, double room) { return Clamp(Math.Floor(Math.Min(bodyWidth * 0.34, room * 140 / 60)), 48, 120); }
         private static double Clamp(double value, double min, double max) { return Double.IsNaN(value) ? min : Math.Max(min, Math.Min(max, value)); }

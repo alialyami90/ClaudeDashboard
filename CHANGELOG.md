@@ -6,6 +6,19 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.51.0 (unreleased)
+
+Claude Dashboard: keyboard and low vision (issue 4 of the observability critique).
+
+- **The keyboard reaches every thread.** Thread rows, the plain list's rows, Medium's cars and every garage are buttons now. Tab moves between them (a 2-unit outline shows where you are, only when the keyboard put it there), Enter or Space brings a running session's window forward or folds a garage, and a focused row scrolls itself into view. Before, Go to it was the only thing on the card a keyboard could reach.
+- **Every row has a name.** A screen reader reads each thread's title, project and state; ended and idle ones say when they were last active and that there's no window to show. The names follow the thread as it changes.
+- **A new Needs you is announced.** The header's summary is an assertive live region: when a session starts needing you, a screen reader reads it out at once (fewer or the same number say nothing).
+- **Every word follows the text size.** The chips, detail lines, plan tiles, pit stop reason, captions, the folded-garage bubble, the gauges' end labels, the week's days and the whole plain list were fixed at 10 to 13 units and ignored the 100–140% setting; now they scale, and the plan row, the mini tiles, Medium's rows and Small's meter grow to hold them.
+- **Ended rows dim by colour.** Ended and parked rows were faded to 62% and 45%, which put their words at 2 to 3.7:1. Now their title and tokens turn Muted at full opacity and only the car fades; parked chips no longer fade either.
+- **The light Claude palette reads on Raised.** Its Amber is `#8F5108` and its Glacier `#21668D`, at least 4.5:1 on Raised and Selected (they were 4.34 and 4.39:1).
+- **"Tap" is "Click"** in the tooltips and names.
+- **Checks:** rows, cars and garages are focusable buttons with names; ended rows are Muted at full opacity; the smallest words at 140% are 140% of those at 100%; Amber, Glacier, Muted and Text reach 4.5:1 on Raised, Surface and Page in every palette; the header is an assertive live region; renders at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900 at 100% and 140% go to `artifacts\renders`.
+
 ## v0.47.3 (unreleased)
 
 Claude Dashboard: the code's namespace is renamed.
