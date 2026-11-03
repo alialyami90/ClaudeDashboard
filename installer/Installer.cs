@@ -16,9 +16,8 @@ namespace ClaudeDashboardSetup
     public sealed class Installer
     {
         public const string AppName = "Claude Dashboard", AppExe = "ClaudeDashboard.exe", UninstallerExe = "Uninstall Claude Dashboard.exe", Publisher = "Ali Alyami";
-        // The app was called Widget Screen until v0.42 (decision 026). Its startup shortcuts would open the old app beside
-        // this one, so setup points them out too. The settings folder keeps the old name until the migration release.
-        public const string OldAppName = "Widget Screen", OldAppExe = "WidgetScreen.exe";
+        // The app was called Widget Screen until v0.42 (decision 026). Since v0.46.0 the two have their own install and
+        // settings folders, so setup leaves Widget Screen, its shortcuts and its folder alone.
         public readonly string InstallDir, StartMenuShortcut, StartupShortcut, SettingsDir, RegistryPath, Root;
 
         public Installer(string sandboxRoot)
@@ -69,27 +68,27 @@ namespace ClaudeDashboardSetup
 
         public static bool AnyCopyRunning() { return Process.GetProcessesByName(Path.GetFileNameWithoutExtension(AppExe)).Length > 0; }
 
-        // Whether the old Widget Screen app is running: until the migration release it shares the settings folder and the
-        // Claude Code connection, so setup asks for it to be closed.
-        public static bool OldAppRunning() { return Process.GetProcessesByName(Path.GetFileNameWithoutExtension(OldAppExe)).Length > 0; }
-
-        // Other shortcuts in the Startup folders that also open Claude Dashboard or the old Widget Screen, so two copies would open.
+        // Other shortcuts in the Startup folders that also open Claude Dashboard, so two copies would open. Widget Screen's
+        // own shortcut doesn't count: since v0.46.0 the two apps have their own folders and run side by side. In the
+        // sandbox (--root) it's the sandbox's Startup folder, so the checks can see the rule work.
         public string[] OtherStartupShortcuts()
         {
-            if (Root != null) return new string[0];
+            var folders = Root == null
+                ? new[] { Environment.GetFolderPath(Environment.SpecialFolder.Startup), Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup) }
+                : new[] { Path.GetDirectoryName(StartupShortcut) };
             var found = new List<string>();
-            foreach (var folder in new[] { Environment.GetFolderPath(Environment.SpecialFolder.Startup), Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup) })
+            foreach (var folder in folders)
             {
                 if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) continue;
                 foreach (var link in Directory.GetFiles(folder, "*.lnk"))
                 {
                     if (string.Equals(link, StartupShortcut, StringComparison.OrdinalIgnoreCase)) continue;
-                    string target = ShortcutTarget(link);
-                    if (target != null && (target.EndsWith("\\" + AppExe, StringComparison.OrdinalIgnoreCase) || target.EndsWith("\\" + OldAppExe, StringComparison.OrdinalIgnoreCase))) found.Add(link);
+                    if (OpensThisApp(ShortcutTarget(link))) found.Add(link);
                 }
             }
             return found.ToArray();
         }
+        public static bool OpensThisApp(string target) { return target != null && target.EndsWith("\\" + AppExe, StringComparison.OrdinalIgnoreCase); }
 
         public void Install(bool startWithWindows, Action<string> progress)
         {

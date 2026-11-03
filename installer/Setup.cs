@@ -98,8 +98,10 @@ namespace ClaudeDashboardSetup
         {
             string installed = installer.InstalledVersion();
             bool update = installed != null;
-            heading.Text = update ? "Update Claude Dashboard" : "Install Claude Dashboard";
-            body.Text = (update ? "Version " + installed + " is installed. This replaces it with version " + SetupInfo.Version + ". Your settings, Claude sign-in and Claude Code connection stay as they are."
+            bool same = update && installed == SetupInfo.Version;
+            heading.Text = same ? "Reinstall Claude Dashboard" : update ? "Update Claude Dashboard" : "Install Claude Dashboard";
+            body.Text = (same ? "Version " + installed + " is installed. This reinstalls it. Your settings, Claude sign-in and Claude Code connection stay as they are."
+                       : update ? "Version " + installed + " is installed. This replaces it with version " + SetupInfo.Version + ". Your settings, Claude sign-in and Claude Code connection stay as they are."
                                 : "Version " + SetupInfo.Version + ", for you only. No administrator rights are needed.")
                 + "\nIt goes in " + installer.InstallDir + ", with a Start menu shortcut and an entry in Settings → Apps → Installed apps for uninstalling.";
             startup = Check("Start Claude Dashboard when I sign in to Windows", update ? installer.StartsWithWindows() : true);
@@ -111,18 +113,12 @@ namespace ClaudeDashboardSetup
             var others = installer.OtherStartupShortcuts();
             if (others.Length > 0)
             {
-                notes.Add("Another startup shortcut also opens Claude Dashboard or the older Widget Screen (" + string.Join(", ", others.Select(Path.GetFileName)) + "). Delete it from the Startup folder so two copies don't open.");
-                warn = true;
-            }
-            // Until the migration release, the old app and this one share the settings folder and the Claude Code connection.
-            if (Installer.OldAppRunning())
-            {
-                notes.Add("Widget Screen, the older version of this app, is running. Close it before you open Claude Dashboard: for now they share the same settings and Claude Code connection.");
+                notes.Add("Another startup shortcut also opens Claude Dashboard (" + string.Join(", ", others.Select(Path.GetFileName)) + "). Delete it from the Startup folder so two copies don't open.");
                 warn = true;
             }
             if (installer.RunningCopies().Length > 0) notes.Add("Claude Dashboard is running. Setup will close it first.");
             if (notes.Count > 0) Say(string.Join("\n", notes), warn ? Warning : Muted);
-            SetButtons(Primary(update ? "Update" : "Install", Install), Secondary("Cancel", Close));
+            SetButtons(Primary(same ? "Reinstall" : update ? "Update" : "Install", Install), Secondary("Cancel", Close));
         }
 
         void ShowUninstall()

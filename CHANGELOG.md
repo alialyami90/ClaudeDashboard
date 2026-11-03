@@ -18,6 +18,15 @@ Claude Dashboard: alerts that respect attention (observability critique, issue 5
 - **No logs yet isn't a failure** (a v0.50.0 bug seen live). On a fresh install, before Claude Code has written a session log or made its projects folder, the source-health line said "Logs unreadable" in Amber and the side panel said LOGS UNREADABLE. It now says "Logs: none yet" with the calm waiting glyph, and the numbers count from zero. Only a read error is "Logs unreadable".
 - **The side panel's words fit.** An unreadable log's facts say "TODAY · NO LOGS" and "TOOLS · NO LOGS", where "LOGS UNREADABLE" was cut at 1280 wide. The tip still says why.
 
+## v0.51.1 (3 Nov 2026)
+
+Claude Dashboard and Widget Screen are independent apps (Ali, 3 Nov 2026). Since v0.46.0 they have their own folders, and since v0.48.0 both watch Claude Code, so nothing asks you to close or remove Widget Screen any more.
+
+- **Setup leaves Widget Screen alone.** It no longer warns about Widget Screen's startup shortcut or a running Widget Screen. It still points out another startup shortcut that opens Claude Dashboard itself, so two copies don't open.
+- **Reinstall.** When the installed version is the setup's own, setup says "Reinstall Claude Dashboard" instead of offering to replace a version with the same one.
+- **The first run's question.** It no longer tells you to quit or uninstall Widget Screen. **Bring it over** connects Claude Code to Claude Dashboard, Widget Screen can stay installed, and both apps stay live ([decision 028](docs/decisions/028-claude-both-apps-watch.md)). If Widget Screen's Update connection takes the hooks, Reconnect in Claude Dashboard brings them back; Disconnect in either app removes both apps' hooks. README says the same.
+- **Checks.** A setup check that Widget Screen's shortcut isn't pointed out but a second Claude Dashboard shortcut is, and the migration check covers the new words.
+
 ## v0.51.0 (unreleased)
 
 Claude Dashboard: keyboard and low vision (issue 4 of the observability critique).
