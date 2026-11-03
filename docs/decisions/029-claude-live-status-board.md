@@ -86,7 +86,7 @@ The critique's points that v0.48.0 to v0.53.0 didn't take on, roughly by how muc
    - Check the renders to see whether the 7-day bars still read as part of the hour's line now that both sit in the burn tile.
 7. **The critique's first question:** with 6+ sessions, should the home be the attention queue, with garages as the drill-down? The queue now exists in the strip, so this is a layout choice rather than a data one.
 8. **Not verified live:** Ctrl+1 on the real PC; a screen reader reading the live region aloud; Now with real telemetry for MCP tools and long runs.
-9. **Already in flight:** Watcher's follow-up to v0.53.0 (a check for long tool names, Medium's row count at 140%, the week pace refitting when its tile settles).
+9. **Done in v0.53.1:** Watcher's follow-up (a check for long tool names, Medium's row count at 140%, the week pace refitting when its tile settles).
 10. **Reported only:** PRODUCT.md's `<!-- impeccable:product-schema 1 -->` platform value `desktop` isn't one Impeccable recognises. It matters only if Ali authorises Impeccable again.
 
 ## Verified

@@ -6,7 +6,7 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
-## v0.53.1 (unreleased)
+## v0.53.2 (unreleased)
 
 Docs catch up with the observability wave, v0.48.0 to v0.53.0. Docs only.
 
