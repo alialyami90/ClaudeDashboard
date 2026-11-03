@@ -213,8 +213,7 @@ namespace ClaudeDashboard
             }
             var note = Small("The dashboard reads these and never writes Claude Code's settings itself: Connect, Disconnect and Update connection go through Settings → Claude, with dated backups.", "Muted");
             stack.Children.Add(note);
-            var scroll = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
-            AutomationProperties.SetName(scroll, "Sources");
+            var scroll = ClaudeReliability.Page(stack, "Sources");
             root = new Grid(); root.Children.Add(scroll);
             return root;
         }

@@ -7,6 +7,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace ClaudeDashboard
@@ -280,6 +281,17 @@ namespace ClaudeDashboard
             return figures;
         }
 
+        // A view's page: a vertical ScrollViewer that is a named tab stop, so Tab from the tab strip lands in it and the
+        // arrows, Page Up and Down, and Home and End scroll it (ScrollViewer's own keys). Controls inside come after it.
+        public static ScrollViewer Page(UIElement content, string name)
+        {
+            var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = true, IsTabStop = true };
+            KeyboardNavigation.SetTabNavigation(scroll, KeyboardNavigationMode.Continue);
+            AutomationProperties.SetName(scroll, name);
+            AutomationProperties.SetHelpText(scroll, "Arrow keys, Page Up, Page Down, Home and End scroll the page.");
+            return scroll;
+        }
+
         // Rose (API errors and Retrying, decision 030): #F09A9A on the dark palettes, a deeper shade on paper so it reads
         // at 4.5:1 there too.
         public static Brush Rose(FrameworkElement scope)
@@ -404,8 +416,7 @@ namespace ClaudeDashboard
                 stack.Children.Add(pair);
             }
             else { stack.Children.Add(toolsTile); stack.Children.Add(stuckTile); }
-            var scroll = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
-            AutomationProperties.SetName(scroll, "Reliability");
+            var scroll = ClaudeReliability.Page(stack, "Reliability");
             root = new Grid(); root.Children.Add(scroll);
             return root;
         }

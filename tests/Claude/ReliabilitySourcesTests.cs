@@ -5,6 +5,8 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Threading;
 using System.Windows.Media;
 using ClaudeDashboard;
 
@@ -60,6 +62,20 @@ internal static class ReliabilitySourcesTests
             var box = element.TransformToAncestor(root).TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
             Assert(box.Right <= width + 1, name + ": '" + (element is TextBlock ? ((TextBlock)element).Text : "button") + "' reaches " + Math.Round(box.Right) + " past " + Math.Round(width) + ".");
         }
+    }
+
+    private static void Wait(int ms)
+    {
+        var frame = new DispatcherFrame();
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ms) };
+        timer.Tick += (s, e) => { timer.Stop(); frame.Continue = false; };
+        timer.Start();
+        Dispatcher.PushFrame(frame);
+    }
+    private static bool Within(DependencyObject child, DependencyObject parent)
+    {
+        for (var at = child; at != null; at = at is Visual ? VisualTreeHelper.GetParent(at) : LogicalTreeHelper.GetParent(at)) if (at == parent) return true;
+        return false;
     }
 
     public static void Run(string directory, Action<string, Action> check)
@@ -228,6 +244,60 @@ internal static class ReliabilitySourcesTests
             Host(paper, ClaudeView.Fixture(DateTime.UtcNow, true), new Size(1000, 600), 1, "Claude", (window, root) => {
                 AppController.Render(window, new Size(1000, 600), 1, Path.Combine(renders, "claude-reliability-1000x600-claude.png"));
             });
+        });
+
+        check("Tab from the tab strip lands in Reliability's and Sources' pages, and the keys scroll them", () => {
+            foreach (string name in new[] { ClaudeViews.Reliability, ClaudeViews.Sources })
+            {
+                string folder = Path.Combine(directory, "claude-reliability-keys", name);
+                if (Directory.Exists(folder)) Directory.Delete(folder, true);
+                Directory.CreateDirectory(folder);
+                string path = Path.Combine(folder, "settings.xml");
+                SettingsStore.Save(path, new AppSettings { TextScale = 1, ClaudePeriod = "Today" });
+                var window = AppController.LoadWindow("ShellWindow");
+                try
+                {
+                    using (var controller = new AppController(window, path))
+                    {
+                        controller.UseClaudeSample(false); controller.ShowView(name);
+                        window.WindowStartupLocation = WindowStartupLocation.Manual; window.Left = -5000; window.Top = 0; window.Width = 1000; window.Height = 600;
+                        window.Show(); window.Activate(); Wait(400);
+                        var host = (FrameworkElement)window.FindName("ViewHost");
+                        var page = Descendants(host).OfType<ScrollViewer>().FirstOrDefault(v => AutomationProperties.GetName(v) == name);
+                        Assert(page != null, name + "'s page isn't in the window.");
+                        Assert(page.Focusable && page.IsTabStop && page.IsEnabled, name + "'s page isn't a tab stop.");
+                        // From the selected tab, Tab reaches the page (when the PC lets this off-screen window take the keyboard).
+                        var tabs = (TabControl)window.FindName("ViewTabs");
+                        var tab = tabs.ItemContainerGenerator.ContainerFromIndex(tabs.SelectedIndex) as UIElement;
+                        if (tab != null && tab.Focus() && tab.IsKeyboardFocused)
+                        {
+                            bool landed = false;
+                            for (int i = 0; i < 40 && !landed; i++)
+                            {
+                                var focused = Keyboard.FocusedElement as UIElement;
+                                if (focused == null || !focused.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next))) break;
+                                Wait(10);
+                                landed = Keyboard.FocusedElement == page || Within(Keyboard.FocusedElement as DependencyObject, page);
+                            }
+                            Assert(landed, "Tab from the tab strip never reached " + name + "'s page.");
+                        }
+                        // The page's own keys scroll it.
+                        page.UpdateLayout();
+                        if (page.ScrollableHeight > 0)
+                        {
+                            var source = PresentationSource.FromVisual(page);
+                            Action<Key> press = key => { page.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = Keyboard.KeyDownEvent }); page.UpdateLayout(); };
+                            press(Key.PageDown);
+                            Assert(page.VerticalOffset > 0, "Page Down didn't scroll " + name + ".");
+                            press(Key.End);
+                            Assert(Math.Abs(page.VerticalOffset - page.ScrollableHeight) < 1, "End didn't reach the bottom of " + name + ".");
+                            press(Key.Home);
+                            Assert(page.VerticalOffset == 0, "Home didn't go back to the top of " + name + ".");
+                        }
+                    }
+                }
+                finally { window.Close(); }
+            }
         });
     }
 }
