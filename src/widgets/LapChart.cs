@@ -27,6 +27,8 @@ namespace ClaudeDashboard
             if (ahead > FutureMost) ahead = FutureMost;
             var axis = new LapAxis { From = now - Past, Now = now, To = now + ahead, WatchStart = view == null ? DateTime.MinValue : view.WatchStart };
             var pace = view == null ? null : view.LimitAtPace;
+            // v0.57.2: no wall once the limit is reached, by the engine or by the meter itself (the readings can lag).
+            if (ClaudeText.FiveHourReached(view, now)) return axis;
             if (pace != null && pace.BeforeReset && pace.LimitAt.Value > now && pace.LimitAt.Value <= axis.To) axis.Wall = pace.LimitAt.Value;
             return axis;
         }
@@ -159,7 +161,7 @@ namespace ClaudeDashboard
             }
             // The projection, dashed, from the newest reading at the pace.
             var last = Readings.OrderBy(r => r.At).LastOrDefault();
-            if (Pace != null && Pace.Known && last != null)
+            if (!Reached && Pace != null && Pace.Known && last != null)
             {
                 DateTime end = Pace.LimitAt.HasValue ? Pace.LimitAt.Value : Axis.To;
                 double endPercent = Pace.LimitAt.HasValue ? 100 : last.Percent + Math.Max(0, Pace.PerHour) * (Axis.To - last.At).TotalHours;
@@ -177,10 +179,117 @@ namespace ClaudeDashboard
                 if (x + words.Width > w) x = Math.Max(0, (Axis.Wall != null ? Axis.X(Axis.Wall.Value, w) : Axis.X(Axis.Now, w)) - 4 - words.Width);
                 dc.DrawText(words, new Point(x, 0));
             }
+            // v0.57.2: the percent sits at the curve's end, just left of the now line (Scribe's render note), below the
+            // line when it would meet the label at the top.
             if (!Double.IsNaN(Percent))
             {
                 var reading = Words(Math.Round(Percent) + "%", size, text);
-                dc.DrawText(reading, new Point(2, 0));
+                var at = PercentAt(w, h, reading.Width, reading.Height, last == null ? Percent : last.Percent);
+                dc.DrawText(reading, at);
+            }
+        }
+        // Where the percent goes: its right edge 6 units left of now, above the curve's end, or below it near the top.
+        public Point PercentAt(double w, double h, double width, double height, double percent)
+        {
+            double size = Math.Round(11 * TextScale), top = Math.Ceiling(size * 1.4) + 2, bottom = h - 2;
+            double y = bottom - Math.Max(0, Math.Min(110, percent)) / 110 * (bottom - top);
+            double x = Math.Max(0, Axis.X(Axis.Now, w) - 6 - width);
+            double above = y - height - 3;
+            double ty = above >= top ? above : Math.Min(h - height, y + 4);
+            return new Point(x, Math.Max(0, ty));
+        }
+    }
+
+    // v0.57.2: the time under the curve (Scribe's render note): whole hours, "now" and "reset 2:16 pm", in the Muted
+    // colour, each centred on its time; a label that would meet another is left out (now and the reset go first).
+    public sealed class LapTicks : LapPart
+    {
+        public bool Use24;
+        public DateTime? Reset;
+        public const double Gap = 10;
+        // The labels in the order they're placed: now, the reset, then the whole hours on the axis.
+        public static List<KeyValuePair<DateTime, string>> Labels(LapAxis axis, DateTime? reset, bool use24)
+        {
+            var labels = new List<KeyValuePair<DateTime, string>> { new KeyValuePair<DateTime, string>(axis.Now, "now") };
+            if (reset.HasValue && reset.Value > axis.Now && reset.Value <= axis.To) labels.Add(new KeyValuePair<DateTime, string>(reset.Value, "reset " + ClaudeText.Clock(reset.Value, use24)));
+            var local = axis.From.ToLocalTime();
+            var hour = new DateTime(local.Year, local.Month, local.Day, local.Hour, 0, 0, DateTimeKind.Local).AddHours(1);
+            for (int i = 0; i < 12 && hour.ToUniversalTime() < axis.To; i++, hour = hour.AddHours(1))
+                labels.Add(new KeyValuePair<DateTime, string>(hour.ToUniversalTime(), ClaudeText.Clock(hour.ToUniversalTime(), use24)));
+            return labels;
+        }
+        // Each shown label's text and its left and right edges, for the drawing and the checks.
+        public List<Tuple<string, double, double>> Placed(double w, Func<string, double> measure)
+        {
+            var placed = new List<Tuple<string, double, double>>();
+            if (Axis == null || w <= 0) return placed;
+            foreach (var label in Labels(Axis, Reset, Use24))
+            {
+                double width = measure(label.Value), x = Axis.X(label.Key, w);
+                double left = label.Value.StartsWith("reset ") ? x - width : x - width / 2;
+                left = Math.Max(0, Math.Min(w - width, left));
+                double right = left + width;
+                if (placed.Any(p => left < p.Item3 + Gap && right > p.Item2 - Gap)) continue;
+                placed.Add(Tuple.Create(label.Value, left, right));
+            }
+            return placed;
+        }
+        public List<Tuple<string, double, double>> Placed() { double size = Math.Round(11 * TextScale); var muted = B("Muted"); return Placed(ActualWidth, t => Words(t, size, muted).Width); }
+        protected override void OnRender(DrawingContext dc)
+        {
+            if (Axis == null) return;
+            double w = ActualWidth, h = ActualHeight;
+            if (w <= 0 || h <= 0) return;
+            double size = Math.Round(11 * TextScale);
+            var muted = B("Muted");
+            var tick = Line(Faded(muted, 0.6), 1, false);
+            foreach (var p in Placed())
+            {
+                var words = Words(p.Item1, size, p.Item1 == "now" ? B("Text") : muted);
+                dc.DrawText(words, new Point(p.Item2, h - words.Height));
+            }
+            foreach (var label in Labels(Axis, Reset, Use24))
+            {
+                double x = Math.Round(Axis.X(label.Key, w)) + 0.5;
+                dc.DrawLine(tick, new Point(x, 0), new Point(x, 3));
+            }
+        }
+    }
+
+    // v0.57.2: the trails' key on one line (Scribe's render note): a swatch drawn as the trail draws it, then its word.
+    // What doesn't fit at the end is left out; the full key is the element's name for screen readers. The key tells
+    // states, not projects: Working and Compacting are drawn in the Text colour and say the trail takes the project's.
+    public sealed class LapKey : LapPart
+    {
+        public static readonly string[] Names = { "Working (project colour)", "Needs you", "Stuck", "Your turn", "Compacting", "Idle or silent", "API error" };
+        public static string Spoken { get { return "Key: " + String.Join(", ", Names); } }
+        public int Shown { get; private set; }
+        protected override void OnRender(DrawingContext dc)
+        {
+            double w = ActualWidth, h = ActualHeight;
+            if (w <= 0 || h <= 0) return;
+            double size = Math.Round(11 * TextScale), swatch = Math.Round(14 * TextScale), band = Math.Max(6, Math.Round(size * 0.7)), mid = Math.Round(h / 2), x = 0;
+            var muted = B("Muted");
+            Shown = 0;
+            for (int i = 0; i < Names.Length; i++)
+            {
+                var words = Words(Names[i], size, muted);
+                double need = swatch + 4 + words.Width;
+                if (x + need > w) break;
+                var r = new Rect(x, mid - band / 2, swatch, band);
+                switch (i)
+                {
+                    case 0: dc.DrawRectangle(B("Text"), null, r); break;
+                    case 1: dc.DrawRectangle(B("Warning"), null, r); break;
+                    case 2: dc.DrawRectangle(null, Line(B("Warning"), 1.5, false), new Rect(r.X + 0.75, r.Y + 0.75, r.Width - 1.5, r.Height - 1.5)); break;
+                    case 3: dc.DrawRectangle(null, Line(B("Turn", Fixed(0xFF8ED8F8)), 1.5, false), new Rect(r.X + 0.75, r.Y + 0.75, r.Width - 1.5, r.Height - 1.5)); break;
+                    case 4: Hatch(dc, r, B("Text"), 0); break;
+                    case 5: dc.DrawRectangle(Fixed(Idle), null, new Rect(x, mid - 2, swatch, 4)); break;
+                    default: dc.DrawLine(Line(Fixed(Rose), 2, false), new Point(x + swatch / 2, mid - band / 2 - 2), new Point(x + swatch / 2, mid + band / 2 + 2)); break;
+                }
+                dc.DrawText(words, new Point(x + swatch + 4, mid - words.Height / 2));
+                x += need + 14;
+                Shown++;
             }
         }
     }
