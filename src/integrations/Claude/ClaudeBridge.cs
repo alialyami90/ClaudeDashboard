@@ -18,6 +18,9 @@ namespace ClaudeDashboard
         public string Id = "", Project = "", Title = "", Message = "", Model = "", Transcript = "";
         public ClaudeState State;
         public long Since, LastEvent;
+        // v0.49.0: the last hook event, which only Claude Code's hooks set. The status line refreshes LastEvent while the
+        // turn's wall clock runs, so a hung turn would look alive by it; the attention queue's Silent goes by this.
+        public long Heard;
         public double Context = Double.NaN;
         public int Pid, WindowPid;
         public long Window;
@@ -59,7 +62,7 @@ namespace ClaudeDashboard
         public JsonObject ToJson()
         {
             var o = new JsonObject();
-            o["id"] = Id; o["state"] = StateName(State); o["since"] = new JsonNumber(Since); o["lastEvent"] = new JsonNumber(LastEvent);
+            o["id"] = Id; o["state"] = StateName(State); o["since"] = new JsonNumber(Since); o["lastEvent"] = new JsonNumber(LastEvent); if (Heard > 0) o["heard"] = new JsonNumber(Heard);
             o["project"] = Project; o["title"] = Title; o["message"] = Message; o["model"] = Model; o["transcript"] = Transcript;
             if (!Double.IsNaN(Context)) o["context"] = new JsonNumber(Math.Round(Context, 1));
             o["pid"] = new JsonNumber(Pid); o["windowPid"] = new JsonNumber(WindowPid); o["window"] = new JsonNumber(Window);
@@ -95,7 +98,7 @@ namespace ClaudeDashboard
             var s = new ClaudeSessionFile { Id = ClaudeJson.Str(o, "id"), State = ParseState(ClaudeJson.Str(o, "state")),
                 Project = ClaudeJson.Str(o, "project") ?? "", Title = ClaudeJson.Str(o, "title") ?? "", Message = ClaudeJson.Str(o, "message") ?? "",
                 Model = ClaudeJson.Str(o, "model") ?? "", Transcript = ClaudeJson.Str(o, "transcript") ?? "", Context = ClaudeJson.Num(o, "context") };
-            s.Since = Long(o, "since"); s.LastEvent = Long(o, "lastEvent"); s.Pid = (int)Long(o, "pid"); s.WindowPid = (int)Long(o, "windowPid"); s.Window = Long(o, "window");
+            s.Since = Long(o, "since"); s.LastEvent = Long(o, "lastEvent"); s.Heard = Long(o, "heard"); s.Pid = (int)Long(o, "pid"); s.WindowPid = (int)Long(o, "windowPid"); s.Window = Long(o, "window");
             s.Compacting = ClaudeJson.Bool(o, "compacting");
             s.Error = ClaudeJson.Str(o, "error") ?? ""; s.ErrorText = ClaudeJson.Str(o, "errorText") ?? ""; s.LastError = ClaudeJson.Str(o, "lastError") ?? "";
             s.Failed = (int)Long(o, "failed"); s.Denied = (int)Long(o, "denied");
@@ -445,8 +448,8 @@ namespace ClaudeDashboard
                     if (found.ClaudePid != 0 || found.Window != 0) { session.Pid = found.ClaudePid; session.WindowPid = found.WindowPid; session.Window = found.Window; changed = true; }
                 }
                 // Tool after tool while Working: the file only needs touching now and then, to show the session is alive.
-                if (!changed && Epoch(now) - session.LastEvent < 60000) return;
-                session.LastEvent = Epoch(now);
+                if (!changed && Epoch(now) - session.Heard < 60000) return;
+                session.LastEvent = Epoch(now); session.Heard = Epoch(now);
                 WriteAtomic(path, ClaudeJson.Compact(session.ToJson()));
             });
         }

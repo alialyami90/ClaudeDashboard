@@ -271,9 +271,10 @@ internal static class SmokeTests
                     foreach (var size in new[] { new System.Windows.Size(1920, 720), new System.Windows.Size(1000, 480), new System.Windows.Size(2560, 1400), new System.Windows.Size(360, 300) })
                     {
                         AppController.Lay(window, size);
-                        // The 3-unit frame on each side, and the header: 56 units on one line, 84 with the summary under it.
+                        // The 3-unit frame on each side, the header (56 units on one line, 84 with the summary under it) and
+                        // the source-health line's row under the card (it also overlaps 16 units of the card's padding).
                         double head = controller.HeaderTwoLines ? 84 : 56;
-                        Assert(Math.Abs(card.ActualWidth - (size.Width - 6)) < 1 && Math.Abs(card.ActualHeight - (size.Height - 6 - head)) < 1, "The card doesn't fill a " + size + " window: " + card.ActualWidth + " × " + card.ActualHeight);
+                        Assert(Math.Abs(card.ActualWidth - (size.Width - 6)) < 1 && Math.Abs(card.ActualHeight - (size.Height - 6 - head - controller.SourceRow)) < 1, "The card doesn't fill a " + size + " window: " + card.ActualWidth + " × " + card.ActualHeight);
                         Assert(controller.ClaudeCardView.Current == CardSizing.Claude(card.ActualWidth, card.ActualHeight), "The card's design doesn't follow a " + size + " window.");
                     }
                 }

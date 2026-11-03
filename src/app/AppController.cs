@@ -32,9 +32,16 @@ namespace ClaudeDashboard
         private string pendingMessage, shownTitle, fullSummary = "", shortSummary = "";
         // How many sessions needed you at the last header update, so a new one is announced once (critique issue 4).
         private int announcedNeeds;
+        // Shorter forms still, for the narrowest headers: the most urgent part with the count, then without it.
+        private string[] shorterSummaries = new string[0];
         private double headerWidth, headerHeight;
         // The text size the card is laid out for: the saved one, or the one Settings previews.
         private double appearanceScale = 1;
+        // The source-health line's height (it follows the text size) and what it shows now. It overlaps the lower 16
+        // units of the card's bottom padding, so its own row is that much shorter.
+        private double sourceHeight = 24;
+        private const double SourceOverlap = 16;
+        private List<ClaudeHealthItem> sources = new List<ClaudeHealthItem>();
         private static readonly ClaudePeriod[] HeaderPeriods = { ClaudePeriod.FiveHour, ClaudePeriod.Today, ClaudePeriod.Week };
 
         public AppSettings CurrentSettings { get { return settings; } }
@@ -162,6 +169,11 @@ namespace ClaudeDashboard
             Palettes.Apply(window.Resources, theme, accent, textScale);
             if (settingsWindow != null) Palettes.Apply(settingsWindow.Resources, theme, accent, textScale);
             appearanceScale = textScale;
+            // The source-health line's words follow the text size, and its row grows with them.
+            sourceHeight = Math.Ceiling(16 * textScale) + 8;
+            Control<Grid>("DashboardContent").RowDefinitions[2].Height = new GridLength(sourceHeight - SourceOverlap);
+            foreach (var name in new[] { "SourceSample", "SourceText0", "SourceText1", "SourceText2", "SourceText3", "SourceGlyph0", "SourceGlyph1", "SourceGlyph2", "SourceGlyph3" })
+                Control<TextBlock>(name).FontSize = Math.Round(12 * textScale, 1);
             claudeCard.Restyle();
             FitCard();
         }
@@ -194,32 +206,111 @@ namespace ClaudeDashboard
             double full = 16 + Measure(summary, fullSummary), brief = 16 + Measure(summary, shortSummary);
             // In order: the whole summary on the header's line; under 1000 wide its short form there; then a line of
             // its own, but only where the card keeps its room (Small's 5-hour meter, Scribe's review of v0.47.2);
-            // otherwise the short form on the header's line, stopping at a whole word.
-            bool whole, oneLine;
-            if (used + full + flagWidth <= room) { oneLine = true; whole = true; }
-            else if (width < 1000 && used + brief + flagWidth <= room) { oneLine = true; whole = false; }
-            else if (SecondLineFits(width)) { oneLine = false; whole = full <= room; }
-            else { oneLine = true; whole = false; }
-            summary.Text = whole ? fullSummary : shortSummary;
+            // otherwise the shortest form that fits on the header's line (the most urgent part with the count, then
+            // alone; Lead's review of v0.50.0 at 140% text), stopping at a whole word only if even that won't fit.
+            bool oneLine; string shown;
+            if (used + full + flagWidth <= room) { oneLine = true; shown = fullSummary; }
+            else if (width < 1000 && used + brief + flagWidth <= room) { oneLine = true; shown = shortSummary; }
+            else if (SecondLineFits(width)) { oneLine = false; shown = full <= room ? fullSummary : shortSummary; if (shown == shortSummary && brief > room) shown = Shortest(summary, room); }
+            else
+            {
+                oneLine = true; shown = Shortest(summary, room - used - flagWidth);
+                // Still too wide: the plan stamp steps aside before a word is cut (its age is on the source-health line).
+                if (flagWidth > 0 && 16 + Measure(summary, shown) > room - used - flagWidth) { flagWidth = 0; shown = Shortest(summary, room - used); }
+            }
+            flag.Visibility = flagWidth > 0 || flag.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            summary.Text = shown;
             // On one line the summary leaves the flag its room at the right; on two, the flag keeps the first line.
             line.Margin = new Thickness(0, 0, oneLine ? flagWidth : 0, 0);
             Grid.SetRow(line, oneLine ? 0 : 1); Grid.SetColumn(line, oneLine ? 1 : 0); Grid.SetColumnSpan(line, oneLine ? 1 : 3);
             header.RowDefinitions[1].Height = new GridLength(oneLine ? 0 : 28);
             Control<Grid>("DashboardContent").RowDefinitions[0].Height = new GridLength(oneLine ? 56 : 84);
             HeaderTwoLines = !oneLine;
+            FitSources(width);
+        }
+        // The card's room under a header of one or two lines, as the card counts it.
+        private double CardRoom(double headerLines) { return headerHeight - 6 - (headerLines == 1 ? 56 : 84) - SourceRow; }
+        // The first of the short form and the shorter ones that fits in the room, else the shortest.
+        private string Shortest(TextBlock summary, double room)
+        {
+            var forms = new List<string> { shortSummary }; forms.AddRange(shorterSummaries);
+            foreach (var form in forms) if (16 + Measure(summary, form) <= room) return form;
+            return forms[forms.Count - 1];
         }
         // Whether a second header line (28 more units) leaves the card its room: Small keeps its 5-hour meter if it had
         // it, and nothing drops from Medium or Large to Small.
         private bool SecondLineFits(double width)
         {
             if (headerHeight <= 0) return true;
-            double cardWidth = width - 6, one = headerHeight - 6 - 56, two = one - 28;
+            double cardWidth = width - 6, one = CardRoom(1), two = CardRoom(2);
             var before = CardSizing.Claude(cardWidth, one); var after = CardSizing.Claude(cardWidth, two);
             if (before != CardSizing.Design.Small) return after != CardSizing.Design.Small;
             return !CardSizing.ClaudeSmallMeter(one - 48, appearanceScale) || CardSizing.ClaudeSmallMeter(two - 48, appearanceScale);
         }
         // Whether the summary is on its own line under the name and the buttons (for the checks).
         public bool HeaderTwoLines { get; private set; }
+        // For the checks: the source-health line's height and the four sources it shows.
+        public double SourceLineHeight { get { return sourceHeight; } }
+        // The rows the line takes from the card: its height less the padding it overlaps.
+        public double SourceRow { get { return sourceHeight - SourceOverlap; } }
+        public List<ClaudeHealthItem> Sources { get { return sources; } }
+
+        // The source-health line (observability critique, issue 3): each source's glyph and colour by its level, its
+        // reason in the tooltip and for screen readers. Sample is pinned at its start whenever the numbers are a fixture.
+        private void UpdateSources(ClaudeView view)
+        {
+            sources = ClaudeHealth.Of(view, DateTime.UtcNow, settings.Use24HourClock, claudeSample ? null : claudeLinks);
+            Control<TextBlock>("SourceSample").Visibility = view != null && view.Sample ? Visibility.Visible : Visibility.Collapsed;
+            for (int i = 0; i < 4; i++)
+            {
+                var item = sources[i];
+                var glyph = Control<TextBlock>("SourceGlyph" + i); var text = Control<TextBlock>("SourceText" + i); var part = Control<StackPanel>("Source" + i);
+                glyph.Text = item.Glyph;
+                string brush = item.Warns ? "Warning" : "Muted";
+                glyph.SetResourceReference(TextBlock.ForegroundProperty, brush); text.SetResourceReference(TextBlock.ForegroundProperty, item.Warns ? "Warning" : "Muted");
+                part.ToolTip = item.Long + "\n" + item.Tip;
+                AutomationProperties.SetName(part, item.Spoken);
+            }
+        }
+        // The words that fit: every reason in full; then the short reasons; then the sources that are fine keep only
+        // their glyph (still named in the tooltip); then the sources in trouble only their name; then only the Amber ones
+        // (old or failed) keep their name and the waiting and off ones their glyph (Scribe's review of v0.50.0: not
+        // connected, counting and signed out at 360 wide and 140%). Never cut mid-word.
+        private void FitSources(double width)
+        {
+            if (sources.Count < 4 || width <= 0) return;
+            double room = width - 6 - 48;
+            var sample = Control<TextBlock>("SourceSample");
+            double fixedWidth = sample.Visibility == Visibility.Visible ? Measure(sample, sample.Text) + 16 : 0;
+            int tiers = 5, chosen = tiers - 1;
+            for (int tier = 0; tier < tiers; tier++)
+            {
+                double used = fixedWidth;
+                for (int i = 0; i < 4; i++) used += SourceWidth(i, SourceWords(sources[i], tier)) + (i < 3 ? 16 : 0);
+                if (used <= room) { chosen = tier; break; }
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                string words = SourceWords(sources[i], chosen);
+                var text = Control<TextBlock>("SourceText" + i);
+                text.Text = words; text.Visibility = words.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+                Control<TextBlock>("SourceGlyph" + i).Margin = new Thickness(0, 1, words.Length > 0 ? 5 : 0, 0);
+            }
+        }
+        private static string SourceWords(ClaudeHealthItem item, int tier)
+        {
+            bool ok = item.Level == ClaudeHealthLevel.Ok;
+            if (tier == 0) return item.Long;
+            if (tier == 1) return item.Short;
+            if (tier == 2) return ok ? "" : item.Short;
+            if (tier == 3) return ok ? "" : item.Name;
+            return item.Warns ? item.Name : "";
+        }
+        private double SourceWidth(int index, string words)
+        {
+            var glyph = Control<TextBlock>("SourceGlyph" + index);
+            return Measure(glyph, glyph.Text) + (words.Length > 0 ? 5 + Measure(Control<TextBlock>("SourceText" + index), words) : 0);
+        }
         private static double Desired(FrameworkElement element)
         {
             if (element.Visibility != Visibility.Visible) return 0;
@@ -231,6 +322,8 @@ namespace ClaudeDashboard
         {
             if (String.IsNullOrEmpty(text)) return 0;
             var probe = new TextBlock { Text = text, FontFamily = block.FontFamily, FontSize = block.FontSize, FontWeight = block.FontWeight, FontStyle = block.FontStyle, FontStretch = block.FontStretch };
+            // The window draws text in Display mode, whose widths differ from a lone TextBlock's Ideal ones.
+            TextOptions.SetTextFormattingMode(probe, TextOptions.GetTextFormattingMode(block));
             probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
             return Math.Ceiling(probe.DesiredSize.Width) + 1;
         }
@@ -244,9 +337,11 @@ namespace ClaudeDashboard
             bool needs = view != null && view.NeedsYou > 0;
             fullSummary = view == null ? "Reading Claude Code…" : ClaudeText.Summary(view, claudeCard.Period, true);
             shortSummary = view == null ? fullSummary : ClaudeText.ShortSummary(view, claudeCard.Period);
+            shorterSummaries = view == null ? new string[0] : new[] { ClaudeText.ShortSummary(view, claudeCard.Period, 1, true), ClaudeText.ShortSummary(view, claudeCard.Period, 1, false) };
             summary.SetResourceReference(TextBlock.ForegroundProperty, needs ? "Warning" : "Text");
             dot.SetResourceReference(Shape.FillProperty, needs ? "Warning" : view != null && view.Working > 0 ? "Accent" : "Muted");
             flag.Text = view == null ? "" : ClaudeText.Flag(view, DateTime.UtcNow, settings.Use24HourClock, true);
+            UpdateSources(view);
             for (int i = 0; i < HeaderPeriods.Length; i++)
             {
                 var button = Control<Button>("ShellPeriod" + i);

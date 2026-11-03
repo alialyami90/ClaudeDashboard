@@ -12,7 +12,7 @@
   <Grid x:Name="Dashboard" Background="{DynamicResource Surface}">
     <Border x:Name="WindowEdge" BorderThickness="3" BorderBrush="Transparent" AutomationProperties.Name="Claude Dashboard">
       <Grid x:Name="DashboardContent">
-        <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <!-- One line when everything fits; otherwise the summary takes a second line under the name, the flag and the
              buttons (AppController.FitHeader), so the summary is never cut mid-word. -->
         <Grid x:Name="Header" Margin="24,12,20,0">
@@ -45,7 +45,19 @@
         <Border x:Name="ClaudeCard" Grid.Row="1" Padding="24" Background="Transparent" AutomationProperties.Name="Claude Code">
           <Grid x:Name="ClaudeBody"/>
         </Border>
-        <TextBlock x:Name="StatusMessage" Grid.Row="2" Text="" Style="{DynamicResource Small}" Margin="24,0,24,10" Visibility="Collapsed"/>
+        <!-- The source-health line (observability critique, issue 3): Sample, then Hooks · Logs · Telemetry · Plan, each
+             with its glyph and words: ok, waiting, old or off and why. It never folds away; on a narrow window the
+             reasons shorten, then the sources that are fine keep only their glyph (AppController.FitSources). It sits
+             over the lower 16 units of the card's 24-unit padding, which the card never draws in, so its own row is
+             only 8 units at 100% text and the card keeps its room. -->
+        <StackPanel x:Name="SourceLine" Grid.Row="2" Orientation="Horizontal" Margin="24,-16,24,4" ClipToBounds="True" AutomationProperties.Name="Sources">
+          <TextBlock x:Name="SourceSample" Text="SAMPLE" FontWeight="SemiBold" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,16,0" TextTrimming="None" ToolTip="These are sample numbers, not this PC's sessions." AutomationProperties.Name="Sample: these are sample numbers, not this PC's sessions"/>
+          <StackPanel x:Name="Source0" Orientation="Horizontal" Margin="0,0,16,0"><TextBlock x:Name="SourceGlyph0" Style="{DynamicResource Glyph}" Margin="0,1,5,0"/><TextBlock x:Name="SourceText0" VerticalAlignment="Center" TextTrimming="None"/></StackPanel>
+          <StackPanel x:Name="Source1" Orientation="Horizontal" Margin="0,0,16,0"><TextBlock x:Name="SourceGlyph1" Style="{DynamicResource Glyph}" Margin="0,1,5,0"/><TextBlock x:Name="SourceText1" VerticalAlignment="Center" TextTrimming="None"/></StackPanel>
+          <StackPanel x:Name="Source2" Orientation="Horizontal" Margin="0,0,16,0"><TextBlock x:Name="SourceGlyph2" Style="{DynamicResource Glyph}" Margin="0,1,5,0"/><TextBlock x:Name="SourceText2" VerticalAlignment="Center" TextTrimming="None"/></StackPanel>
+          <StackPanel x:Name="Source3" Orientation="Horizontal"><TextBlock x:Name="SourceGlyph3" Style="{DynamicResource Glyph}" Margin="0,1,5,0"/><TextBlock x:Name="SourceText3" VerticalAlignment="Center" TextTrimming="None"/></StackPanel>
+        </StackPanel>
+        <TextBlock x:Name="StatusMessage" Grid.Row="3" Text="" Style="{DynamicResource Small}" Margin="24,0,24,10" Visibility="Collapsed"/>
       </Grid>
     </Border>
 
