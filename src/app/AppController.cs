@@ -30,6 +30,8 @@ namespace ClaudeDashboard
         private bool openingSettings, savingSettings, closing, disposed;
         private int ticks, statusClearsAt = int.MaxValue;
         private string pendingMessage, shownTitle, fullSummary = "", shortSummary = "";
+        // Shorter forms still, for the narrowest headers: the most urgent part with the count, then without it.
+        private string[] shorterSummaries = new string[0];
         private double headerWidth, headerHeight;
         // The text size the card is laid out for: the saved one, or the one Settings previews.
         private double appearanceScale = 1;
@@ -202,13 +204,14 @@ namespace ClaudeDashboard
             double full = 16 + Measure(summary, fullSummary), brief = 16 + Measure(summary, shortSummary);
             // In order: the whole summary on the header's line; under 1000 wide its short form there; then a line of
             // its own, but only where the card keeps its room (Small's 5-hour meter, Scribe's review of v0.47.2);
-            // otherwise the short form on the header's line, stopping at a whole word.
-            bool whole, oneLine;
-            if (used + full + flagWidth <= room) { oneLine = true; whole = true; }
-            else if (width < 1000 && used + brief + flagWidth <= room) { oneLine = true; whole = false; }
-            else if (SecondLineFits(width)) { oneLine = false; whole = full <= room; }
-            else { oneLine = true; whole = false; }
-            summary.Text = whole ? fullSummary : shortSummary;
+            // otherwise the shortest form that fits on the header's line (the most urgent part with the count, then
+            // alone; Lead's review of v0.50.0 at 140% text), stopping at a whole word only if even that won't fit.
+            bool oneLine; string shown;
+            if (used + full + flagWidth <= room) { oneLine = true; shown = fullSummary; }
+            else if (width < 1000 && used + brief + flagWidth <= room) { oneLine = true; shown = shortSummary; }
+            else if (SecondLineFits(width)) { oneLine = false; shown = full <= room ? fullSummary : shortSummary; if (shown == shortSummary && brief > room) shown = Shortest(summary, room); }
+            else { oneLine = true; shown = Shortest(summary, room - used - flagWidth); }
+            summary.Text = shown;
             // On one line the summary leaves the flag its room at the right; on two, the flag keeps the first line.
             line.Margin = new Thickness(0, 0, oneLine ? flagWidth : 0, 0);
             Grid.SetRow(line, oneLine ? 0 : 1); Grid.SetColumn(line, oneLine ? 1 : 0); Grid.SetColumnSpan(line, oneLine ? 1 : 3);
@@ -219,6 +222,13 @@ namespace ClaudeDashboard
         }
         // The card's room under a header of one or two lines, as the card counts it.
         private double CardRoom(double headerLines) { return headerHeight - 6 - (headerLines == 1 ? 56 : 84) - SourceRow; }
+        // The first of the short form and the shorter ones that fits in the room, else the shortest.
+        private string Shortest(TextBlock summary, double room)
+        {
+            var forms = new List<string> { shortSummary }; forms.AddRange(shorterSummaries);
+            foreach (var form in forms) if (16 + Measure(summary, form) <= room) return form;
+            return forms[forms.Count - 1];
+        }
         // Whether a second header line (28 more units) leaves the card its room: Small keeps its 5-hour meter if it had
         // it, and nothing drops from Medium or Large to Small.
         private bool SecondLineFits(double width)
@@ -316,6 +326,7 @@ namespace ClaudeDashboard
             bool needs = view != null && view.NeedsYou > 0;
             fullSummary = view == null ? "Reading Claude Code…" : ClaudeText.Summary(view, claudeCard.Period, true);
             shortSummary = view == null ? fullSummary : ClaudeText.ShortSummary(view, claudeCard.Period);
+            shorterSummaries = view == null ? new string[0] : new[] { ClaudeText.ShortSummary(view, claudeCard.Period, 1, true), ClaudeText.ShortSummary(view, claudeCard.Period, 1, false) };
             summary.SetResourceReference(TextBlock.ForegroundProperty, needs ? "Warning" : "Text");
             dot.SetResourceReference(Shape.FillProperty, needs ? "Warning" : view != null && view.Working > 0 ? "Accent" : "Muted");
             flag.Text = view == null ? "" : ClaudeText.Flag(view, DateTime.UtcNow, settings.Use24HourClock, true);

@@ -118,7 +118,10 @@ namespace ClaudeDashboard
         // chips; "running" means a session that is open, as under a project's name (observability critique, issue 3).
         // The window header's summary when its line is narrow: the two most urgent parts, then the thread count without
         // the period's words ("1 needs you · 2 working · 8 threads"), so it stays whole words.
-        public static string ShortSummary(ClaudeView view, ClaudePeriod period)
+        // Narrower still (a 360-wide window at 140% text): most = 1 keeps the most urgent part, and threads = false
+        // leaves out the count ("1 needs you").
+        public static string ShortSummary(ClaudeView view, ClaudePeriod period) { return ShortSummary(view, period, 2, true); }
+        public static string ShortSummary(ClaudeView view, ClaudePeriod period, int most, bool threads)
         {
             if (!view.Connected && view.Threads.Count == 0) return "Not connected";
             var parts = new List<string>();
@@ -127,8 +130,8 @@ namespace ClaudeDashboard
             int turn = view.Sessions.Count(s => s.Pit == PitState.Done);
             if (turn > 0) parts.Add(turn + " your turn");
             if (view.Working > 0) parts.Add(view.Working + " working");
-            parts = parts.Take(2).ToList();
-            parts.Add(Threads(view.Groups(period).Sum(g => g.Threads.Count)));
+            parts = parts.Take(most).ToList();
+            if (threads || parts.Count == 0) parts.Add(Threads(view.Groups(period).Sum(g => g.Threads.Count)));
             return String.Join(" · ", parts);
         }
         public static string Summary(ClaudeView view, ClaudePeriod period, bool threads)
@@ -262,14 +265,16 @@ namespace ClaudeDashboard
         public static string Wait(TimeSpan time) { return time < TimeSpan.FromMinutes(1) ? (int)Math.Ceiling(time.TotalSeconds) + " s" : Duration(time); }
         public static string Threads(int count) { return count == 1 ? "1 thread" : count + " threads"; }
         public static string Cars(int count) { return count == 1 ? "1 car" : count + " cars"; }
-        // Under a project's name: "3 threads · 2 running · Claude app". Compact (Medium) leaves out where it runs, so
+        // Under a project's name: "3 threads · 2 working · Claude app", "working" as in the header's summary (Lead's
+        // review of v0.50.0). Compact (Medium) leaves out where it runs, so
         // "+N hidden" still fits (review fix 3).
         public static string GroupDetail(ClaudeProjectGroup group, bool compact = false)
         {
             // A project with no thread in the period: when it was last used.
             if (group.Threads.Count == 0) return (group.Hidden > 0 ? group.Hidden + " hidden · " : "") + (group.Seen > DateTime.MinValue ? "Quiet · last used " + Day(group.Seen) : "Quiet");
             var parts = new List<string> { Threads(group.Threads.Count) };
-            if (group.Running > 0) parts.Add(group.Running + " running");
+            int working = group.Threads.Count(t => t.Running && t.State == ClaudeState.Working);
+            if (working > 0) parts.Add(working + " working");
             var where = group.Threads.Where(t => t.Running && t.Where.Length > 0).Select(t => t.Where).Distinct().ToList();
             if (where.Count == 1) { if (!compact) parts.Add(where[0] == "Desktop" ? "Claude app" : where[0]); }
             else if (group.Asleep) parts.Add("ended " + Duration(DateTime.UtcNow - group.LastActive) + " ago");
@@ -1118,7 +1123,7 @@ namespace ClaudeDashboard
                 if (!folded) info.Text = ClaudeText.GroupDetail(g);
                 long total = view.Groups(period).Sum(x => x.Tokens);
                 share.Value = total <= 0 ? 0 : 100.0 * g.Tokens / total;
-                tokens.Text = TokenCell(g.Tokens); tokens.ToolTip = Unreadable; cached.Text = Counted ? ClaudeUsage.Format(g.CacheReads) : ""; dollars.Text = !Counted ? "" : showApi ? "$" + ClaudeText.Dollars(g.Cost) : g.Replies.ToString(CultureInfo.InvariantCulture);
+                tokens.Text = TokenCell(g.Tokens); tokens.ToolTip = Unreadable; cached.Text = Marked(ClaudeUsage.Format(g.CacheReads)); cached.ToolTip = Unreadable; dollars.Text = Marked(showApi ? "$" + ClaudeText.Dollars(g.Cost) : g.Replies.ToString(CultureInfo.InvariantCulture)); dollars.ToolTip = Unreadable;
                 SetModels(mix, g.Models);
                 SetLines(lines, g.Added, g.Removed);
                 RenderGarage(garage, g);
@@ -1159,7 +1164,7 @@ namespace ClaudeDashboard
                     bool stuck = t.Running && t.State == ClaudeState.Stuck;
                     where.Text = stuck ? ClaudeText.StuckReason(t, view, now, use24) : ClaudeText.Where(t, now);
                     where.SetResourceReference(TextBlock.ForegroundProperty, stuck ? "Warning" : "Muted");
-                    ttokens.Text = TokenCell(t.TokensFor(period)); ttokens.ToolTip = Unreadable; tcached.Text = Counted ? ClaudeUsage.Format(t.CacheReadsFor(period)) : ""; tdollars.Text = !Counted ? "" : showApi ? "$" + ClaudeText.Dollars(t.CostFor(period)) : t.RepliesFor(period).ToString(CultureInfo.InvariantCulture);
+                    ttokens.Text = TokenCell(t.TokensFor(period)); ttokens.ToolTip = Unreadable; tcached.Text = Marked(ClaudeUsage.Format(t.CacheReadsFor(period))); tcached.ToolTip = Unreadable; tdollars.Text = Marked(showApi ? "$" + ClaudeText.Dollars(t.CostFor(period)) : t.RepliesFor(period).ToString(CultureInfo.InvariantCulture)); tdollars.ToolTip = Unreadable;
                     SetModels(tmix, t.ModelsFor(period));
                     var l = t.LinesFor(period); SetLines(tlines, l[0], l[1]);
                 });
@@ -1168,7 +1173,9 @@ namespace ClaudeDashboard
         private bool Counted { get { return view.LogsRead && !view.LogsFailed; } }
         // A token cell: "≈1.2M" while the logs are still being read, "—" with why in its tip when they can't be
         // (observability critique, issue 3).
-        private string TokenCell(long tokens) { return view.LogsFailed ? "—" : ClaudeText.Tokens(tokens, Counted); }
+        private string TokenCell(long tokens) { return Marked(ClaudeUsage.Format(tokens)); }
+        // Cache reads, replies and the API value take the same mark as tokens (Lead's review of v0.50.0).
+        private string Marked(string value) { return view.LogsFailed ? "—" : (Counted ? "" : "≈") + value; }
         private string Unreadable { get { return view.LogsFailed ? ClaudeText.NoLogs : null; } }
         private static Brush Solid(uint color) { var b = new SolidColorBrush(Color.FromArgb((byte)(color >> 24), (byte)(color >> 16), (byte)(color >> 8), (byte)color)); b.Freeze(); return b; }
         private FrameworkElement Bubble(int count)
@@ -1351,8 +1358,8 @@ namespace ClaudeDashboard
                     name.SetResourceReference(TextBlock.ForegroundProperty, asking != null ? "Warning" : "Text");
                     sub.Text = asking != null ? "Needs you · " + ClaudeText.ThreadTitle(asking, now, use24) : stuck != null ? "Stuck · " + ClaudeText.StuckReason(stuck, view, now, use24) : folded ? ClaudeText.Cars(g.Threads.Count) + " in the garage" : ClaudeText.GroupDetail(g, true);
                     sub.SetResourceReference(TextBlock.ForegroundProperty, asking != null || stuck != null ? "Warning" : "Muted");
-                    tokens.Text = TokenCell(g.Tokens); tokens.ToolTip = Unreadable; dollars.Text = !Counted ? "" : showApi ? "$" + ClaudeText.Dollars(g.Cost) : g.Replies.ToString(CultureInfo.InvariantCulture);
-                    dollars.ToolTip = showApi ? ClaudeText.ApiValueTip : ClaudeText.Replies(g.Replies);
+                    tokens.Text = TokenCell(g.Tokens); tokens.ToolTip = Unreadable; dollars.Text = Marked(showApi ? "$" + ClaudeText.Dollars(g.Cost) : g.Replies.ToString(CultureInfo.InvariantCulture));
+                    dollars.ToolTip = Unreadable ?? (showApi ? ClaudeText.ApiValueTip : ClaudeText.Replies(g.Replies));
                     RenderGarage(garage, g);
                 });
             }

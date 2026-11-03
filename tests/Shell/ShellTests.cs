@@ -139,21 +139,27 @@ internal static class ShellTests
         check("Shell header at the smallest window: Small keeps its 5-hour meter, and the summary stays whole words", () => {
             // A 360 × 300 window (its outer size, the minimum) has a client area of about 360 × 261 on Windows 10 and 11.
             string renders = Renders(directory);
+            // And 360 × 300 at 140% text, where the summary was cut ("1 needs you · 1 your turn · 7…"; Lead's review of
+            // v0.50.0).
+            foreach (double tall in new[] { 261.0, 300.0 })
             foreach (double scale in new[] { 1.0, 1.4 })
                 foreach (bool needs in new[] { false, true })
                 {
-                    string name = "shell-360x261-" + Math.Round(scale * 100) + (needs ? "-needs" : "");
+                    if (tall == 300 && scale == 1.0) continue;
+                    string name = "shell-360x" + tall + "-" + Math.Round(scale * 100) + (needs ? "-needs" : "");
                     string folder = Fresh(directory, name);
                     var window = AppController.LoadWindow("ShellWindow");
                     using (var controller = new AppController(window, SettingsFile(folder, new AppSettings { ClaudePeriod = "Week", TextScale = scale })))
                     {
                         controller.UseClaudeSample(needs);
-                        AppController.Render(window, new Size(360, 261), 1, Path.Combine(renders, name + ".png"));
+                        AppController.Render(window, new Size(360, tall), 1, Path.Combine(renders, name + ".png"));
                         var card = controller.ClaudeCardView;
                         Assert(card.Current == CardSizing.Design.Small, name + " isn't Small.");
                         Assert(window.FindName("ClaudeSmallMeter") != null, name + ": Small lost its 5-hour meter (header " + (controller.HeaderTwoLines ? 84 : 56) + ").");
                         var summary = (TextBlock)window.FindName("ClaudeSummary");
-                        Assert(summary.Text == ClaudeText.Summary(card.View, card.Period, true) || summary.Text == ClaudeText.ShortSummary(card.View, card.Period), name + ": the summary isn't the whole or the short one: " + summary.Text);
+                        var forms = new[] { ClaudeText.Summary(card.View, card.Period, true), ClaudeText.ShortSummary(card.View, card.Period), ClaudeText.ShortSummary(card.View, card.Period, 1, true), ClaudeText.ShortSummary(card.View, card.Period, 1, false) };
+                        Assert(forms.Contains(summary.Text), name + ": the summary isn't the whole one or a short form: " + summary.Text);
+                        Assert(!Cut(summary), name + ": the header's summary is cut: \"" + summary.Text + "\" in " + Math.Round(summary.ActualWidth));
                         Assert(summary.TextTrimming == TextTrimming.WordEllipsis, name + ": the summary could be cut mid-word.");
                         Assert(((TextBlock)window.FindName("SourceSample")).Visibility == Visibility.Visible, name + ": Small doesn't say it's a sample.");
                         SourcesWhole(window, controller, name);
