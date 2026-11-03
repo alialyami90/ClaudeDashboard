@@ -26,9 +26,12 @@ namespace ClaudeDashboard
 
         private ClaudeViewContext context = new ClaudeViewContext();
         private Size room;
-        private bool side;
+        private bool side, quiet, framesAsked;
         private double labelWidth;
         private LapCurve curve;
+        private LapTicks ticks;
+        private LapKey trailKey;
+        private ScrollViewer panelScroll;
         private TextBlock curveLabel, curveSub;
         private StackPanel lanes, feedLines, panelBody;
         private ScrollViewer scroller;
@@ -48,12 +51,19 @@ namespace ClaudeDashboard
         public bool PanelOpen { get { return panel != null && panel.Visibility == Visibility.Visible; } }
         public bool SidePanel { get { return side; } }
         public Button LaneButton(string id) { Lane lane; return parts.TryGetValue(id ?? "", out lane) ? lane.Button : null; }
+        public PitSprite LaneCar(string id) { Lane lane; return parts.TryGetValue(id ?? "", out lane) ? lane.Car : null; }
+        public bool FramesAsked { get { return framesAsked; } }
+        public LapTicks Ticks { get { return ticks; } }
+        public LapKey Key { get { return trailKey; } }
+        public ScrollViewer PanelScroll { get { return panelScroll; } }
 
         private double S(double size) { return context.Scaled(size); }
 
         public FrameworkElement Build(ClaudeViewContext viewContext, Size viewRoom)
         {
             context = viewContext ?? new ClaudeViewContext(); room = viewRoom;
+            // v0.56.2: Quiet (keep the cars still) is read here only; the window builds the view again when it changes.
+            quiet = context.Quiet; framesAsked = false;
             side = room.Width >= SideRoom;
             labelWidth = side ? WideLabel : NarrowLabel;
             parts.Clear(); laneKey = "";
@@ -62,12 +72,13 @@ namespace ClaudeDashboard
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(side ? 16 + PanelWidth : 0) });
             var main = new Grid();
             main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             root.Children.Add(main);
 
             // The 5-hour curve over the lanes, on the lanes' axis.
-            var head = new Grid { Height = Math.Max(56, S(64)), Margin = new Thickness(0, 0, 0, 6) };
+            var head = new Grid { Height = Math.Max(56, S(64)), Margin = new Thickness(0, 0, 0, 2) };
             head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(labelWidth) });
             head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
@@ -80,26 +91,43 @@ namespace ClaudeDashboard
             Grid.SetColumn(curve, 1); head.Children.Add(curve);
             AutomationProperties.SetName(head, "5-hour limit");
             main.Children.Add(head);
+            // v0.56.2: the time under the curve, on the same axis: whole hours, now and the reset.
+            var tickRow = new Grid { Height = Math.Ceiling(S(11) * 1.33) + 4, Margin = new Thickness(0, 0, 0, 4) };
+            tickRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(labelWidth) });
+            tickRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            ticks = new LapTicks { TextScale = context.TextScale, Use24 = context.Use24Hour };
+            Grid.SetColumn(ticks, 1); tickRow.Children.Add(ticks);
+            Grid.SetRow(tickRow, 1); main.Children.Add(tickRow);
 
             lanes = new StackPanel();
             scroller = new ScrollViewer { Content = lanes, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
-            Grid.SetRow(scroller, 1); main.Children.Add(scroller);
+            Grid.SetRow(scroller, 2); main.Children.Add(scroller);
 
             // "What just happened": as many lines as a quarter of the room holds, at least two.
             double line = Math.Ceiling(S(13) * 1.33) + 4;
             feedRoom = Math.Max(2, Math.Min(8, (int)Math.Floor((room.Height * 0.25 - line - 8) / line)));
             var feed = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
             var feedHead = CardParts.Text("What just happened", S(13), "Text"); feedHead.FontWeight = FontWeights.SemiBold;
-            feed.Children.Add(feedHead);
+            // v0.56.2: the trails' key on the feed's heading line, as much as fits after the heading.
+            var feedTop = new DockPanel { LastChildFill = true };
+            DockPanel.SetDock(feedHead, Dock.Left); feedTop.Children.Add(feedHead);
+            trailKey = new LapKey { TextScale = context.TextScale, Height = Math.Ceiling(S(11) * 1.33) + 4, Margin = new Thickness(24, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            AutomationProperties.SetName(trailKey, LapKey.Spoken);
+            feedTop.Children.Add(trailKey);
+            feed.Children.Add(feedTop);
             feedLines = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
             feed.Children.Add(feedLines);
             AutomationProperties.SetName(feed, "What just happened");
-            Grid.SetRow(feed, 2); main.Children.Add(feed);
+            Grid.SetRow(feed, 3); main.Children.Add(feed);
 
             // The selected session: beside the chart from 1000 wide, a drawer over it below that.
             panelBody = new StackPanel();
-            var panelScroll = new ScrollViewer { Content = panelBody, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
-            panel = new Border { Padding = new Thickness(16), CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), Child = panelScroll };
+            panelScroll = new ScrollViewer { Content = panelBody, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
+            panel = new Border { Padding = new Thickness(16), CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), Child = panelScroll, VerticalAlignment = VerticalAlignment.Top };
+            // v0.56.2: when the panel's words don't all fit, it ends after the last whole one (no line half cut at the
+            // scroll edge); the rest scrolls.
+            root.SizeChanged += (sender, e) => Snap();
+            panelBody.SizeChanged += (sender, e) => Snap();
             panel.SetResourceReference(Border.BackgroundProperty, "Surface"); panel.SetResourceReference(Border.BorderBrushProperty, "ControlBorder");
             AutomationProperties.SetName(panel, "Selected session");
             if (side) { Grid.SetColumn(panel, 1); panel.Margin = new Thickness(16, 0, 0, 0); }
@@ -113,6 +141,27 @@ namespace ClaudeDashboard
             root.PreviewKeyDown += (sender, e) => { if (e.Key == Key.Escape && !side && PanelOpen) { Close(); e.Handled = true; } };
             if (last != null) Refresh(last, lastNow);
             return root;
+        }
+        // The panel's scroll area ends at the bottom of the last child that fits whole in the room the view leaves it.
+        private void Snap()
+        {
+            if (panelScroll == null || root == null || root.ActualHeight <= 0) return;
+            double room = root.ActualHeight - panel.Padding.Top - panel.Padding.Bottom - panel.BorderThickness.Top - panel.BorderThickness.Bottom - panel.Margin.Top - panel.Margin.Bottom;
+            if (room <= 0) return;
+            double fit = Double.PositiveInfinity;
+            if (panelBody.ActualHeight > room + 0.5)
+            {
+                fit = 0;
+                foreach (FrameworkElement child in panelBody.Children)
+                {
+                    if (child.ActualHeight <= 0 || child.Visibility != Visibility.Visible) continue;
+                    double bottom = child.TranslatePoint(new Point(0, child.ActualHeight + child.Margin.Bottom), panelBody).Y;
+                    if (bottom <= room + 0.5) fit = Math.Max(fit, bottom);
+                }
+                if (fit <= 0) fit = room;
+                fit = Math.Ceiling(fit);
+            }
+            if (!(Math.Abs(panelScroll.MaxHeight - fit) < 0.5) && !(Double.IsInfinity(fit) && Double.IsInfinity(panelScroll.MaxHeight))) panelScroll.MaxHeight = fit;
         }
 
         public void Refresh(ClaudeView snapshot, DateTime now)
@@ -131,6 +180,7 @@ namespace ClaudeDashboard
             if (snapshot.LimitAtPace.Reached) curveSub.SetResourceReference(TextBlock.ForegroundProperty, "Warning"); else curveSub.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
             curveSub.ToolTip = AverageTip(snapshot, context.Use24Hour);
             curve.InvalidateVisual();
+            ticks.Axis = axis; ticks.Reset = w == null ? null : w.ResetsAt; ticks.InvalidateVisual();
 
             // The lanes: running sessions, and ended ones whose trail is still on the axis, most urgent first.
             var threads = Lanes(snapshot, axis);
@@ -144,17 +194,21 @@ namespace ClaudeDashboard
             }
             var errors = snapshot.ApiErrors.GroupBy(a => a.Session).ToDictionary(g => g.Key, g => g.Select(a => a.At).ToList());
             foreach (var t in threads) Fill(parts[t.Id], t, snapshot, axis, errors, now);
+            var firstColor = threads.Where(t => t.Lane == ClaudeLaneState.Working).Select(t => PitArt.Accent(t.Project)).FirstOrDefault();
+            trailKey.Color = firstColor == 0 ? PitArt.Lime : firstColor; trailKey.InvalidateVisual();
+            Motion();
 
             // The feed.
             feedLines.Children.Clear();
-            foreach (var item in snapshot.Feed.Take(feedRoom))
+            var feedShown = FeedShown(snapshot);
+            foreach (var item in feedShown.Take(feedRoom))
             {
                 var text = CardParts.Text(FeedLine(item, context.Use24Hour), S(13), item.Kind == ClaudeFeedItem.Needs || item.Kind == ClaudeFeedItem.Silent || item.Kind == ClaudeFeedItem.Stuck ? "Warning" : "Muted");
                 if (item.Kind == ClaudeFeedItem.Retrying || item.Kind == ClaudeFeedItem.ApiError) text.Foreground = Rose;
                 text.TextTrimming = TextTrimming.CharacterEllipsis;
                 feedLines.Children.Add(text);
             }
-            if (snapshot.Feed.Count == 0) feedLines.Children.Add(CardParts.Text("Nothing yet since the app began watching at " + ClaudeText.Clock(snapshot.WatchStart, context.Use24Hour) + ".", S(13), "Muted"));
+            if (feedShown.Count == 0) feedLines.Children.Add(CardParts.Text("Nothing yet since the app began watching at " + ClaudeText.Clock(snapshot.WatchStart, context.Use24Hour) + ".", S(13), "Muted"));
 
             // The panel: the selected session, else (beside the chart) the most urgent one.
             if (selected != null && !threads.Any(t => t.Id == selected)) { selected = null; if (!side) panel.Visibility = Visibility.Collapsed; }
@@ -166,8 +220,29 @@ namespace ClaudeDashboard
 
         public static List<ClaudeSession> Lanes(ClaudeView view, LapAxis axis)
         {
-            return view.Threads.Where(t => t.Running || (view.Trails.ContainsKey(t.Id) && t.LastActive >= axis.From))
+            return view.Threads.Where(t => !ArchivedHidden(view, t) && (t.Running || (view.Trails.ContainsKey(t.Id) && t.LastActive >= axis.From)))
                 .OrderBy(t => (int)t.Lane).ThenBy(t => t.LaneSince).ThenBy(t => t.Id, StringComparer.Ordinal).ToList();
+        }
+
+        // v0.56.2: Live follows Settings → Claude's archived choice (archived and resolved threads, as the Garage hides
+        // them); hide-idle isn't applied here, since an idle lane is still on the track.
+        public static bool ArchivedHidden(ClaudeView view, ClaudeSession t) { return ClaudePace.Hidden(t.Pit, view.ShowArchived, false); }
+
+        // v0.56.2, moving cars: a car's frames step by its state, as on the Garage, through the window's one frame
+        // clock. The view asks for frames while a car moves and lets go when every car is still; it never starts a
+        // timer of its own, and in Quiet nothing moves.
+        private void Motion()
+        {
+            double fps = 0;
+            if (!quiet) foreach (var lane in parts.Values) if (lane.Car.Moving) fps = Math.Max(fps, lane.Car.Fps);
+            if (fps > 0) { context.Frames(Step, fps); framesAsked = true; }
+            else if (framesAsked) { context.Frames(null, 0); framesAsked = false; }
+        }
+        private void Step(double seconds)
+        {
+            bool moving = false;
+            foreach (var lane in parts.Values) { lane.Car.Step(seconds); if (lane.Car.Moving) moving = true; }
+            if (!moving && framesAsked) { context.Frames(null, 0); framesAsked = false; }
         }
 
         private Lane MakeLane(ClaudeSession t)
@@ -213,8 +288,11 @@ namespace ClaudeDashboard
             // The car on the now line, its nose at now; an ended session's car stays parked where its trail stopped.
             var state = t.Running ? t.Pit : PitState.End;
             var look = new PitArt.CarLook { Car = t.Car };
-            string key; var frames = PitSprite.CarFrames(color, state, look, CarWidth, out key);
-            lane.Car.Show(key, frames, PitSprite.CarOverflow, PitSprite.StillFrame(state), false);
+            string carKey; var frames = PitSprite.CarFrames(color, state, look, CarWidth, out carKey);
+            lane.Car.Fps = quiet ? 0 : PitSprite.CarFps(state, ClaudePace.Share(t.Rate, view.Scale), false);
+            lane.Car.Once = PitSprite.PlaysOnce(state);
+            lane.Car.Show(carKey, frames, PitSprite.CarOverflow, PitSprite.StillFrame(state), false);
+            if (quiet) lane.Car.Hold();
             lane.Car.Tag = t.Running ? (object)axis.Now : t.LastActive;
             lane.Car.DataContext = axis;
             PlaceCar(lane);
@@ -292,12 +370,20 @@ namespace ClaudeDashboard
             var a = view.LimitAtAverage;
             string head = "At the last 30 minutes' pace, from the plan readings.";
             if (a == null || !a.Known) return head + "\nAt today's average: " + (a == null || a.Why.Length == 0 ? "not known" : a.Why) + ".";
-            if (a.Reached) return head + "\nLimit reached.";
+            if (a.Reached) return head + "\nAt today's average: limit reached.";
             string at = a.BeforeReset ? "≈ limit " + ClaudeText.Clock(a.LimitAt.Value, use24) : "≈ " + Math.Round(Math.Min(999, a.AtReset)) + "% at reset";
             return head + "\nAt today's average: " + at + ". Today's tokens an hour, converted to the 5-hour window's percent at this window's tokens per percent so far.";
         }
 
         // ----- The feed -----
+
+        // v0.56.2: the feed's lines, less an archived thread's when Settings → Claude hides archived threads (it has
+        // no lane either).
+        public static List<ClaudeFeedItem> FeedShown(ClaudeView view)
+        {
+            var hidden = new HashSet<string>(view.Threads.Where(t => ArchivedHidden(view, t)).Select(t => t.Id), StringComparer.Ordinal);
+            return view.Feed.Where(item => !hidden.Contains(item.Session ?? "")).ToList();
+        }
 
         // "3:12 pm  Fix the login timeout · needs you".
         public static string FeedLine(ClaudeFeedItem item, bool use24)
@@ -380,7 +466,7 @@ namespace ClaudeDashboard
             panelBody.Children.Add(head);
             if (!view.ToolTimesKnown) Add("Telemetry is off, so tool times aren't known.", "Muted", 12, 0);
             else if (t.ToolTimes.Count == 0) Add("No tool runs yet.", "Muted", 12, 0);
-            else foreach (var tool in t.ToolTimes.Take(8)) Add(ClaudeText.ToolName(tool.Tool) + " · " + tool.Runs + (tool.Runs == 1 ? " run" : " runs") + " · typical " + Ms(tool.MedianMs) + " · longest " + Ms(tool.LongestMs) + (tool.Failed > 0 ? " · " + tool.Failed + " failed" : ""), "Muted", 12, 2);
+            else foreach (var tool in t.ToolTimes.Take(8)) Wrap(Add(ClaudeText.ToolName(tool.Tool) + " · " + tool.Runs + (tool.Runs == 1 ? " run" : " runs") + " · typical " + Ms(tool.MedianMs) + " · longest " + Ms(tool.LongestMs) + (tool.Failed > 0 ? " · " + tool.Failed + " failed" : ""), "Muted", 12, 2));
         }
         private static string LastTool(ClaudeSession t, ClaudeView view)
         {
@@ -398,10 +484,12 @@ namespace ClaudeDashboard
             panelBody.Children.Add(block);
             return block;
         }
+        private static TextBlock Wrap(TextBlock block) { block.TextTrimming = TextTrimming.None; block.TextWrapping = TextWrapping.Wrap; return block; }
         private void Fact(string label, string value)
         {
             var name = CardParts.Text(label, S(12), "Muted"); name.Margin = new Thickness(0, 10, 0, 0);
-            var reading = CardParts.Text(value, S(14), "Text"); reading.TextTrimming = TextTrimming.CharacterEllipsis;
+            // v0.56.2: a number is never cut at 140%: the reading wraps.
+            var reading = Wrap(CardParts.Text(value, S(14), "Text"));
             panelBody.Children.Add(name); panelBody.Children.Add(reading);
         }
         // Context used, with ticks at 60, 80 and 95%.

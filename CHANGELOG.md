@@ -6,6 +6,30 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.56.2 (unreleased)
+
+Claude Dashboard: lap chart follow-ups (the Watcher's part).
+
+- **One ≈ limit.** The Garage tank, Medium's 5-hour tile and Small's meter line now say the engine's ≈ limit at the last half hour's pace (`LimitAtPace`), the same time Live's wall stands at, and only when Live draws that wall. The word is "≈ limit" everywhere, the week's pace included; "≈ empty" is gone. When the window is Reached or at 100%, the line says "Limit reached" in Amber and never predicts. Under 3 plan readings there's no time: the window's own pace ("≈ 84% by reset", "≈ limit before reset" over 100%) or nothing, and the tooltip says why.
+- **Moving cars on Live.** Each lane's car steps its frames by its state, as on the Garage, through the window's one frame clock (`ClaudeViewContext.Frames`). Live asks for frames only while a car moves and lets go when all are still. Quiet keeps every car still.
+- **Archived threads on Live** follow Settings → Claude: while archived threads are hidden, an archived or resolved thread has no lane and no feed line. Hide idle doesn't apply to Live.
+- **Readability.**
+  - Time ticks under the curve: whole hours, "now" and "reset 2:16 pm". A label that would meet another is left out.
+  - A one-line key for the trail colours on the feed's heading line, as much as fits. Screen readers get the full key.
+  - The curve's percent sits at the curve's end, by the now line.
+  - Panel numbers wrap instead of being cut at 140%.
+  - The panel ends on a whole line when it scrolls. The 800 × 500 drawer's last line was half cut.
+- **Collisions, both present since v0.51.0.**
+  - The gauge's end labels: a tick that would cross "100" is left out. At 140% it read "T00".
+  - The Garage side panel's "Last 5 hours" times: one that would meet another is hidden, the middle first.
+- **At today's average: limit reached.** Live's tip keeps its lead-in when the average says Reached.
+- **Checks:**
+  - the tank, Medium and Small on Live's wall, and Limit reached at 100% (Ali's forced-full render);
+  - archived lanes and feed lines;
+  - Frames asked for and stepped, never in Quiet;
+  - no tick through an end label, no times meeting;
+  - Live at 800 × 500 as well.
+
 ## v0.56.1 (unreleased)
 
 Claude Dashboard: lap chart follow-ups, and "Limit reached" from the engine.
