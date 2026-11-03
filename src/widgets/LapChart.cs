@@ -42,7 +42,7 @@ namespace ClaudeDashboard
 
     public abstract class LapPart : PitInstrument
     {
-        public const uint Rose = 0xFFF09A9A, Idle = 0xFF5B6474;
+        public const uint Idle = 0xFF5B6474;
         public LapAxis Axis;
         protected double Width0 { get { return ActualWidth; } }
         // The future region: the Input colour after now, so past and future read differently without a label.
@@ -111,7 +111,7 @@ namespace ClaudeDashboard
                     default: dc.DrawRectangle(Fixed(Idle), null, new Rect(x0, mid - 2, x1 - x0, 4)); break;
                 }
             }
-            var rose = Line(Fixed(Rose), 2, false);
+            var rose = Line(ClaudeReliability.Rose(this), 2, false);
             foreach (var at in Errors)
             {
                 if (at < Axis.From || at > Axis.Now) continue;
@@ -285,7 +285,7 @@ namespace ClaudeDashboard
                     case 3: dc.DrawRectangle(null, Line(B("Turn", Fixed(0xFF8ED8F8)), 1.5, false), new Rect(r.X + 0.75, r.Y + 0.75, r.Width - 1.5, r.Height - 1.5)); break;
                     case 4: Hatch(dc, r, B("Text"), 0); break;
                     case 5: dc.DrawRectangle(Fixed(Idle), null, new Rect(x, mid - 2, swatch, 4)); break;
-                    default: dc.DrawLine(Line(Fixed(Rose), 2, false), new Point(x + swatch / 2, mid - band / 2 - 2), new Point(x + swatch / 2, mid + band / 2 + 2)); break;
+                    default: dc.DrawLine(Line(ClaudeReliability.Rose(this), 2, false), new Point(x + swatch / 2, mid - band / 2 - 2), new Point(x + swatch / 2, mid + band / 2 + 2)); break;
                 }
                 dc.DrawText(words, new Point(x + swatch + 4, mid - words.Height / 2));
                 x += need + 14;

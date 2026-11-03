@@ -6,6 +6,13 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.58.2 (unreleased)
+
+Claude Dashboard: Live's rose reads on paper.
+
+- **Live's Retrying and API-error marks and words use `ClaudeReliability.Rose`**, the Reliability tab's helper. That's #F09A9A on the dark palettes and #A93B35 on the light Claude palette, so they read at 4.5:1 there too. This covers the lane's state words, the panel's state, the feed's lines, the trails' rose ticks and the key's API-error swatch.
+- **Checks:** rose is at least 4.5:1 on Page, Surface and Raised on every palette, Claude and Warm included, and Live's Retrying words take the light palette's rose.
+
 ## v0.58.0 (unreleased)
 
 Claude Dashboard: the lap chart's Reliability and Sources views (decision 030, package E).
