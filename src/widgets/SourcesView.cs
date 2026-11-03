@@ -1,0 +1,266 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Media;
+
+namespace ClaudeDashboard
+{
+    // One source's row on the Sources view: its name and where it reads from, its state (ClaudeHealth's levels), how
+    // fresh it is, what it gives, and the one thing to do about it. Action is a name the host's Act understands.
+    public sealed class SourceRow
+    {
+        public string Name = "", Where = "", State = "", Fresh = "", Gives = "", Tip = "", Action = "", Button = "";
+        public ClaudeHealthLevel Level;
+        public string Glyph { get { return ClaudeHealth.Glyph(Level); } }
+    }
+
+    public static class ClaudeSources
+    {
+        public const string Hooks = "Hooks", Logs = "Logs", Telemetry = "Telemetry", Plan = "Plan meters", App = "Claude app threads";
+        // The actions Sources asks the host for (decision 030). The view never changes Claude Code's settings itself.
+        public const string Connect = "Connect", Disconnect = "Disconnect", Reconnect = "Reconnect", OpenLogs = "OpenLogs",
+            UpdateConnection = "UpdateConnection", CheckPlan = "CheckPlan", SignIn = "SignIn", ShowArchived = "ShowArchived", HideArchived = "HideArchived";
+
+        public static string Word(ClaudeHealthLevel level)
+        {
+            switch (level)
+            {
+                case ClaudeHealthLevel.Ok: return "Live";
+                case ClaudeHealthLevel.Waiting: return "Waiting";
+                case ClaudeHealthLevel.Old: return "Old";
+                case ClaudeHealthLevel.Off: return "Off";
+                default: return "Failed";
+            }
+        }
+        public static string Brush(ClaudeHealthLevel level)
+        {
+            return level == ClaudeHealthLevel.Ok ? "Accent" : level == ClaudeHealthLevel.Old || level == ClaudeHealthLevel.Failed ? "Warning" : "Muted";
+        }
+
+        private static string Ago(DateTime at, DateTime now)
+        {
+            var age = now - at;
+            if (age < TimeSpan.Zero) age = TimeSpan.Zero;
+            if (age < TimeSpan.FromMinutes(1)) return Math.Max(0, (int)age.TotalSeconds) + " s ago";
+            return ClaudeText.Duration(age) + " ago";
+        }
+
+        // The five rows, in the order the prototype lists them.
+        public static List<SourceRow> Of(ClaudeView view, DateTime now, bool use24, ClaudeLinks links)
+        {
+            if (links == null) links = view == null ? null : new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = view.TelemetryWarning ?? "" };
+            var health = ClaudeHealth.Of(view, now, use24, links);
+            var threads = view == null ? new List<ClaudeSession>() : view.Threads.ToList();
+            var rows = new List<SourceRow>();
+
+            // Hooks.
+            var h = health[0];
+            int writing = threads.Count(t => t.Running && t.LastSign > DateTime.MinValue);
+            var hooks = Row(Hooks, h, "ClaudeHook.exe" + (writing > 0 ? " · " + writing + (writing == 1 ? " session" : " sessions") + " writing" : ""),
+                "each session's state, what it asks, its window, tasks, helpers and context");
+            var last = threads.Where(t => t.LastSign > DateTime.MinValue).Select(t => t.LastSign).DefaultIfEmpty(DateTime.MinValue).Max();
+            hooks.Fresh = view == null ? "" : last > DateTime.MinValue ? "last event " + Ago(last, now) : view.Connected ? "no event yet" : "not connected";
+            if (view != null && view.Connected && links != null && links.HooksElsewhere != null) { hooks.Action = Reconnect; hooks.Button = "Reconnect"; }
+            else if (view != null && view.Connected) { hooks.Action = Disconnect; hooks.Button = "Disconnect"; }
+            else { hooks.Action = Connect; hooks.Button = "Connect"; }
+            rows.Add(hooks);
+
+            // Logs.
+            var l = health[1];
+            var logs = Row(Logs, l, ClaudeLogsPlace(), "tokens per reply, models, tool names, lines changed; read-only");
+            logs.Fresh = view == null ? "" : view.LogsFailed ? "couldn't be read" : view.LogsRead ? "read " + Ago(view.MadeAt, now) : view.LogsEmpty ? "no logs yet" : "reading…";
+            logs.Action = OpenLogs; logs.Button = "Open folder";
+            rows.Add(logs);
+
+            // Telemetry.
+            var t0 = health[2];
+            var telemetry = Row(Telemetry, t0, "127.0.0.1:" + ClaudePort() + " · loopback only", "costs, tool run times and failures, API errors, asks and denials, commits");
+            telemetry.Fresh = view == null ? "" : view.Facts.Telemetry ? "events today" : t0.Level == ClaudeHealthLevel.Ok || t0.Level == ClaudeHealthLevel.Waiting ? "nothing yet today" : "not arriving";
+            telemetry.Action = UpdateConnection; telemetry.Button = t0.Level == ClaudeHealthLevel.Failed ? "Change port" : t0.Level == ClaudeHealthLevel.Off ? "Turn on" : "Change port";
+            if (view != null && !view.Connected) { telemetry.Action = Connect; telemetry.Button = "Connect"; }
+            rows.Add(telemetry);
+
+            // Plan meters.
+            var p = health[3];
+            var plan = Row(Plan, p, "Sign in with Claude · api.anthropic.com", "the 5-hour and weekly limits, per-model windows and extra usage");
+            var limits = view == null ? null : view.Limits;
+            if (limits != null && limits.Known)
+            {
+                plan.State = (p.Level == ClaudeHealthLevel.Ok ? "As of " : "Old, as of ") + ClaudeText.Clock(limits.UpdatedAt, use24);
+                plan.Fresh = limits.Source == "online" ? "checked " + Ago(limits.UpdatedAt, now) : "from the status line";
+            }
+            else plan.Fresh = view == null ? "" : "no numbers yet";
+            if (view != null && (view.Plan == ClaudePlanState.Expired || view.Plan == ClaudePlanState.SignedOut)) { plan.Action = SignIn; plan.Button = "Sign in"; }
+            else { plan.Action = CheckPlan; plan.Button = "Check now"; }
+            rows.Add(plan);
+
+            // The Claude app's thread records: names, folders, archived flags. Read with the snapshot, so as fresh as it.
+            int fromApp = threads.Count(t => t.Archived || t.Where == "Desktop" || t.Where == "Remote Control");
+            int archived = threads.Count(t => t.Archived);
+            var app = new SourceRow { Name = App, Where = "the Claude app's thread records", Gives = "thread names, folders, archived flags and last activity" };
+            if (view == null) { app.Level = ClaudeHealthLevel.Waiting; app.State = "Waiting"; app.Tip = "Reading Claude Code…"; }
+            else if (fromApp > 0) { app.Level = ClaudeHealthLevel.Ok; app.State = "Live"; app.Fresh = "read " + Ago(view.MadeAt, now) + " · " + fromApp + (fromApp == 1 ? " thread" : " threads"); app.Tip = "Thread names and archived flags come from the Claude app's own records, read-only."; }
+            else { app.Level = ClaudeHealthLevel.Waiting; app.State = "None found"; app.Fresh = "checked " + Ago(view.MadeAt, now); app.Tip = "No Claude app threads on this PC yet, or the app isn't installed. Sessions still show from Claude Code's files."; }
+            bool showing = view != null && view.ShowArchived;
+            app.Action = showing ? HideArchived : ShowArchived; app.Button = showing ? "Hide archived" : "Show archived" + (archived > 0 ? " (" + archived + ")" : "");
+            rows.Add(app);
+            return rows;
+        }
+
+        private static SourceRow Row(string name, ClaudeHealthItem item, string where, string gives)
+        {
+            string state = item.Level == ClaudeHealthLevel.Ok ? "Live" : item.Long.StartsWith(item.Name, StringComparison.Ordinal) && item.Long.Length > item.Name.Length ? item.Long.Substring(item.Name.Length).TrimStart(':', ' ') : item.Long;
+            if (state.Length > 0) state = Char.ToUpperInvariant(state[0]) + state.Substring(1);
+            return new SourceRow { Name = name, Where = where, Gives = gives, Level = item.Level, State = state, Tip = item.Tip };
+        }
+
+        // Where Claude Code's logs are: CLAUDE_CONFIG_DIR's projects, else %USERPROFILE%\.claude\projects. Names only.
+        private static string ClaudeLogsPlace()
+        {
+            string config = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
+            return String.IsNullOrWhiteSpace(config) ? @"%USERPROFILE%\.claude\projects" : @"CLAUDE_CONFIG_DIR\projects";
+        }
+        // The telemetry port the receiver uses (decision 017's 43832, or the next free one) once package A reports it.
+        private static string ClaudePort() { return "43832"; }
+    }
+
+    // Sources (decision 030, package E): where every number comes from and how fresh it is, one row per source with
+    // its state, freshness, what it gives and one action. The action goes through the host's Act; the view never
+    // writes Claude Code's settings.json itself.
+    public sealed class SourcesView : IClaudeView
+    {
+        public string Name { get { return ClaudeViews.Sources; } }
+        public bool Visible { get; set; }
+
+        private ClaudeViewContext context = new ClaudeViewContext();
+        private Size room;
+        private Grid root;
+        private TextBlock sample, error;
+        private readonly List<Cells> cells = new List<Cells>();
+        private ClaudeView last;
+        // For the checks: the rows last shown.
+        public List<SourceRow> RowsShown { get; private set; }
+
+        private sealed class Cells { public TextBlock Name, Where, Glyph, State, Fresh, Gives; public Button Button; public FrameworkElement Row; }
+
+        private double S(double size) { return context.Scaled(size); }
+
+        // The host's Act (Shell, v0.55.0), found by name so this view builds before the contract has it. Null: not there.
+        public static Func<string, string> ActOf(ClaudeViewContext context)
+        {
+            if (context == null) return null;
+            var field = context.GetType().GetField("Act", BindingFlags.Public | BindingFlags.Instance);
+            if (field != null) return field.GetValue(context) as Func<string, string>;
+            var property = context.GetType().GetProperty("Act", BindingFlags.Public | BindingFlags.Instance);
+            return property == null ? null : property.GetValue(context, null) as Func<string, string>;
+        }
+
+        public FrameworkElement Build(ClaudeViewContext context, Size room)
+        {
+            this.context = context ?? new ClaudeViewContext(); this.room = room;
+            cells.Clear();
+            bool wide = room.Width >= 1000;
+            var stack = new StackPanel { Margin = new Thickness(0, 0, 4, 8) };
+            var head = CardParts.Columns(CardParts.Star, CardParts.Auto);
+            var title = CardParts.Text("Sources", S(18), "Text"); title.FontWeight = FontWeights.SemiBold;
+            head.Children.Add(title);
+            sample = CardParts.Text("SAMPLE", S(12), "Muted"); sample.VerticalAlignment = VerticalAlignment.Center; sample.Visibility = this.context.Sample ? Visibility.Visible : Visibility.Collapsed;
+            head.Children.Add(CardParts.At(sample, 0, 1));
+            stack.Children.Add(head);
+            var intro = CardParts.Text("Where every number comes from, and how fresh it is. A source that stops shows here and on the Live header at once.", S(13), "Muted");
+            intro.TextWrapping = TextWrapping.Wrap; intro.Margin = new Thickness(0, 4, 0, 10);
+            stack.Children.Add(intro);
+            error = CardParts.Text("", S(13), "Warning"); error.TextWrapping = TextWrapping.Wrap; error.Visibility = Visibility.Collapsed; error.Margin = new Thickness(0, 0, 0, 8);
+            stack.Children.Add(error);
+            var act = ActOf(this.context);
+            foreach (string name in new[] { ClaudeSources.Hooks, ClaudeSources.Logs, ClaudeSources.Telemetry, ClaudeSources.Plan, ClaudeSources.App })
+            {
+                var c = new Cells();
+                c.Name = CardParts.Text(name, S(15), "Text"); c.Name.FontWeight = FontWeights.SemiBold; c.Name.TextWrapping = TextWrapping.Wrap;
+                c.Where = Small("", "Muted");
+                c.Glyph = CardParts.Text("", S(13), "Muted"); c.Glyph.FontFamily = new FontFamily("Segoe MDL2 Assets"); c.Glyph.Margin = new Thickness(0, 2, 6, 0); c.Glyph.VerticalAlignment = VerticalAlignment.Top;
+                c.State = CardParts.Text("", S(14), "Text"); c.State.TextWrapping = TextWrapping.Wrap;
+                c.Fresh = Small("", "Muted");
+                c.Gives = Small("", "Muted");
+                c.Button = new Button { MinWidth = S(120), Padding = new Thickness(S(10), S(4), S(10), S(4)), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, FontSize = S(13) };
+                var button = c.Button;
+                button.Click += (s, e) => Run(button.Tag as string);
+                if (act == null) { button.IsEnabled = false; ToolTipService.SetShowOnDisabled(button, true); button.ToolTip = "Arrives with v0.55.0"; }
+
+                var namePart = new StackPanel(); namePart.Children.Add(c.Name); namePart.Children.Add(c.Where);
+                var statePart = new StackPanel();
+                var stateLine = CardParts.Columns(CardParts.Auto, CardParts.Star); stateLine.Children.Add(c.Glyph); stateLine.Children.Add(CardParts.At(c.State, 0, 1));
+                statePart.Children.Add(stateLine); statePart.Children.Add(c.Fresh);
+                Grid row;
+                if (wide)
+                {
+                    row = CardParts.Columns(new GridLength(S(220)), new GridLength(S(170)), CardParts.Star, CardParts.Auto);
+                    namePart.Margin = new Thickness(0, 0, 12, 0); statePart.Margin = new Thickness(0, 0, 12, 0); c.Gives.Margin = new Thickness(0, 0, 12, 0); c.Gives.VerticalAlignment = VerticalAlignment.Center;
+                    row.Children.Add(namePart); row.Children.Add(CardParts.At(statePart, 0, 1)); row.Children.Add(CardParts.At(c.Gives, 0, 2)); row.Children.Add(CardParts.At(c.Button, 0, 3));
+                }
+                else
+                {
+                    // Narrow: name, where and what it gives on the left; state and freshness, then the button, on the right.
+                    row = CardParts.Columns(CardParts.Star, new GridLength(Math.Min(S(170), Math.Max(120, room.Width * 0.32))));
+                    c.Gives.Margin = new Thickness(0, 4, 0, 0); namePart.Children.Add(c.Gives); namePart.Margin = new Thickness(0, 0, 12, 0);
+                    c.Button.Margin = new Thickness(0, 8, 0, 0); c.Button.HorizontalAlignment = HorizontalAlignment.Stretch; c.Button.MinWidth = 0;
+                    statePart.Children.Add(c.Button);
+                    row.Children.Add(namePart); row.Children.Add(CardParts.At(statePart, 0, 1));
+                }
+                var tile = CardParts.Tile(row, 12, new Thickness(16, 12, 16, 12)); tile.Margin = new Thickness(0, 0, 10, 10);
+                c.Row = tile;
+                cells.Add(c);
+                stack.Children.Add(tile);
+            }
+            var note = Small("The dashboard reads these and never writes Claude Code's settings itself: Connect, Disconnect and Update connection go through Settings → Claude, with dated backups.", "Muted");
+            stack.Children.Add(note);
+            var scroll = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
+            AutomationProperties.SetName(scroll, "Sources");
+            root = new Grid(); root.Children.Add(scroll);
+            return root;
+        }
+
+        private TextBlock Small(string text, string brush)
+        {
+            var block = CardParts.Text(text, S(13), brush); block.TextWrapping = TextWrapping.Wrap;
+            return block;
+        }
+
+        private void Run(string action)
+        {
+            var act = ActOf(context);
+            if (act == null || String.IsNullOrEmpty(action)) return;
+            string problem = null;
+            try { problem = act(action); }
+            catch (Exception ex) { problem = ex.Message; }
+            error.Text = problem ?? ""; error.Visibility = String.IsNullOrEmpty(problem) ? Visibility.Collapsed : Visibility.Visible;
+            if (last != null) Refresh(last, DateTime.UtcNow);
+        }
+
+        public void Refresh(ClaudeView snapshot, DateTime now)
+        {
+            if (root == null) return;
+            last = snapshot;
+            sample.Visibility = context.Sample || (snapshot != null && snapshot.Sample) ? Visibility.Visible : Visibility.Collapsed;
+            RowsShown = ClaudeSources.Of(snapshot, now, context.Use24Hour, null);
+            for (int i = 0; i < cells.Count && i < RowsShown.Count; i++)
+            {
+                var r = RowsShown[i]; var c = cells[i];
+                c.Where.Text = r.Where; c.Glyph.Text = r.Glyph; c.State.Text = r.State; c.Fresh.Text = r.Fresh; c.Gives.Text = r.Gives;
+                string brush = ClaudeSources.Brush(r.Level);
+                c.Glyph.SetResourceReference(TextBlock.ForegroundProperty, brush);
+                c.State.SetResourceReference(TextBlock.ForegroundProperty, r.Level == ClaudeHealthLevel.Ok ? "Text" : brush == "Muted" ? "Text" : brush);
+                c.Button.Content = r.Button; c.Button.Tag = r.Action;
+                AutomationProperties.SetName(c.Button, r.Button + ", " + r.Name);
+                AutomationProperties.SetName(c.Row, r.Name + ": " + r.State + (r.Fresh.Length > 0 ? ", " + r.Fresh : "") + ". Gives " + r.Gives + ".");
+                AutomationProperties.SetHelpText(c.Row, r.Tip);
+                c.Row.ToolTip = r.Tip;
+            }
+        }
+    }
+}

@@ -1,0 +1,201 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Media;
+using ClaudeDashboard;
+
+// The lap chart's Reliability and Sources views (decision 030, package E, v0.58.0): the arithmetic behind the figures,
+// the tools table and the stuck turns; what each says with telemetry off; the five sources with a state, freshness,
+// what each gives and one action; layouts at three sizes and two text sizes that stay inside the width; and renders
+// to artifacts\renders. Everything runs on fixtures in memory.
+internal static class ReliabilitySourcesTests
+{
+    private static void Assert(bool valid, string message) { if (!valid) throw new Exception(message); }
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            yield return child;
+            foreach (var deeper in Descendants(child)) yield return deeper;
+        }
+    }
+    private static string Texts(DependencyObject root)
+    {
+        return String.Join("\n", Descendants(root).OfType<TextBlock>().Where(t => t.IsVisible || t.Visibility == Visibility.Visible).Select(t => t.Text));
+    }
+    private static ClaudeToolRun Run(DateTime at, string tool, double ms, bool failed) { return new ClaudeToolRun { At = at, Session = "s1", Tool = tool, Ms = ms, Failed = failed }; }
+
+    // Hosts a view in a themed window at a size and text scale, refreshed with a snapshot.
+    private static void Host(IClaudeView view, ClaudeView snapshot, Size size, double scale, string theme, Action<Window, FrameworkElement> body)
+    {
+        var window = AppController.LoadWindow("ShellWindow");
+        try
+        {
+            Palettes.Apply(window.Resources, theme, null, scale);
+            var context = new ClaudeViewContext { TextScale = scale, Sample = snapshot != null && snapshot.Sample };
+            var built = view.Build(context, size);
+            view.Visible = true;
+            var page = new Border { Child = built, Padding = new Thickness(16) };
+            page.SetResourceReference(Border.BackgroundProperty, "Page");
+            window.Content = page;
+            view.Refresh(snapshot, DateTime.UtcNow);
+            AppController.Lay(window, size);
+            view.Refresh(snapshot, DateTime.UtcNow);
+            AppController.Lay(window, size);
+            body(window, built);
+        }
+        finally { window.Close(); }
+    }
+    // Nothing visible reaches past the view's right edge.
+    private static void Inside(FrameworkElement root, string name)
+    {
+        double width = root.ActualWidth;
+        foreach (var element in Descendants(root).OfType<FrameworkElement>().Where(e => e.IsVisible && e.ActualWidth > 0 && (e is TextBlock || e is Button)))
+        {
+            var box = element.TransformToAncestor(root).TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+            Assert(box.Right <= width + 1, name + ": '" + (element is TextBlock ? ((TextBlock)element).Text : "button") + "' reaches " + Math.Round(box.Right) + " past " + Math.Round(width) + ".");
+        }
+    }
+
+    public static void Run(string directory, Action<string, Action> check)
+    {
+        check("Reliability: medians, longest, failures per tool and today's runs only", () => {
+            Assert(ClaudeReliability.Median(new double[] { 5, 1, 3 }) == 3, "Odd median wrong.");
+            Assert(ClaudeReliability.Median(new double[] { 4, 1, 3, 2 }) == 2.5, "Even median wrong.");
+            Assert(Double.IsNaN(ClaudeReliability.Median(new double[0])), "An empty median should be unknown.");
+            var now = DateTime.UtcNow;
+            var runs = new List<ClaudeToolRun> {
+                Run(now.AddMinutes(-5), "Bash", 1000, false), Run(now.AddMinutes(-4), "Bash", 3000, true), Run(now.AddMinutes(-3), "Bash", 9000, false),
+                Run(now.AddMinutes(-2), "Read", 100, false), Run(now.AddMinutes(-1), "Read", 300, false),
+                Run(ClaudeReliability.Today(now).AddMinutes(-1), "Grep", 50, true) };
+            var tools = ClaudeReliability.Tools(runs, new Dictionary<string, int> { { "Bash", 2 } }, now);
+            Assert(tools.Count == 2 && tools[0].Name == "Bash" && tools[1].Name == "Read", "Tools should be today's, busiest first: " + String.Join(",", tools.Select(t => t.Name)));
+            Assert(tools[0].Runs == 3 && tools[0].Failed == 1 && tools[0].Typical == 3000 && tools[0].Longest == 9000 && tools[0].Asked == 2, "Bash's row is wrong.");
+            Assert(tools[1].Typical == 200 && tools[1].Asked == 0, "Read's median or asks are wrong.");
+            Assert(ClaudeReliability.Tools(runs, null, now)[0].Asked == -1, "Asks per tool should be unknown without them.");
+            Assert(ClaudeReliability.Time(300) == "0.3 s" && ClaudeReliability.Time(6400) == "6.4 s" && ClaudeReliability.Time(11000) == "11 s"
+                && ClaudeReliability.Time(130000) == "2 min 10 s" && ClaudeReliability.Time(180000) == "3 min" && ClaudeReliability.Time(3900000) == "1 h 5 min"
+                && ClaudeReliability.Time(Double.NaN) == "—", "Run times read wrong.");
+        });
+
+        check("Reliability: the failure rate, API errors in the last hour only, and the figures without telemetry", () => {
+            var now = DateTime.UtcNow;
+            var input = new ReliabilityInput { Telemetry = true, Facts = new ClaudeFacts { Telemetry = true, Metrics = true, Runs = 312, RunFailures = 13, Asked = 41, Denied = 3, EditsAccepted = 188, EditsRejected = 8 },
+                Runs = new List<ClaudeToolRun> { Run(now.AddMinutes(-3), "Bash", 100, true), Run(now.AddMinutes(-2), "Edit", 100, true), Run(now.AddMinutes(-1), "Bash", 100, true) },
+                Errors = new List<ClaudeApiError> { new ClaudeApiError { At = now.AddMinutes(-70), Status = 500 }, new ClaudeApiError { At = now.AddMinutes(-20), Status = 429 }, new ClaudeApiError { At = now.AddMinutes(-10), Status = 429, Attempt = 2 }, new ClaudeApiError { At = now.AddMinutes(-5), Status = 529 } },
+                Compactions = new List<KeyValuePair<string, DateTime>> { new KeyValuePair<string, DateTime>("s1", now.AddMinutes(-30)) } };
+            var f = ClaudeReliability.Figures(input, now).ToDictionary(x => x.Key);
+            Assert(f[ClaudeReliability.Failures].Value == "4.2%" && f[ClaudeReliability.Failures].Note.StartsWith("13 of 312 runs, 2 of them Bash"), "Failures read: " + f[ClaudeReliability.Failures].Value + " / " + f[ClaudeReliability.Failures].Note);
+            Assert(f[ClaudeReliability.Errors].Value == "3" && f[ClaudeReliability.Errors].Note == "last hour · 429 ×2, 529 ×1" && f[ClaudeReliability.Errors].Brush == "Rose", "API errors read: " + f[ClaudeReliability.Errors].Note);
+            Assert(f[ClaudeReliability.Asked].Value == "41" && f[ClaudeReliability.Asked].Note == "38 allowed · 3 denied", "Asked read wrong.");
+            Assert(f[ClaudeReliability.Compactions].Value == "1" && f[ClaudeReliability.Edits].Value == "196" && f[ClaudeReliability.Edits].Note == "188 accepted · 8 rejected", "Compactions or edits read wrong.");
+            input.Facts.FailuresFromHooks = true;
+            Assert(ClaudeReliability.Figures(input, now)[0].Value.StartsWith("≈ "), "Failures from the hooks should say ≈.");
+
+            var off = new ReliabilityInput { Telemetry = false, Facts = new ClaudeFacts { Tools = 57 } };
+            foreach (var x in ClaudeReliability.Figures(off, now).Where(x => x.Key != ClaudeReliability.Compactions))
+                Assert(x.Value == "—" && x.Note == "needs telemetry", x.Label + " should say it needs telemetry, not show " + x.Value + ".");
+            Assert(ClaudeReliability.Figures(off, now).First(x => x.Key == ClaudeReliability.Compactions).Value == "—", "Unknown compactions should be a dash, not 0.");
+        });
+
+        check("Reliability: stuck turns split by a 10-minute gap, with reasons in plain words", () => {
+            var now = DateTime.UtcNow;
+            Assert(ClaudeReliability.Words(429) == "rate limited" && ClaudeReliability.Words(529) == "overloaded (529)" && ClaudeReliability.Words(503) == "server error (503)"
+                && ClaudeReliability.Words(401) == "sign-in refused (401)" && ClaudeReliability.Words(400) == "request refused (400)" && ClaudeReliability.Words(418) == "API error (418)", "Status words wrong.");
+            var thread = new ClaudeSession { Id = "s1", Title = "Retry flaky upload test", Running = true, State = ClaudeState.Working, Pit = PitState.Stuck, Since = now.AddMinutes(-90) };
+            var input = new ReliabilityInput { Telemetry = true, Threads = new List<ClaudeSession> { thread }, Errors = new List<ClaudeApiError> {
+                new ClaudeApiError { At = now.AddMinutes(-60), Session = "s1", Status = 529, Attempt = 1 }, new ClaudeApiError { At = now.AddMinutes(-59), Session = "s1", Status = 529, Attempt = 2 },
+                new ClaudeApiError { At = now.AddMinutes(-3), Session = "s1", Status = 429, Attempt = 1 }, new ClaudeApiError { At = now.AddMinutes(-2), Session = "s1", Status = 429, Attempt = 2 }, new ClaudeApiError { At = now.AddMinutes(-1), Session = "s1", Status = 429, Attempt = 3 } } };
+            // Errors before local midnight wouldn't count; keep the test inside today.
+            if (now.AddMinutes(-61) < ClaudeReliability.Today(now)) return;
+            var stuck = ClaudeReliability.Stuck(input, null, now, false);
+            Assert(stuck.Count == 2, "Two episodes expected, got " + stuck.Count + ".");
+            Assert(stuck[0].Kind == ReliabilityStuck.Retrying && stuck[0].Reason == "rate limited" && stuck[0].Tries == 3, "The current episode should be retrying, rate limited, 3 tries.");
+            Assert(ClaudeReliability.Rest(stuck[0], false).StartsWith("rate limited, try 3 since "), "Retrying line reads: " + ClaudeReliability.Rest(stuck[0], false));
+            Assert(stuck[1].Kind == ReliabilityStuck.Recovered && stuck[1].Reason == "overloaded (529)" && ClaudeReliability.Rest(stuck[1], false) == "overloaded (529), 2 tries", "The earlier episode should be recovered after 2 tries.");
+            Assert(ClaudeReliability.Head(stuck[1], false).StartsWith("Recovered "), "Recovered episodes say when.");
+        });
+
+        check("Reliability never shows a turn's own words", () => {
+            var view = ClaudeView.Fixture(DateTime.UtcNow, true);
+            foreach (var t in view.Threads) { t.ReasonText = "SECRET-REPLY-TEXT"; t.Message = "SECRET-PROMPT"; }
+            view.Threads[0].State = ClaudeState.Stuck; view.Threads[0].Running = true; view.Threads[0].Reason = "rate_limit";
+            view.Sample = false;
+            var reliability = new ReliabilityView();
+            Host(reliability, view, new Size(1000, 700), 1, "Midnight", (window, root) => {
+                string all = Texts(root);
+                Assert(!all.Contains("SECRET"), "A turn's own words reached the view.");
+                Assert(reliability.StuckShown.Any(s => s.Kind == ReliabilityStuck.StuckNow), "A session stuck now should be listed.");
+            });
+        });
+
+        check("Reliability with telemetry off says so and shows the logs' tool count", () => {
+            var view = ClaudeView.Fixture(DateTime.UtcNow, false);
+            view.Sample = false; view.Facts.Telemetry = false; view.FactsFor(ClaudePeriod.Today).Telemetry = false; view.FactsFor(ClaudePeriod.Today).Tools = 57;
+            var reliability = new ReliabilityView();
+            Host(reliability, view, new Size(1000, 700), 1, "Midnight", (window, root) => {
+                string all = Texts(root);
+                Assert(all.Contains("Tool calls in the logs today: 57."), "The logs' tool count should show with telemetry off:\n" + all);
+                Assert(all.Contains("needs telemetry"), "The figures should say they need telemetry.");
+            });
+        });
+
+        check("Sources: five rows, each with a state, freshness, what it gives and one action", () => {
+            var view = ClaudeView.Fixture(DateTime.UtcNow, false);
+            var rows = ClaudeSources.Of(view, DateTime.UtcNow, false, null);
+            Assert(rows.Select(r => r.Name).SequenceEqual(new[] { ClaudeSources.Hooks, ClaudeSources.Logs, ClaudeSources.Telemetry, ClaudeSources.Plan, ClaudeSources.App }), "Rows out of order.");
+            foreach (var r in rows)
+                Assert(r.State.Length > 0 && r.Gives.Length > 0 && r.Where.Length > 0 && r.Action.Length > 0 && r.Button.Length > 0, r.Name + " is missing a part.");
+            Assert(rows[2].Where.Contains("127.0.0.1") && rows[2].Where.Contains("loopback"), "Telemetry should say it's loopback only.");
+            view.TelemetryWarning = "Telemetry off: port 43832 in use";
+            var problem = ClaudeSources.Of(view, DateTime.UtcNow, false, null);
+            Assert(problem[2].Level == ClaudeHealthLevel.Failed && problem[2].Action == ClaudeSources.UpdateConnection, "A port problem should fail Telemetry and offer Update connection.");
+            view.Limits.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+            Assert(ClaudeSources.Of(view, DateTime.UtcNow, false, null)[3].Level == ClaudeHealthLevel.Old, "An old plan reading should be Old.");
+            view.Connected = false;
+            Assert(ClaudeSources.Of(view, DateTime.UtcNow, false, null)[0].Action == ClaudeSources.Connect, "Hooks off should offer Connect.");
+        });
+
+        check("Sources buttons only call the host's Act, and say when it isn't there", () => {
+            var view = ClaudeView.Fixture(DateTime.UtcNow, false);
+            var sources = new SourcesView();
+            Host(sources, view, new Size(1000, 700), 1, "Midnight", (window, root) => {
+                var buttons = Descendants(root).OfType<Button>().ToList();
+                Assert(buttons.Count == 5, "Five buttons expected, got " + buttons.Count + ".");
+                foreach (var b in buttons)
+                    Assert(AutomationProperties.GetName(b).Length > 0 && b.Focusable, "Each button needs a name and the keyboard.");
+                if (SourcesView.ActOf(new ClaudeViewContext()) == null)
+                    Assert(buttons.All(b => !b.IsEnabled && (b.ToolTip as string ?? "").Contains("v0.55.0")), "Without Act the buttons should be off and say why.");
+            });
+        });
+
+        check("Reliability and Sources stay inside their width at three sizes and two text sizes, and render", () => {
+            string renders = Path.GetFullPath(Path.Combine(directory, "..", "renders")); Directory.CreateDirectory(renders);
+            foreach (var size in new[] { new Size(640, 420), new Size(1000, 600), new Size(1600, 900) })
+                foreach (double scale in new[] { 1.0, 1.4 })
+                    foreach (string name in new[] { ClaudeViews.Reliability, ClaudeViews.Sources })
+                    {
+                        var view = ClaudeView.Fixture(DateTime.UtcNow, true);
+                        var built = ClaudeViews.Create(name);
+                        Assert(built != null && built.GetType().Name == name + "View", name + " wasn't found by its name.");
+                        Host(built, view, size, scale, "Midnight", (window, root) => {
+                            Inside(root, name + " " + size + " at " + scale);
+                            foreach (var t in Descendants(root).OfType<TextBlock>().Where(t => t.IsVisible && t.Text.Length > 0))
+                                Assert(t.FontSize >= 11 * scale - 0.11, name + ": '" + t.Text + "' is " + t.FontSize + " at text size " + scale + ".");
+                            string png = Path.Combine(renders, "claude-" + name.ToLowerInvariant() + "-" + size.Width + "x" + size.Height + "-" + Math.Round(scale * 100) + ".png");
+                            AppController.Render(window, size, 1, png);
+                            Assert(File.Exists(png) && new FileInfo(png).Length > 0, png + " wasn't rendered.");
+                        });
+                    }
+            var paper = new ReliabilityView();
+            Host(paper, ClaudeView.Fixture(DateTime.UtcNow, true), new Size(1000, 600), 1, "Claude", (window, root) => {
+                AppController.Render(window, new Size(1000, 600), 1, Path.Combine(renders, "claude-reliability-1000x600-claude.png"));
+            });
+        });
+    }
+}

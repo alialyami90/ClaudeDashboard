@@ -6,6 +6,14 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.58.0 (unreleased)
+
+Claude Dashboard: the lap chart's Reliability and Sources views (decision 030, package E).
+
+- **Reliability** shows today's tool failure rate, API errors in the last hour (by status, in rose), asks and denials, compactions, and edits accepted and rejected. Under them, the API error strip marks each failed request over the last 60 minutes with its status and retry; a table lists every tool across all sessions with Runs, Typical (the median), Longest, Failed (Amber above 0) and Asked you; and Stuck turns today lists each run of API errors as Stuck now, Retrying now or Recovered, with its reason in plain words ("rate limited", "overloaded (529)") from the status or StopFailure, never the reply. With telemetry off each figure says "needs telemetry" and the table gives the logs' tool-call count. Until the engine's package A lands the per-tool table, the strip and today's compaction count say when they arrive instead of showing a zero; the labelled sample shows them filled.
+- **Sources** lists Hooks, Logs, Telemetry, Plan meters and Claude app threads, each with its state (ClaudeHealth's levels, glyph and word), freshness, what it gives and one action (Connect or Disconnect, Open folder, Change port, Check now or Sign in, Show archived). The actions go through the host's Act; the view never writes Claude Code's settings itself, and until Act arrives (v0.55.0) the buttons are off and say so.
+- **Checks:** medians, longest and failures per tool, the failure rate, the last hour's API errors, stuck turns split by a 10-minute gap with their reasons, no turn text reaching the view, telemetry off, the five sources and their actions, and both views inside their width at 640 × 420, 1000 × 600 and 1600 × 900 at 100% and 140%. Renders `claude-{reliability,sources}-<size>-{100,140}.png` and `claude-reliability-1000x600-claude.png`.
+
 ## v0.53.1 (unreleased)
 
 Claude Dashboard: follow-ups to the live status board.
