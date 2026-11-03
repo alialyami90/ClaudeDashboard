@@ -500,7 +500,7 @@ internal static class ShellTests
             {
                 controller.UseClaudeSample(true, true);
                 var tabs = (TabControl)window.FindName("ViewTabs");
-                Assert(tabs.Items.Count == 6 && tabs.Items.OfType<TabItem>().Select(t => (string)t.Header).SequenceEqual(ClaudeViews.Names), "The tabs aren't Live, Garage, Limits, History, Reliability, Sources.");
+                Assert(tabs.Items.Count == 7 && tabs.Items.OfType<TabItem>().Select(t => (string)t.Header).SequenceEqual(ClaudeViews.Names), "The tabs aren't Live, Garage, Limits, History, Reliability, Sources, Insights.");
                 // Live opens first once its view is in the build; until then Garage.
                 Assert(controller.ChosenView == (ClaudeViews.Create(ClaudeViews.Live) is PlaceholderView ? ClaudeViews.Garage : ClaudeViews.Live), "The first view is " + controller.ChosenView + ".");
 

@@ -55,6 +55,7 @@
             <TabItem x:Name="ViewTab3" Header="History" Style="{DynamicResource ViewTab}" AutomationProperties.Name="History" ToolTip="History: the last eight weeks (Ctrl+4)"/>
             <TabItem x:Name="ViewTab4" Header="Reliability" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Reliability" ToolTip="Reliability: tool failures, API errors and stuck turns (Ctrl+5)"/>
             <TabItem x:Name="ViewTab5" Header="Sources" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Sources" ToolTip="Sources: where every number comes from (Ctrl+6)"/>
+            <TabItem x:Name="ViewTab6" Header="Insights" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Insights" ToolTip="Insights: models, effort, tools, projects and when, against the period before (Ctrl+7)"/>
           </TabControl>
           <Border x:Name="TabSources" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="16,0,0,0"/>
         </Grid>

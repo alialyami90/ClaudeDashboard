@@ -450,8 +450,8 @@ namespace ClaudeDashboard
         }
         private static int ViewKey(Key key)
         {
-            if (key >= Key.D1 && key <= Key.D6) return key - Key.D1;
-            if (key >= Key.NumPad1 && key <= Key.NumPad6) return key - Key.NumPad1;
+            if (key >= Key.D1 && key <= Key.D7) return key - Key.D1;
+            if (key >= Key.NumPad1 && key <= Key.NumPad7) return key - Key.NumPad1;
             return -1;
         }
         private void ChooseViewByKey(int index)
