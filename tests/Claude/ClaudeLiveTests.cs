@@ -46,7 +46,10 @@ internal static class ClaudeLiveTests
             Assert(ClaudeText.StateFor(ended, Now) == "" && ClaudeText.Sign(ended, Now).EndsWith(" ago") && ClaudeText.NowWords(ended, Now) == "", "An ended thread's live words are wrong.");
             Assert(ClaudeText.StateFor(view.Threads.First(t => t.Id == "sample-7"), Now) == "12 min", "For isn't the time in the state.");
             Assert(ClaudeText.AttentionReason(ClaudeAttention.Silent, new ClaudeSession { Running = true, State = ClaudeState.Working, Tool = "Bash", ToolSince = Now.AddMinutes(-9), LastSign = Now.AddMinutes(-9) }, view, Now, false) == "In Bash for 9 min", "The strip doesn't name the tool a silent thread is in.");
-            // Only a tool's name: an MCP tool's long name is cut, and nothing else about the call is kept.
+            // Only a tool's name: an MCP tool's long name is cut with "…" and the tip has it whole; nothing else about the call is kept.
+            string longName = "mcp__github__create_pull_request_review_comment_reply";
+            var mcp = new ClaudeSession { Running = true, State = ClaudeState.Working, Tool = longName, ToolSince = Now };
+            Assert(ClaudeText.NowWords(mcp, Now) == longName.Substring(0, 39) + "…" && ClaudeText.NowTip(mcp, true).Contains(longName), "A long tool name isn't cut with … or its tip lost it: " + ClaudeText.NowWords(mcp, Now));
             var fields = typeof(ClaudeSession).GetFields().Select(f => f.Name).ToList();
             Assert(!fields.Any(f => f.Contains("Input") || f.Contains("Command") || f.Contains("Args")), "A thread keeps a tool's details.");
         });

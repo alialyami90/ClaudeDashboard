@@ -47,8 +47,9 @@ namespace ClaudeDashboard
         public int ErrorStatus, ErrorAttempt;
         public DateTime ErrorAt;
         public bool? Revving;
-        // v0.53.0, the live rows' Now: the tool a running call is in, by name only ("Bash", "Edit"), and since when,
-        // from telemetry's open tool calls. Empty when none is open or telemetry names no calls.
+        // v0.53.0, the live rows' Now: the tool a running call is in, by name only ("Bash", "Edit"; telemetry keeps up
+        // to 80 characters, the row shows 40 with "…"), and since when, from telemetry's open tool calls. Empty when
+        // none is open or telemetry names no calls.
         public string Tool = "";
         public DateTime ToolSince;
         public readonly Dictionary<ClaudePeriod, long> HelperTokens = new Dictionary<ClaudePeriod, long>();
@@ -1011,7 +1012,7 @@ namespace ClaudeDashboard
                 {
                     t.Revving = calls.Any(c => { List<double> past; usual.TryGetValue(c.Value ?? "", out past); return now - c.Key >= ClaudePace.RevAfter(past); });
                     var oldest = calls.Where(c => !String.IsNullOrEmpty(c.Value)).OrderBy(c => c.Key).FirstOrDefault();
-                    if (t.Running && !String.IsNullOrEmpty(oldest.Value)) { t.Tool = oldest.Value.Length > 40 ? oldest.Value.Substring(0, 40) : oldest.Value; t.ToolSince = oldest.Key; }
+                    if (t.Running && !String.IsNullOrEmpty(oldest.Value)) { t.Tool = oldest.Value; t.ToolSince = oldest.Key; }
                 }
                 t.Pit = ClaudePace.State(t, now, m[Decided], m[Finished], m[Failed], m[Requested], t.Revving);
                 // The API error telemetry saw last, while no request has gone through since (the car's tip says it).

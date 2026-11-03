@@ -218,7 +218,7 @@ namespace ClaudeDashboard
             if (kind == ClaudeAttention.Need) { string ask = Ask(t.Message); if (ask.Length > 0) parts.Add(ask); parts.Add("waiting " + Duration(now - t.Since)); }
             else if (kind == ClaudeAttention.Stuck) { string why = StuckReason(t, view, now, use24); if (!String.IsNullOrEmpty(why)) parts.Add(why); parts.Add("stuck " + Duration(now - t.Since)); }
             else if (kind == ClaudeAttention.Turn) parts.Add("Waiting for your reply · " + Duration(now - t.Since));
-            else if (t.Tool.Length > 0 && t.ToolSince > DateTime.MinValue) parts.Add("In " + t.Tool + " for " + Duration(now - t.ToolSince));
+            else if (t.Tool.Length > 0 && t.ToolSince > DateTime.MinValue) parts.Add("In " + ToolName(t.Tool) + " for " + Duration(now - t.ToolSince));
             else parts.Add(t.Pit == PitState.Rev ? "In a tool for " + Duration(now - t.LastSign) : "Working, no sign of life for " + Duration(now - t.LastSign));
             if (t.Where.Length > 0) parts.Add(t.Where == "Desktop" ? "Claude app" : t.Where);
             return String.Join(" · ", parts);
@@ -295,10 +295,12 @@ namespace ClaudeDashboard
         public static string NowWords(ClaudeSession t, DateTime now)
         {
             if (!t.Running) return "";
-            if (t.Tool.Length > 0) return now - t.ToolSince >= TimeSpan.FromMinutes(1) && t.ToolSince > DateTime.MinValue ? t.Tool + " · " + Duration(now - t.ToolSince) : t.Tool;
+            if (t.Tool.Length > 0) { string tool = ToolName(t.Tool); return now - t.ToolSince >= TimeSpan.FromMinutes(1) && t.ToolSince > DateTime.MinValue ? tool + " · " + Duration(now - t.ToolSince) : tool; }
             if (t.Pit == PitState.Rev) return "a tool";
             return t.State == ClaudeState.Working ? "—" : "";
         }
+        // A tool's name for the row: 40 characters, then "…" (the tip has the whole name).
+        public static string ToolName(string tool) { return tool.Length > 40 ? tool.Substring(0, 39) + "…" : tool; }
         public static string NowTip(ClaudeSession t, bool telemetry)
         {
             if (t.Tool.Length > 0) return "In " + t.Tool + " now (its name only, from Claude Code's telemetry).";
@@ -1107,10 +1109,15 @@ namespace ClaudeDashboard
             foreach (var form in forms) if (Wide(block, form) <= room + 0.5) { block.Text = form; return; }
             block.Text = forms[forms.Count - 1];
         }
+        // A text's width in the block's font, measured as the window draws it (the header's way, AppController.Measure:
+        // a probe in the block's text formatting mode, rounded up, plus a unit of slack).
         public static double Wide(TextBlock block, string text)
         {
-            var face = new Typeface(block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
-            return new FormattedText(text ?? "", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, face, block.FontSize, Brushes.Black, 1.0).WidthIncludingTrailingWhitespace;
+            if (String.IsNullOrEmpty(text)) return 0;
+            var probe = new TextBlock { Text = text, FontFamily = block.FontFamily, FontSize = block.FontSize, FontWeight = block.FontWeight, FontStyle = block.FontStyle, FontStretch = block.FontStretch };
+            TextOptions.SetTextFormattingMode(probe, TextOptions.GetTextFormattingMode(block));
+            probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
+            return Math.Ceiling(probe.DesiredSize.Width) + 1;
         }
 
         // The pit stop strip: the thread that waited on you longest, what it wants, and Go to it.
