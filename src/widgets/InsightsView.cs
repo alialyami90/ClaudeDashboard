@@ -267,6 +267,11 @@ namespace ClaudeDashboard
                 stack.Children.Add(caption);
                 stack.Children.Add(ToolTable(least, tools[0].Calls));
             }
+            if (toolModel.Length > 0)
+            {
+                var per = LapParts.Words("— in Errors: errors aren't kept per model, so they show only for all models. The ≈ median is for all models.", S(12), "Muted"); per.Margin = new Thickness(0, 6, 0, 0);
+                stack.Children.Add(per);
+            }
             if (tools.Any(t => Double.IsNaN(t.MedianMs)))
             {
                 var why = LapParts.Words("— in ≈ median: tool times need both the call and its result in the log.", S(12), "Muted"); why.Margin = new Thickness(0, 6, 0, 0);
@@ -284,7 +289,8 @@ namespace ClaudeDashboard
         {
             var grid = CardParts.Columns(new GridLength(S(120)), CardParts.Star, CardParts.Auto, CardParts.Auto, CardParts.Auto);
             grid.Margin = new Thickness(0, 4, 0, 0);
-            string[] heads = { "", "Calls", "Errors", "Error %", "≈ median" };
+            bool allModels = tools.Any(t => t.AllModels);
+            string[] heads = { "", "Calls", "Errors", "Error %", allModels ? "≈ median, all models" : "≈ median" };
             grid.RowDefinitions.Add(new RowDefinition { Height = CardParts.Auto });
             for (int i = 1; i < heads.Length; i++)
             {
@@ -304,14 +310,14 @@ namespace ClaudeDashboard
                 bar.Children.Add(CardParts.At(calls, 0, 1));
                 grid.Children.Add(CardParts.At(bar, r + 1, 1));
                 bool warns = t.ErrorShare >= 0.2 && t.Errors >= 3;
-                var cells = new[] { InsightsModel.Count(t.Errors), t.Calls > 0 ? InsightsModel.Percent(t.ErrorShare) : "—", Double.IsNaN(t.MedianMs) ? "—" : "≈ " + InsightsModel.Duration(t.MedianMs) };
+                var cells = new[] { t.Errors < 0 ? "—" : InsightsModel.Count(t.Errors), t.Calls > 0 && t.Errors >= 0 ? InsightsModel.Percent(t.ErrorShare) : "—", Double.IsNaN(t.MedianMs) ? "—" : "≈ " + InsightsModel.Duration(t.MedianMs) };
                 for (int i = 0; i < 3; i++)
                 {
                     var cell = CardParts.Text(cells[i], S(13), i < 2 && warns ? "Warning" : i == 2 ? "Muted" : "Text");
                     cell.Margin = new Thickness(10, 3, 0, 3); cell.HorizontalAlignment = HorizontalAlignment.Right; Typography.SetNumeralAlignment(cell, FontNumeralAlignment.Tabular);
                     grid.Children.Add(CardParts.At(cell, r + 1, i + 2));
                 }
-                AutomationProperties.SetName(name, t.Name + ": " + t.Calls + " calls, " + t.Errors + " errors" + (Double.IsNaN(t.MedianMs) ? "" : ", about " + InsightsModel.Duration(t.MedianMs) + " median"));
+                AutomationProperties.SetName(name, t.Name + ": " + t.Calls + " calls" + (t.Errors < 0 ? "" : ", " + t.Errors + " errors") + (Double.IsNaN(t.MedianMs) ? "" : ", about " + InsightsModel.Duration(t.MedianMs) + " median" + (t.AllModels ? " for all models" : "")));
             }
             return grid;
         }
@@ -594,7 +600,10 @@ namespace ClaudeDashboard
         // ≈ median time from the gap between the call's line and its result's (NaN: no pairs).
         public double MedianMs = Double.NaN;
         public Dictionary<string, long> ByModel = new Dictionary<string, long>();
-        public double ErrorShare { get { return Calls > 0 ? (double)Errors / Calls : 0; } }
+        public double ErrorShare { get { return Calls > 0 && Errors >= 0 ? (double)Errors / Calls : 0; } }
+        // Under a model filter: the engine keeps calls per model but not errors or times, so Errors is -1 (shown "—")
+        // and MedianMs is the time for all models.
+        public bool AllModels;
     }
     public sealed class InsightsProject { public string Name = "", Folder = ""; public long Tokens, Replies, Added, Removed; public int Sessions; public double Cost; }
     public sealed class InsightsFigure { public string Name = "", Value = "", Change = ""; public bool Warns; }
@@ -682,7 +691,7 @@ namespace ClaudeDashboard
             double share = Replies > 0 ? (double)ThinkingReplies / Replies : Double.NaN;
             return new List<InsightsFigure> {
                 new InsightsFigure { Name = "Replies with thinking", Value = Percent(share), Change = Double.IsNaN(PrevThinkingShare) || !HasPrevious ? "" : "was " + Percent(PrevThinkingShare) },
-                new InsightsFigure { Name = "Thinking, median", Value = Double.IsNaN(ThinkingMedianMs) ? "—" : Duration(ThinkingMedianMs), Change = Double.IsNaN(ThinkingMedianMs) ? "no thinking times logged" : "" },
+                new InsightsFigure { Name = "Thinking, ≈ median", Value = Double.IsNaN(ThinkingMedianMs) ? "—" : "≈ " + Duration(ThinkingMedianMs), Change = Double.IsNaN(ThinkingMedianMs) ? "no thinking times logged" : "" },
                 new InsightsFigure { Name = "Thinking, longest", Value = Double.IsNaN(ThinkingLongestMs) ? "—" : Duration(ThinkingLongestMs) } };
         }
         public List<InsightsFigure> HealthFigures()
@@ -696,7 +705,7 @@ namespace ClaudeDashboard
         public List<InsightsTool> ToolsFor(string model)
         {
             if (String.IsNullOrEmpty(model)) return Tools.Where(t => t.Calls > 0).OrderByDescending(t => t.Calls).ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
-            return Tools.Select(t => { long n; t.ByModel.TryGetValue(model, out n); return new InsightsTool { Name = t.Name, Calls = n, Errors = t.Calls > 0 ? (long)Math.Round(t.Errors * (double)n / t.Calls) : 0, MedianMs = t.MedianMs }; })
+            return Tools.Select(t => { long n; t.ByModel.TryGetValue(model, out n); return new InsightsTool { Name = t.Name, Calls = n, Errors = -1, MedianMs = t.MedianMs, AllModels = true }; })
                 .Where(t => t.Calls > 0).OrderByDescending(t => t.Calls).ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         }
         public string ProjectsLine()

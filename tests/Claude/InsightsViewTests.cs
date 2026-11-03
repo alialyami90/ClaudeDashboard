@@ -75,6 +75,7 @@ internal static class InsightsViewTests
             }
             var week = InsightsModel.From(set.Week);
             Assert(week.Change(120, 100) == "↑ 20% on before" && week.Change(80, 100) == "↓ 20% on before" && week.Change(5, 0) == "new this period", "change words");
+            Assert(week.ThinkingFigures().Where(f => f.Name.Contains("median")).All(f => f.Name.Contains("≈") && (f.Value == "—" || f.Value.StartsWith("≈ "))), "the thinking median from buckets has no ≈");
             var tools = week.ToolsFor("");
             for (int i = 1; i < tools.Count; i++) Assert(tools[i - 1].Calls > tools[i].Calls || (tools[i - 1].Calls == tools[i].Calls && String.Compare(tools[i - 1].Name, tools[i].Name, StringComparison.OrdinalIgnoreCase) <= 0), "tools aren't most used first, ties by name");
             if (week.Models.Count > 0)
@@ -82,6 +83,7 @@ internal static class InsightsViewTests
                 string model = week.Models[0].Name;
                 var filtered = week.ToolsFor(model);
                 Assert(filtered.All(t => t.Calls > 0) && filtered.Sum(t => t.Calls) <= tools.Sum(t => t.Calls), "the model filter adds calls");
+                Assert(filtered.All(t => t.Errors < 0 && t.AllModels), "the model filter shows estimated errors as counts");
             }
         });
 
