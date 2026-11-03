@@ -216,8 +216,16 @@ internal static class ClaudeTests
             File.WriteAllText(log, Line("a", "1", "2026-11-01T11:00:00Z", "C:\\Code\\api-server", "s1", 1, 1, 1, 1) + "\n" + Line("b", "2", "2026-11-01T11:01:00Z", "C:\\Code\\api-server", "s1", 2, 2, 2, 2) + "\n");
             usage.Scan(DateTime.UtcNow);
             Assert(usage.Entries.Count == 2 && usage.Entries.Sum(e => e.Tokens) == 9, "The finished line wasn't read once.");
+            // A missing logs folder is a fresh install: none yet, not a failure (v0.52.0). A log that can't be read is.
             var none = new ClaudeUsage(Fresh(directory, "config-empty")); none.Scan(DateTime.UtcNow);
-            Assert(none.Failed && none.Scanned, "A missing logs folder isn't reported.");
+            Assert(!none.Failed && none.Empty && none.Scanned, "A missing logs folder isn't reported as none yet.");
+            var lockedConfig = Fresh(directory, "config-locked");
+            string locked = Path.Combine(lockedConfig, "projects", "C--Code-app", "s9.jsonl");
+            Directory.CreateDirectory(Path.GetDirectoryName(locked));
+            File.WriteAllText(locked, Line("a", "1", "2026-11-01T11:00:00Z", "C:\\Code\\app", "s9", 1, 1, 1, 1) + "\n");
+            var unreadable = new ClaudeUsage(lockedConfig);
+            using (new FileStream(locked, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) unreadable.Scan(DateTime.UtcNow);
+            Assert(unreadable.Failed && !unreadable.Empty && unreadable.Scanned, "A log that can't be read isn't reported as a failure.");
         });
 
         check("Claude sessions are read back, ordered, and dropped when forgotten", () => {
