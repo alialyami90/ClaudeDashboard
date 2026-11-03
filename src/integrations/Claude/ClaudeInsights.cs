@@ -43,6 +43,16 @@ namespace ClaudeDashboard
         public string Missing = "";
         // Days in the range with a day file, with the v2 detail, and built from Claude Code's logs.
         public int DaysWithFiles, DaysWithDetail, DaysFromLogs;
+        // Days of the previous range with a reply (a change is worth showing only with enough of them).
+        public int PriorActiveDays;
+        // Today is in the range and has replies but no detail yet (the logs are still being read). Ratios over the
+        // detail (thinking, effort, tools per reply) use Detail.Replies, the replies on days that have it, so they hold.
+        public bool TodayPending;
+        // What the range's detail leaves out, for the footer ("" when nothing is left out).
+        public string Note = "";
+        // Sessions in the range: on days with the detail, those that started that day (each counted once); on older
+        // days, the day file's threads.
+        public int Sessions, PriorSessions;
 
         public long Tokens, CacheRead, PriorTokens;
         public int Replies, PriorReplies, Threads, Unpriced;
@@ -82,6 +92,8 @@ namespace ClaudeDashboard
                 if (d == null) continue;
                 r.DaysWithFiles++; if (d.Detail != null) r.DaysWithDetail++; if (d.FromLogs) r.DaysFromLogs++;
                 r.Tokens += d.Tokens; r.CacheRead += d.CacheRead; r.Replies += d.Replies; r.Cost += d.Cost; r.Threads += d.Threads; r.Unpriced += d.Unpriced;
+                r.Sessions += d.Detail != null ? d.Detail.Sessions : d.Threads;
+                if (date == today && d.Detail == null && d.Replies > 0) r.TodayPending = true;
                 r.Detail.Add(d.Detail);
                 int weekday = ((int)date.DayOfWeek + 6) % 7;
                 for (int h = 0; h < 24; h++) r.Heat[weekday, h] += d.Hours[h];
@@ -90,14 +102,24 @@ namespace ClaudeDashboard
                     string key = g.Folder.Length > 0 ? g.Folder : g.Name;
                     ClaudeInsightRank p;
                     if (!projects.TryGetValue(key, out p)) { p = new ClaudeInsightRank { Name = g.Name, Folder = g.Folder }; projects[key] = p; }
-                    p.Value += g.Tokens; p.Replies += g.Replies; p.Cost += g.Cost; p.Sessions += g.Threads;
+                    p.Value += g.Tokens; p.Replies += g.Replies; p.Cost += g.Cost;
+                    if (d.Detail == null) p.Sessions += g.Threads;
                 }
+                if (d.Detail != null)
+                    foreach (var started in d.Detail.ProjectSessions)
+                    {
+                        ClaudeInsightRank p;
+                        if (!projects.TryGetValue(started.Key, out p)) { p = new ClaudeInsightRank { Folder = started.Key, Name = Leaf(started.Key) }; projects[started.Key] = p; }
+                        p.Sessions += started.Value;
+                    }
             }
             if (r.PriorStart.HasValue)
                 for (var date = r.PriorStart.Value; date <= r.PriorEnd.Value; date = date.AddDays(1))
                 {
                     ClaudeDay d; if (!byDate.TryGetValue(date, out d)) continue;
                     r.PriorTokens += d.Tokens; r.PriorReplies += d.Replies; r.PriorCost += d.Cost; r.PriorDetail.Add(d.Detail);
+                    r.PriorSessions += d.Detail != null ? d.Detail.Sessions : d.Threads;
+                    if (d.Replies > 0) r.PriorActiveDays++;
                     foreach (var g in d.Garages) { ClaudeInsightRank p; if (projects.TryGetValue(g.Folder.Length > 0 ? g.Folder : g.Name, out p)) p.Prior += g.Tokens; }
                 }
 
@@ -130,9 +152,14 @@ namespace ClaudeDashboard
             r.Skills = Counted(r.Detail.Skills, r.PriorDetail.Skills);
             r.Plugins = Counted(r.Detail.Plugins, r.PriorDetail.Plugins);
             if (r.DaysWithFiles == 0) r.Missing = "No day files in this range yet. History keeps them while Claude Code runs (Settings → Claude → History).";
+            else if (r.DaysWithDetail == 0 && r.TodayPending && r.DaysWithFiles == 1) r.Missing = TodayText;
             else if (r.DaysWithDetail == 0) r.Missing = "These days were kept before v0.60.0, so models, tools and effort aren't in them yet: they're added from Claude Code's logs while those still hold the days.";
+            if (r.Missing.Length == 0 && r.TodayPending) r.Note = TodayText;
+            else if (r.Missing.Length == 0 && r.DaysWithDetail < r.DaysWithFiles)
+                r.Note = "Models, tools and effort cover " + r.DaysWithDetail + " of " + r.DaysWithFiles + " days: the others were kept before v0.60.0 and Claude Code's logs no longer hold them.";
             return r;
         }
+        private const string TodayText = "Today's models, tools and effort are added once Claude Code's logs have been read; until then they cover the days before.";
 
         private static List<ClaudeInsightRank> Ranked(IEnumerable<ClaudeInsightRank> rows)
         {
@@ -194,7 +221,7 @@ namespace ClaudeDashboard
                 }
                 d.Detail.Mcp["github"] = d.Detail.Tools.ContainsKey(tools[8]) ? d.Detail.Tools[tools[8]].Calls : 0;
                 d.Detail.Skills["code-review"] = 1 + seed % 3; d.Detail.Plugins["superpowers"] = seed % 4;
-                d.Detail.PermAuto = replies / 2; d.Detail.PermRule = replies / 4; d.Detail.PermAsked = 1 + seed % 5; d.Detail.PermDenied = seed % 2;
+                d.Detail.PermRule = replies / 2; d.Detail.PermHook = replies / 8; d.Detail.PermAsked = 1 + seed % 5; d.Detail.PermDenied = seed % 2;
                 d.Detail.ApiErrors = seed % 7 == 0 ? 1 : 0; d.Detail.Retries = seed % 5 == 0 ? 2 : 0; d.Detail.Compactions = seed % 3;
                 d.Detail.Stops["tool_use"] = replies * 7 / 10; d.Detail.Stops["end_turn"] = replies - replies * 7 / 10;
                 for (int s = 0; s < d.Threads; s++) d.Detail.SessionMinutes.Add(5 + (seed * (s + 3)) % 140);
@@ -204,6 +231,7 @@ namespace ClaudeDashboard
                     d.Garages.Add(new ClaudeDayGarage { Folder = folders[g], Name = Leaf(folders[g]), Tokens = share, Replies = replies * (g == 0 ? 6 : g == 1 ? 3 : 1) / 10, Threads = 1 + (g == 0 ? d.Threads / 2 : 0), Cost = d.Cost * (g == 0 ? 0.6 : g == 1 ? 0.3 : 0.1) });
                     d.Detail.ProjectLines[folders[g]] = new long[] { 40L * (3 - g) + seed, 10L * (3 - g) + seed / 3 };
                 }
+                d.Detail.ProjectSessions[folders[0]] = d.Threads - 1; d.Detail.ProjectSessions[folders[1]] = 1;
                 d.Detail.LinesAdded = d.Detail.ProjectLines.Values.Sum(v => v[0]); d.Detail.LinesRemoved = d.Detail.ProjectLines.Values.Sum(v => v[1]);
                 for (int h = 9; h <= 18; h++) d.Hours[h] = d.Tokens / 10;
                 list.Add(d);

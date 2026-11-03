@@ -72,18 +72,20 @@ internal static class InsightsEngineTests
             Assert(d.Effort["claude-opus-5-5"]["high"] == 1 && d.Effort["claude-sonnet-5-5"]["medium"] == 1, "Effort.");
             Assert(d.ThinkingReplies == 1 && d.ThinkingMs == 1500 && d.LongestThinkingMs == 1500, "Thinking: " + d.ThinkingReplies + " / " + d.ThinkingMs);
             var bash = d.Tools["Bash"];
-            Assert(bash.Calls == 1 && bash.Errors == 1 && bash.Timed == 1 && bash.TimeMs == 4000 && bash.ByModel["claude-opus-5-5"] == 1 && ClaudeDayDetail.Median(bash.Buckets) == 10000, "Bash: " + bash.Calls + " calls, " + bash.Errors + " errors, " + bash.TimeMs + " ms");
-            Assert(bash.ErrorsByModel["claude-opus-5-5"] == 1 && ClaudeDayDetail.Median(bash.BucketsByModel["claude-opus-5-5"]) == 10000, "Bash's errors and ≈ time per model.");
+            Assert(bash.Calls == 1 && bash.Errors == 1 && bash.Timed == 1 && bash.TimeMs == 4000 && bash.ByModel["claude-opus-5-5"] == 1 && ClaudeDayDetail.Median(bash.Buckets) == 5477, "Bash: " + bash.Calls + " calls, " + bash.Errors + " errors, " + bash.TimeMs + " ms");
+            Assert(bash.ErrorsByModel["claude-opus-5-5"] == 1 && ClaudeDayDetail.Median(bash.BucketsByModel["claude-opus-5-5"]) == 5477, "Bash's errors and ≈ time per model.");
             var bashBack = ClaudeDayDetail.FromJson(ClaudeJson.Parse(ClaudeJson.Compact(d.ToJson())) as JsonObject).Tools["Bash"];
             Assert(bashBack.ErrorsByModel["claude-opus-5-5"] == 1 && bashBack.BucketsByModel["claude-opus-5-5"].Sum() == 1, "Per-model errors and buckets didn't survive the file.");
             Assert(!d.Tools.ContainsKey("Write"), "The request blob's tool was counted.");
             var pr = d.Tools["mcp__github__create_pull_request"];
             Assert(pr.Calls == 1 && pr.Errors == 0 && pr.TimeMs == 2000 && d.Mcp["github"] == 1, "MCP call.");
             Assert(d.Skills["code-review"] == 1, "Skill.");
-            Assert(d.PermRule == 1 && d.PermDenied == 1 && d.PermAuto == 0, "Permissions: rule " + d.PermRule + ", denied " + d.PermDenied);
-            Assert(d.ApiErrors == 1 && d.Retries == 1 && d.Compactions == 1, "Health: " + d.ApiErrors + " / " + d.Retries + " / " + d.Compactions);
+            Assert(d.PermRule == 1 && d.PermDenied == 1 && d.PermHook == 0 && d.PermAsked == 0, "Permissions: rule " + d.PermRule + ", denied " + d.PermDenied);
+            // The synthetic reply and the api_error line are both API errors; the line says a retry follows.
+            Assert(d.ApiErrors == 2 && d.Retries == 1 && d.Compactions == 1, "Health: " + d.ApiErrors + " / " + d.Retries + " / " + d.Compactions);
             Assert(d.Stops["tool_use"] == 2 && d.Stops["end_turn"] == 1, "Stop reasons.");
             Assert(d.Sessions == 1 && d.SessionMinutes[0] == 30, "Sessions: " + d.Sessions + ", " + (d.Sessions > 0 ? d.SessionMinutes[0] : -1) + " min");
+            Assert(d.ProjectSessions[@"C:\Code\api"] == 1 && d.ProjectSessions.Count == 1 && d.Revision == ClaudeDayDetail.CurrentRevision, "Project sessions.");
             Assert(d.LinesAdded == 2 && d.LinesRemoved == 1 && d.ProjectLines[@"C:\Code\api"][0] == 2, "Lines.");
             // Round trip through the file, with nothing but names and numbers.
             string json = ClaudeJson.Compact(d.ToJson());
@@ -163,10 +165,57 @@ internal static class InsightsEngineTests
             Assert(ClaudeInsights.Change(5, 0) == null, "A change from nothing should be unknown, not infinite.");
             var empty = ClaudeInsightsSet.Compute(new List<ClaudeDay>(), today, Now);
             Assert(empty.Week.Missing.Length > 0 && empty.Week.Tokens == 0, "An empty range doesn't say why.");
-            var v1 = ClaudeInsightsSet.Compute(new List<ClaudeDay> { new ClaudeDay { Date = today, Tokens = 5, Replies = 1 } }, today, Now);
+            var v1 = ClaudeInsightsSet.Compute(new List<ClaudeDay> { new ClaudeDay { Date = today.AddDays(-2), Tokens = 5, Replies = 1 } }, today, Now);
             Assert(v1.Week.Missing.Contains("v0.60.0") && v1.Week.DaysWithDetail == 0, "Days without detail don't say why.");
+            // v0.60.1: today's file before its detail arrives: the footer says so, and doesn't blame older files.
+            var pending = ClaudeInsightsSet.Compute(new List<ClaudeDay> { new ClaudeDay { Date = today, Tokens = 5, Replies = 1 } }, today, Now);
+            Assert(pending.Week.TodayPending && pending.Week.Missing.Contains("Today") && !pending.Week.Missing.Contains("v0.60.0"), "Today's missing detail: " + pending.Week.Missing);
+            var withToday = ClaudeInsightsSet.Compute(days.Concat(new[] { new ClaudeDay { Date = today, Tokens = 50, Replies = 40 } }).Where(x => x.Date != today || x.Detail == null).ToList(), today, Now);
+            Assert(withToday.Week.TodayPending && withToday.Week.Note.Contains("Today") && withToday.Week.Missing.Length == 0 && withToday.Week.Detail.Replies == 10, "A range with today pending: " + withToday.Week.Note + ", " + withToday.Week.Detail.Replies);
+            Assert(!week.TodayPending && week.Note.Length == 0 && week.PriorActiveDays == 1 && set.Month.PriorActiveDays == 1 && set.All.PriorActiveDays == 0, "Prior active days: " + week.PriorActiveDays);
             var sample = ClaudeInsightsSet.SampleSet(Now);
-            Assert(sample.Sample && sample.Week.Sample && sample.Week.Models.Count == 3 && sample.Week.Tools.Count > 5 && sample.All.DaysFromLogs > 0 && sample.Week.Tools[0].MedianByModel.Count == 2 && ClaudeView.Fixture(Now, false).Insights != null, "The labelled sample.");
+            Assert(sample.Sample && sample.Week.Sample && sample.Week.Models.Count == 3 && sample.Week.Tools.Count > 5 && sample.All.DaysFromLogs > 0 && sample.Week.Tools[0].MedianByModel.Count == 2 && sample.Week.PriorActiveDays > 0 && sample.Week.Sessions > 0 && sample.Week.Projects[0].Sessions > 0 && ClaudeView.Fixture(Now, false).Insights != null, "The labelled sample.");
+        });
+
+        check("Insights: ≈ medians inside their bucket, a session counted once on the day it started, Claude Code's permission sources, and kept days with an older tally redone (v0.60.1)", () => {
+            var b = new int[ClaudeDayDetail.Edges.Length + 1];
+            Assert(ClaudeDayDetail.Median(b) == null, "A median of nothing.");
+            b[ClaudeDayDetail.Bucket(1500)] = 1;
+            Assert(ClaudeDayDetail.Median(b) == 1732, "One call in 1–3 s: " + ClaudeDayDetail.Median(b));
+            b[ClaudeDayDetail.Bucket(1500)] = 9; b[ClaudeDayDetail.Bucket(5000)] = 1;
+            long? m = ClaudeDayDetail.Median(b);
+            Assert(m > 1000 && m < 3000 && m != 3000, "Mostly 1–3 s: " + m);
+            b = new int[ClaudeDayDetail.Edges.Length + 1]; b[ClaudeDayDetail.Edges.Length] = 3;
+            Assert(ClaudeDayDetail.Median(b) == ClaudeDayDetail.Edges[ClaudeDayDetail.Edges.Length - 1], "Past the last edge.");
+            // A session from 23:50 to 00:20 counts once, on its first day, for 30 minutes, with its project.
+            DateTime first = Now.Date.AddDays(-4).AddHours(23).AddMinutes(50), next = first.AddMinutes(30);
+            var tally = new ClaudeDetailTally(at => at.Date);
+            tally.Fold(J(@"{'type':'user','sessionId':'n1','cwd':'C:\\Code\\web','timestamp':'" + Stamp(first) + "','uuid':'n1u0','message':{'content':'x'}}") + "\n"
+                + J("{'type':'user','sessionId':'n1','timestamp':'" + Stamp(next) + "','uuid':'n1u1','permissionDecision':{'decision':'accept','source':'hook'},'message':{'content':'x'}}") + "\n"
+                + J("{'type':'user','sessionId':'n1','timestamp':'" + Stamp(next) + "','uuid':'n1u2','permissionDecision':{'decision':'accept','source':'user_temporary'},'message':{'content':'x'}}") + "\n"
+                + J("{'type':'user','sessionId':'n1','timestamp':'" + Stamp(next) + "','uuid':'n1u3','permissionDecision':{'decision':'accept','source':'config'},'message':{'content':'x'}}") + "\n"
+                + J("{'type':'user','sessionId':'n1','timestamp':'" + Stamp(next) + "','uuid':'n1u4','permissionDecision':{'decision':'reject','source':'user_temporary'},'message':{'content':'x'}}") + "\n"
+                + J("{'type':'file-history-snapshot','sessionId':'n2','timestamp':'" + Stamp(next) + "'}") + "\n", "n1");
+            var one = tally.For(first.Date); var two = tally.For(next.Date);
+            Assert(one != null && one.Sessions == 1 && one.SessionMinutes[0] == 30 && one.ProjectSessions[@"C:\Code\web"] == 1, "The session's first day: " + (one == null ? "none" : one.Sessions + " sessions"));
+            Assert(two != null && two.Sessions == 0 && two.ProjectSessions.Count == 0, "The session counted again on its second day, or a snapshot line made a session: " + (two == null ? "none" : two.Sessions.ToString()));
+            Assert(two.PermHook == 1 && two.PermAsked == 1 && two.PermRule == 1 && two.PermDenied == 1, "Permission sources: hook " + two.PermHook + ", asked " + two.PermAsked + ", rule " + two.PermRule + ", denied " + two.PermDenied);
+            // Forgetting the first day keeps the session while it has lines on the days kept, so it isn't counted again.
+            tally.Forget(next.Date);
+            tally.Fold(J("{'type':'user','sessionId':'n1','timestamp':'" + Stamp(next.AddMinutes(5)) + "','uuid':'n1u5','message':{'content':'x'}}") + "\n", "n1");
+            Assert(tally.For(next.Date).Sessions == 0, "A forgotten day's session was counted again.");
+            // A kept v2 day from v0.60.0's tally (no "rev") gets the new detail; its counts and needs stay.
+            string bridge = Fresh(directory, "rev-bridge");
+            var history = new ClaudeHistory(bridge, TimeZoneInfo.Utc);
+            var old = new ClaudeDay { Date = first.Date, Tokens = 10, Replies = 5, Needs = 1, Detail = new ClaudeDayDetail { Revision = 0 } };
+            old.Detail.SessionMinutes.Add(1); old.Detail.SessionMinutes.Add(2);
+            ClaudeBridge.WriteAtomic(Path.Combine(ClaudeHistory.Folder(bridge), old.Name + ".json"), ClaudeJson.Compact(old.ToJson()).Replace(",\"rev\":0", ""));
+            Assert(history.Read(first.Date).Detail.Revision == 0, "The old file's revision.");
+            var rebuilt = new ClaudeDay { Date = first.Date, Replies = 1, Detail = one };
+            Assert(history.Rebuild(rebuilt, Now.Date), "The older tally wasn't redone.");
+            var kept = history.Read(first.Date);
+            Assert(kept.Detail.Sessions == 1 && kept.Replies == 5 && kept.Needs == 1 && kept.Detail.Revision == ClaudeDayDetail.CurrentRevision, "The redone day: " + kept.Detail.Sessions + " sessions, " + kept.Replies + " replies");
+            Assert(!history.Rebuild(rebuilt, Now.Date), "A current tally was redone again.");
         });
     }
 }
