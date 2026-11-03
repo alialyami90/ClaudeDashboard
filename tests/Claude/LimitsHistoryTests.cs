@@ -26,11 +26,12 @@ internal static class LimitsHistoryTests
     private static List<string> Texts(DependencyObject root) { return Descendants(root).OfType<TextBlock>().Select(t => t.Text ?? "").ToList(); }
 
     // Builds a view in a palette at a size and text scale, refreshes it and draws it, as the window would.
-    private static Border Show(IClaudeView view, ClaudeView snapshot, double width, double height, double scale, bool sample)
+    private static Border Show(IClaudeView view, ClaudeView snapshot, double width, double height, double scale, bool sample, Func<DateTime, int, IList<ClaudeDay>> history = null)
     {
         var host = new Border();
         Palettes.Apply(host.Resources, "Midnight", "Lime", scale);
         var context = new ClaudeViewContext { TextScale = scale, Sample = sample };
+        if (history != null) context.History = history;
         host.Child = view.Build(context, new Size(width / scale, height / scale));
         view.Visible = true;
         view.Refresh(snapshot, Now);
@@ -169,18 +170,19 @@ internal static class LimitsHistoryTests
             Assert(!m.HasLastWeek, "a week with no files has ticks");
         });
 
-        check("Lap chart: History says why without day files, and reads them at most once a minute", () => {
+        check("Lap chart: History says when it is off, says when it is empty, and reads the day files at most once a minute", () => {
             {
                 var view = ClaudeView.Fixture(Now, false); view.Sample = false;
                 if (view.Days == null) view.Days = new long[7];
                 var history = new HistoryView();
                 var host = Show(history, view, 1000, 600, 1, false);
-                Assert(history.Shown.Missing.Length > 0 && Texts(host).Any(t => t.Contains("day files")), "no reason without the files");
+                Assert(history.Shown.Missing == HistoryModel.Off && Texts(host).Any(t => t.Contains("Settings → Claude → History")), "History off doesn't say so");
 
                 int reads = 0;
                 history = new HistoryView();
-                history.Source = (now, count) => { reads++; return HistoryModel.SampleDays(now).Skip(HistoryModel.CalendarDays - count).ToList(); };
-                history.Build(new ClaudeViewContext(), new Size(1000, 600)); history.Visible = true;
+                var context = new ClaudeViewContext();
+                context.History = (now, count) => { reads++; return HistoryModel.SampleDays(now).Skip(HistoryModel.CalendarDays - count).ToList(); };
+                history.Build(context, new Size(1000, 600)); history.Visible = true;
                 history.Refresh(view, Now); history.Refresh(view, Now.AddSeconds(1)); history.Refresh(view, Now.AddSeconds(30));
                 Assert(reads == 1, "read " + reads + " times in 30 s");
                 view.Days[view.Days.Length - 1] += 1000;
@@ -192,8 +194,7 @@ internal static class LimitsHistoryTests
                 Assert(reads == 2, "read again with nothing changed");
 
                 history = new HistoryView();
-                history.Source = (now, count) => new List<ClaudeDay>();
-                host = Show(history, view, 1000, 600, 1, false);
+                host = Show(history, view, 1000, 600, 1, false, (now, count) => Enumerable.Range(0, count).Select(i => new ClaudeDay { Date = Now.ToLocalTime().Date.AddDays(i - count + 1) }).ToList());
                 Assert(history.Shown.Empty && Texts(host).Any(t => t.Contains("No day files yet")), "empty history doesn't say so");
             }
         });

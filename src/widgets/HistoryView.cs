@@ -13,7 +13,7 @@ namespace ClaudeDashboard
     // hour-of-day profile against the same hour last week, the last 7 days (tokens, ≈ $, threads, times it needed you,
     // longest wait) and the projects this week. Numbers and project names only, as the files keep.
     //
-    // Built once per room and text size, filled in from the snapshot on Refresh. The day files are read through Source,
+    // Built once per room and text size, filled in from the snapshot on Refresh. The day files are read through the context's History,
     // only when today's tokens or the date change (the service writes today's file once a minute) and never more than
     // once a minute, so the tab adds no polling of its own.
     public sealed class HistoryView : IClaudeView
@@ -21,9 +21,6 @@ namespace ClaudeDashboard
         public string Name { get { return ClaudeViews.History; } }
         public bool Visible { get; set; }
 
-        // The day files, oldest first, count days up to today (ClaudeHistory.Days); null while History is off. It will
-        // come from the view context (Shell, #21); until it does, the tab says the files aren't reaching it.
-        public Func<DateTime, int, List<ClaudeDay>> Source { get; set; }
         public static readonly TimeSpan ReadEvery = TimeSpan.FromMinutes(1);
 
         private ClaudeViewContext context = new ClaudeViewContext();
@@ -33,6 +30,7 @@ namespace ClaudeDashboard
         private List<ClaudeDay> days;
         private string readKey;
         private DateTime readAt = DateTime.MinValue;
+        private string readError = "";
         // For the checks: the model last drawn, and how many times the day files were read.
         public HistoryModel Shown { get; private set; }
         public int Reads { get; private set; }
@@ -41,7 +39,7 @@ namespace ClaudeDashboard
         {
             this.context = context ?? new ClaudeViewContext();
             this.room = room;
-            shownKey = null;
+            shownKey = null; readAt = DateTime.MinValue;
             root = new Border();
             AutomationProperties.SetName(root, "History");
             return root;
@@ -56,12 +54,19 @@ namespace ClaudeDashboard
             else
             {
                 string key = now.ToLocalTime().Date.Ticks + "|" + (snapshot.Days == null || snapshot.Days.Length == 0 ? "none" : snapshot.Days[snapshot.Days.Length - 1].ToString(CultureInfo.InvariantCulture));
-                if (Source == null) { days = null; missing = "The day files aren't reaching this tab in this build yet."; }
-                else if (days == null || (key != readKey && now - readAt >= ReadEvery))
+                if (readAt == DateTime.MinValue || (key != readKey && now - readAt >= ReadEvery))
                 {
-                    try { days = Source(now, HistoryModel.CalendarDays); } catch (Exception e) { Program.Log(e); days = null; missing = "The day files couldn't be read: " + e.GetBaseException().Message; }
+                    try
+                    {
+                        var read = context.History == null ? null : context.History(now, HistoryModel.CalendarDays);
+                        days = read == null ? null : read.ToList();
+                        readError = "";
+                    }
+                    catch (Exception e) { Program.Log(e); days = null; readError = "The day files couldn't be read: " + e.GetBaseException().Message; }
                     readKey = key; readAt = now; Reads++;
                 }
+                // Null from the context: History is off (the fixture is handled above).
+                missing = readError.Length > 0 ? readError : days == null ? HistoryModel.Off : "";
             }
             string drawKey = now.ToString("yyyyMMddHH", CultureInfo.InvariantCulture) + "|" + Reads + "|" + sample + "|" + missing + "|" + context.Use24Hour;
             if (drawKey == shownKey) return;
@@ -239,6 +244,7 @@ namespace ClaudeDashboard
         // The calendar's shades: none, then four steps of the accent (darker is quieter).
         public static readonly double[] Shades = { 0, 0.22, 0.42, 0.7, 1 };
 
+        public const string Off = "History is off, so there are no day files to show. Turn it on in Settings → Claude → History; it keeps 8 weeks of daily numbers and project names only.";
         public bool Sample, Empty;
         public string Missing = "";
         public DateTime Today, FirstMonday;
