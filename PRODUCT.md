@@ -31,7 +31,7 @@ A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud s
 - **The Claude app's thread records,** read-only: thread title, folder, archived flag and last activity.
 - **Claude Code's OpenTelemetry,** sent to 127.0.0.1 only: event names, counts, costs and tool decisions. Prompts, replies and tool details stay off.
 - **The plan's usage meters** from `api.anthropic.com`, every 5 minutes by default while signed in with the app's own **Sign in with Claude** (`user:profile` only).
-- **Widget Screen's folder** (`%LOCALAPPDATA%\WidgetScreen`), once, read-only, when the first run offers to bring its Claude settings, sign-in and bridge over.
+- **Widget Screen's folder** (`%LOCALAPPDATA%\WidgetScreen`): read once, when the first run offers to bring its Claude settings, sign-in and bridge over. Since v0.48.0 the hook also writes its session files and `limits.json` into `WidgetScreen\claude` when that folder exists, so Widget Screen stays current (decision 028); nothing else there is written.
 
 ## What it keeps
 
