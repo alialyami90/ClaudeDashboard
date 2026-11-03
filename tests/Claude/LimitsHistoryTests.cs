@@ -116,7 +116,7 @@ internal static class LimitsHistoryTests
             view.LimitAtPace = new ClaudeLimitProjection { Known = true, Reached = true, Readings = 5, PerHour = 30, AtReset = 100, ResetsAt = Now.AddMinutes(40) };
             view.LimitAtAverage = new ClaudeLimitProjection { Basis = ClaudeLimitProjection.Average, Known = true, Reached = true, Readings = 5, PerHour = 8, AtReset = 100, ResetsAt = Now.AddMinutes(40) };
             var m = LimitsModel.From(view, Now, true);
-            Assert(m.Reached && m.LimitReached && m.Percent >= 100, "not reached");
+            Assert(m.Reached && m.LimitReached && Math.Abs(m.Percent - 98) < 1e-9, "not reached, or the meter's own percent wasn't kept: " + m.Percent);
             Assert(m.ProjectionLine(false).StartsWith("Limit reached"), "headline: " + m.ProjectionLine(false));
             Assert(!m.PaceHits.HasValue && Double.IsNaN(m.PaceSlope) && Double.IsNaN(m.AverageSlope) && Double.IsNaN(m.AverageAtReset), "a projection at the limit");
             Assert(!m.LegendLine(false).Contains("by reset") && !m.LegendLine(false).Contains("dotted"), "legend: " + m.LegendLine(false));
@@ -161,6 +161,37 @@ internal static class LimitsHistoryTests
                     view.Refresh(snapshot, Now.AddMinutes(1)); window.UpdateLayout();
                     Assert(System.Windows.Input.FocusManager.GetFocusedElement(window) == page, view.Name + ": a redraw took the focus away");
                     Assert(Math.Abs(page.VerticalOffset - offset) < 1, view.Name + ": a redraw scrolled the page from " + offset + " to " + page.VerticalOffset);
+                }
+                finally { window.Close(); }
+            }
+        });
+
+        check("Lap chart: the Limits and History pages scroll with Down, Home, Page Down and End", () => {
+            foreach (var view in new IClaudeView[] { new LimitsView(), new HistoryView() })
+            {
+                var context = new ClaudeViewContext { Sample = true };
+                var element = view.Build(context, new Size(700, 300));
+                var window = new Window { Width = 700, Height = 300, Content = element, ShowActivated = true, WindowStyle = WindowStyle.None, ShowInTaskbar = false, Left = -4000, Top = -4000 };
+                Palettes.Apply(window.Resources, "Midnight", "Lime", 1);
+                try
+                {
+                    window.Show();
+                    view.Visible = true;
+                    view.Refresh(ClaudeView.Fixture(Now, true), Now);
+                    window.UpdateLayout();
+                    var page = view is LimitsView ? ((LimitsView)view).Page : ((HistoryView)view).Page;
+                    page.Focus();
+                    Assert(page.ScrollableHeight > 100, view.Name + ": the page doesn't scroll at 700 × 300 (" + page.ScrollableHeight + ")");
+                    Press(page, System.Windows.Input.Key.Down); window.UpdateLayout();
+                    Assert(page.VerticalOffset > 0, view.Name + ": Down didn't scroll");
+                    Press(page, System.Windows.Input.Key.Home); window.UpdateLayout();
+                    Assert(page.VerticalOffset == 0, view.Name + ": Home didn't go to the top (" + page.VerticalOffset + ")");
+                    Press(page, System.Windows.Input.Key.PageDown); window.UpdateLayout();
+                    Assert(page.VerticalOffset > 50, view.Name + ": Page Down didn't scroll a page (" + page.VerticalOffset + ")");
+                    Press(page, System.Windows.Input.Key.End); window.UpdateLayout();
+                    Assert(Math.Abs(page.VerticalOffset - page.ScrollableHeight) < 1, view.Name + ": End didn't go to the bottom (" + page.VerticalOffset + " of " + page.ScrollableHeight + ")");
+                    Press(page, System.Windows.Input.Key.Home); window.UpdateLayout();
+                    Assert(page.VerticalOffset == 0, view.Name + ": Home from the bottom didn't go to the top (" + page.VerticalOffset + ")");
                 }
                 finally { window.Close(); }
             }
@@ -261,6 +292,16 @@ internal static class LimitsHistoryTests
                 Assert(history.Shown.Empty && Texts(host).Any(t => t.Contains("No day files yet")), "empty history doesn't say so");
             }
         });
+    }
+
+    // A key press as the keyboard sends it: PreviewKeyDown, then KeyDown unless it was handled.
+    private static void Press(UIElement target, System.Windows.Input.Key key)
+    {
+        var source = PresentationSource.FromVisual(target);
+        var preview = new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent, Source = target };
+        target.RaiseEvent(preview);
+        if (preview.Handled) return;
+        target.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = System.Windows.Input.Keyboard.KeyDownEvent, Source = target });
     }
 
     // A calendar cell before the 8 weeks kept: the first Monday can be up to 6 days older than the oldest file.

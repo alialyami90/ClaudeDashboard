@@ -14,6 +14,14 @@ Claude Dashboard: the lap chart's Reliability and Sources views (decision 030, p
 - **Sources** lists Hooks, Logs, Telemetry, Plan meters and Claude app threads, each with its state (ClaudeHealth's levels, glyph and word), freshness (the engine's logs read, telemetry's last event and port, the app threads' read time and count, the plan's next check), what it gives and one action (Connect or Disconnect, Open folder, Change port, Check now or Sign in, Show archived). The actions go through the window's Act, the same path and confirmations as Settings → Claude; the view never writes Claude Code's settings itself, and an action's error shows above the rows.
 - **Checks:** medians, longest and failures per tool, the failure rate, the last hour's API errors, stuck turns split by a 10-minute gap with their reasons, no turn text reaching the view, telemetry off, the five sources, each button calling Act once with its action and showing its error, and both views inside their width at 640 × 420, 1000 × 600 and 1600 × 900 at 100% and 140%. Renders `claude-{reliability,sources}-<size>-{100,140}.png` and `claude-reliability-1000x600-claude.png`.
 
+## v0.57.1 (unreleased)
+
+Follow-ups to the Limits and History tabs.
+
+- **Home and End** on the Limits and History pages go to the top and the bottom, as the page's help text says. WPF's ScrollViewer took plain Home and End to the left and right ends.
+- **At the limit**, Limits shows the meter's own percent instead of raising it to 100%. It still says "Limit reached", in Amber.
+- **Checks:** both pages scroll with Down, Home, Page Down, End and Home; the Reached fixture keeps its 98%.
+
 ## v0.57.0 (unreleased)
 
 The lap chart's package D (decision 030): the Limits and History tabs.
