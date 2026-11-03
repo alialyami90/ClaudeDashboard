@@ -69,6 +69,8 @@ namespace ClaudeDashboard
         // The newest sign the session is alive: a hook event, a reply in its log or its state changing (the attention
         // queue's "silent" and the live rows).
         public DateTime LastSign;
+        // Your turn as the header counts it (a running thread whose car is parked done), so the footer and the queue agree.
+        public bool YourTurn { get { return Running && Pit == PitState.Done; } }
         public string Shown { get { return String.IsNullOrWhiteSpace(Title) ? ProjectName : Title; } }
         public long TokensFor(ClaudePeriod period) { long value; return Tokens.TryGetValue(period, out value) ? value : 0; }
         public double CostFor(ClaudePeriod period) { double value; return Cost.TryGetValue(period, out value) ? value : 0; }
@@ -121,7 +123,7 @@ namespace ClaudeDashboard
         // The observability critique's issue 1: a project with something waiting on you comes first. Needs you, then
         // Stuck, then Your turn, then Working, then anything else running, then the rest.
         public bool Stuck { get { return Threads.Any(t => t.Running && t.State == ClaudeState.Stuck); } }
-        public bool YourTurn { get { return Threads.Any(t => t.Running && t.State == ClaudeState.Done); } }
+        public bool YourTurn { get { return Threads.Any(t => t.YourTurn); } }
         public int Urgency { get { return NeedsYou ? 0 : Stuck ? 1 : YourTurn ? 2 : Working ? 3 : Running > 0 ? 4 : 5; } }
     }
 
@@ -257,7 +259,7 @@ namespace ClaudeDashboard
                 string kind = null; TimeSpan span = now - t.Since;
                 if (t.State == ClaudeState.NeedsYou) kind = ClaudeAttention.Need;
                 else if (t.State == ClaudeState.Stuck) kind = ClaudeAttention.Stuck;
-                else if (t.State == ClaudeState.Done && span >= ClaudeAttention.TurnWaits) kind = ClaudeAttention.Turn;
+                else if (t.YourTurn && span >= ClaudeAttention.TurnWaits) kind = ClaudeAttention.Turn;
                 else if (t.State == ClaudeState.Working && t.LastSign > DateTime.MinValue && now - t.LastSign >= ClaudeAttention.SilentAfter) { kind = ClaudeAttention.Silent; span = now - t.LastSign; }
                 if (kind != null) list.Add(new ClaudeAttention { Thread = t, Kind = kind, For = span < TimeSpan.Zero ? TimeSpan.Zero : span });
             }

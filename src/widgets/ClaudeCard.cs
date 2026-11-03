@@ -217,23 +217,31 @@ namespace ClaudeDashboard
             if (t.Where.Length > 0) parts.Add(t.Where == "Desktop" ? "Claude app" : t.Where);
             return String.Join(" · ", parts);
         }
-        // The clipped ledger's footer: "+7 below · 1 needs you · 1 stuck · 1 your turn" (or "↑ 3 above").
-        public static string MoreRows(int below, int above, int needs, int stuck, int turn)
+        // The clipped ledger's footer: "+7 below · 1 stuck · 2 your turn", with what waits above after an arrow
+        // ("+7 below · 2 your turn · ↑ 1 needs you"), or "↑ 3 above · 1 needs you" at the bottom. Each count says
+        // where its rows are.
+        public static string MoreRows(int below, int needs, int stuck, int turn, int above, int upNeeds, int upStuck, int upTurn)
         {
             var parts = new List<string>();
-            parts.Add(below > 0 ? "+" + below + " below" : "\u2191 " + above + " above");
+            if (below > 0) { parts.Add("+" + below + " below"); parts.AddRange(Waiting(needs, stuck, turn)); }
+            var up = Waiting(upNeeds, upStuck, upTurn);
+            if (below <= 0) { parts.Add("\u2191 " + above + " above"); parts.AddRange(up); }
+            else if (up.Count > 0) parts.Add("\u2191 " + String.Join(" · ", up));
+            return String.Join(" · ", parts);
+        }
+        private static List<string> Waiting(int needs, int stuck, int turn)
+        {
+            var parts = new List<string>();
             if (needs > 0) parts.Add(needs + (needs == 1 ? " needs you" : " need you"));
             if (stuck > 0) parts.Add(stuck + " stuck");
             if (turn > 0) parts.Add(turn + " your turn");
-            return String.Join(" · ", parts);
+            return parts;
         }
         // Medium's last row when projects don't fit: "+3 more projects · 1 stuck · 1 your turn".
         public static string MoreProjects(int count, int needs, int stuck, int turn)
         {
             var parts = new List<string> { "+" + count + (count == 1 ? " more project" : " more projects") };
-            if (needs > 0) parts.Add(needs + (needs == 1 ? " needs you" : " need you"));
-            if (stuck > 0) parts.Add(stuck + " stuck");
-            if (turn > 0) parts.Add(turn + " your turn");
+            parts.AddRange(Waiting(needs, stuck, turn));
             return String.Join(" · ", parts);
         }
 
@@ -1118,25 +1126,27 @@ namespace ClaudeDashboard
             table.Children.Add(At(names.Add(more, "ClaudeLedgerMore"), 2));
             Action follow = () => UpdateMore(list, scroll, more, moreText);
             more.Click += (sender, e) => { double to = MoreTarget(list, scroll); if (!Double.IsNaN(to)) scroll.ScrollToVerticalOffset(to); };
-            scroll.ScrollChanged += (sender, e) => follow();
-            fills.Add(now => follow());
             // Whole rows only: no row is cut through its text at the bottom (review fix 7). The footer's room is kept
-            // only while the rows don't all fit, so it never covers one.
-            table.SizeChanged += (sender, e) => {
-                var heights = list.Children.OfType<FrameworkElement>().Select(r => r.ActualHeight + r.Margin.Top + r.Margin.Bottom).ToList();
+            // only while the rows don't all fit, so it never covers one. It's worked out again when the card or the rows
+            // change size and after a scroll, so the rows always end whole.
+            Action fit = () => {
+                if (table.ActualHeight <= 0) return;
                 double room = table.ActualHeight - 24;
-                bool over = heights.Sum() > room + 0.5;
+                bool over = list.Children.OfType<FrameworkElement>().Sum(r => Tall(r)) > room + 0.5;
                 more.Visibility = over ? Visibility.Visible : Visibility.Collapsed;
-                double fit = CardSizing.ClaudeWholeRows(heights, over ? room - MoreHeight : room);
-                if (Math.Abs(scroll.Height - fit) > 0.5 || Double.IsNaN(scroll.Height)) scroll.Height = fit;
+                FitWhole(list, scroll, over ? room - MoreHeight : room);
                 follow();
             };
+            scroll.ScrollChanged += (sender, e) => { if (Math.Abs(e.VerticalChange) > 0.1) fit(); else follow(); };
+            fills.Add(now => follow());
+            table.SizeChanged += (sender, e) => fit();
+            list.SizeChanged += (sender, e) => fit();
             return table;
         }
         private double MoreHeight { get { return Math.Max(28, Math.Ceiling(Scaled(13) * 1.4 + 10)); } }
         // The ledger's rows out of view, below (or, at the bottom, above): thread rows by their thread, and a folded
         // garage by the threads in it.
-        private sealed class OutOfView { public int Below, Above, Needs, Stuck, Turn; public double FirstUrgent = Double.NaN; }
+        private sealed class OutOfView { public int Below, Above, Needs, Stuck, Turn, UpNeeds, UpStuck, UpTurn; public double FirstUrgent = Double.NaN; }
         private OutOfView Hidden(StackPanel list, ScrollViewer scroll)
         {
             var result = new OutOfView();
@@ -1146,8 +1156,8 @@ namespace ClaudeDashboard
             var groups = view.Groups(period);
             foreach (var row in list.Children.OfType<FrameworkElement>())
             {
-                double h = row.ActualHeight + row.Margin.Top + row.Margin.Bottom, at = top; top += h;
-                bool below = at + h > bottom + 0.5, above = at < offset - 0.5;
+                double h = Tall(row), at = top; top += h;
+                bool below = at + h > bottom + 0.5, above = !below && at < offset - 0.5;
                 if (!below && !above) continue;
                 var tag = row.Tag as string; if (tag == null) continue;
                 var these = new List<ClaudeSession>();
@@ -1155,19 +1165,32 @@ namespace ClaudeDashboard
                 if (tag.StartsWith("g:")) { var g = groups.FirstOrDefault(x => String.Equals(x.Folder, tag.Substring(2), StringComparison.OrdinalIgnoreCase)); if (g != null && collapsed.Contains(g.Folder)) these.AddRange(g.Threads); }
                 else if (threads.TryGetValue(tag, out one)) these.Add(one);
                 if (these.Count == 0) continue;
-                if (below) result.Below += these.Count; else result.Above += these.Count;
-                int needs = these.Count(t => t.Running && t.State == ClaudeState.NeedsYou), stuck = these.Count(t => t.Running && t.State == ClaudeState.Stuck), turn = these.Count(t => t.Running && t.State == ClaudeState.Done);
-                result.Needs += needs; result.Stuck += stuck; result.Turn += turn;
+                int needs = these.Count(t => t.Running && t.State == ClaudeState.NeedsYou), stuck = these.Count(t => t.Running && t.State == ClaudeState.Stuck), turn = these.Count(t => t.YourTurn);
+                if (below) { result.Below += these.Count; result.Needs += needs; result.Stuck += stuck; result.Turn += turn; }
+                else { result.Above += these.Count; result.UpNeeds += needs; result.UpStuck += stuck; result.UpTurn += turn; }
                 if (needs + stuck + turn > 0 && Double.IsNaN(result.FirstUrgent)) result.FirstUrgent = at;
             }
             return result;
+        }
+        private static double Tall(FrameworkElement row) { return row.ActualHeight + row.Margin.Top + row.Margin.Bottom; }
+        // Whole rows only, from wherever the ledger is scrolled to: the viewport ends at the last row that fits whole, so
+        // neither the card's edge nor the footer cuts one (review fix 7, and the Lead on #13).
+        private static void FitWhole(StackPanel list, ScrollViewer scroll, double room)
+        {
+            var rows = list.Children.OfType<FrameworkElement>().Select(Tall).ToList();
+            double offset = scroll.VerticalOffset, top = 0;
+            var from = new List<double>();
+            foreach (double h in rows) { if (top + h > offset + 0.5) from.Add(from.Count == 0 ? top + h - offset : h); top += h; }
+            if (from.Count == 0) from = rows;
+            double fit = CardSizing.ClaudeWholeRows(from, room);
+            if (Double.IsNaN(scroll.Height) || Math.Abs(scroll.Height - fit) > 0.5) scroll.Height = fit;
         }
         private void UpdateMore(StackPanel list, ScrollViewer scroll, Button more, TextBlock text)
         {
             if (more.Visibility != Visibility.Visible) return;
             var hidden = Hidden(list, scroll);
-            text.Text = hidden.Below + hidden.Above == 0 ? "All rows shown" : ClaudeText.MoreRows(hidden.Below, hidden.Above, hidden.Needs, hidden.Stuck, hidden.Turn);
-            text.SetResourceReference(TextBlock.ForegroundProperty, hidden.Needs + hidden.Stuck > 0 ? "Warning" : "Muted");
+            text.Text = hidden.Below + hidden.Above == 0 ? "All rows shown" : ClaudeText.MoreRows(hidden.Below, hidden.Needs, hidden.Stuck, hidden.Turn, hidden.Above, hidden.UpNeeds, hidden.UpStuck, hidden.UpTurn);
+            text.SetResourceReference(TextBlock.ForegroundProperty, hidden.Needs + hidden.Stuck + hidden.UpNeeds + hidden.UpStuck > 0 ? "Warning" : "Muted");
             AutomationProperties.SetName(more, text.Text + ". Press to scroll to them.");
         }
         // Where the footer takes you: the first row out of view with something waiting on you, else the first one below
@@ -1179,7 +1202,7 @@ namespace ClaudeDashboard
             if (hidden.Below > 0)
             {
                 double top = 0, bottom = scroll.VerticalOffset + scroll.ViewportHeight;
-                foreach (var row in list.Children.OfType<FrameworkElement>()) { double h = row.ActualHeight + row.Margin.Top + row.Margin.Bottom; if (top + h > bottom + 0.5) return top; top += h; }
+                foreach (var row in list.Children.OfType<FrameworkElement>()) { double h = Tall(row); if (top + h > bottom + 0.5) return top; top += h; }
             }
             return 0;
         }
@@ -1481,7 +1504,7 @@ namespace ClaudeDashboard
                 fills.Add(now => {
                     var rest = view.Groups(period).Skip(from).ToList();
                     var threads = rest.SelectMany(g => g.Threads).Where(t => t.Running).ToList();
-                    int needs = threads.Count(t => t.State == ClaudeState.NeedsYou), stuck = threads.Count(t => t.State == ClaudeState.Stuck), turn = threads.Count(t => t.State == ClaudeState.Done);
+                    int needs = threads.Count(t => t.State == ClaudeState.NeedsYou), stuck = threads.Count(t => t.State == ClaudeState.Stuck), turn = threads.Count(t => t.YourTurn);
                     moreText.Text = ClaudeText.MoreProjects(rest.Count, needs, stuck, turn);
                     moreText.SetResourceReference(TextBlock.ForegroundProperty, needs + stuck > 0 ? "Warning" : "Muted");
                     AutomationProperties.SetName(moreText, moreText.Text + ". Make the window bigger to see them.");

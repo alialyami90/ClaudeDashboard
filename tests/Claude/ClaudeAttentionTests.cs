@@ -22,6 +22,26 @@ internal static class ClaudeAttentionTests
         Directory.CreateDirectory(path);
         return path;
     }
+    // No row is cut at the ledger's bottom: each row ends inside the viewport or starts below it.
+    private static void Whole(ScrollViewer ledger, Size size, string when)
+    {
+        var list = (StackPanel)ledger.Content;
+        double top = 0, offset = ledger.VerticalOffset, bottom = offset + ledger.ViewportHeight, first = -1;
+        foreach (var row in list.Children.OfType<FrameworkElement>())
+        {
+            double h = row.ActualHeight + row.Margin.Top + row.Margin.Bottom;
+            if (top + h > offset + 0.5 && first < 0) first = top;
+            Assert(!(top < bottom - 0.5 && top + h > bottom + 1.5 && top > first), "A row is cut at the ledger's bottom " + when + " at " + size + " (" + top + "+" + h + " > " + bottom + ").");
+            top += h;
+        }
+    }
+    // The count before a word in the footer, in its part before the arrow (below) or after it (above).
+    private static int Count(string said, int arrow, string word)
+    {
+        string part = arrow < 0 ? said : said.Substring(0, arrow);
+        var m = System.Text.RegularExpressions.Regex.Match(part, @"(\d+) " + word);
+        return m.Success ? Int32.Parse(m.Groups[1].Value) : 0;
+    }
     public static void Run(string directory, Action<string, Action> check)
     {
         check("Claude ranks projects Needs you, Stuck, Your turn, Working, then the rest", () => {
@@ -51,7 +71,14 @@ internal static class ClaudeAttentionTests
             var turn = queue.First(a => a.Kind == ClaudeAttention.Turn);
             Assert(ClaudeText.AttentionReason(ClaudeAttention.Turn, turn.Thread, view, Now, false).StartsWith("Waiting for your reply · "), "The your-turn words are wrong.");
             Assert(ClaudeText.AttentionTitle(ClaudeAttention.Need, "Fix login", "api") == "Pit stop: Fix login · api" && ClaudeText.AttentionTitle(ClaudeAttention.Silent, "X", "") == "Silent: X", "The strip's titles are wrong.");
-            Assert(ClaudeText.MoreRows(7, 0, 1, 1, 2) == "+7 below · 1 needs you · 1 stuck · 2 your turn" && ClaudeText.MoreRows(0, 3, 0, 0, 0) == "↑ 3 above" && ClaudeText.MoreRows(4, 0, 2, 0, 0) == "+4 below · 2 need you", "The footer words are wrong.");
+            Assert(ClaudeText.MoreRows(7, 1, 1, 2, 0, 0, 0, 0) == "+7 below · 1 needs you · 1 stuck · 2 your turn" && ClaudeText.MoreRows(0, 0, 0, 0, 3, 0, 0, 0) == "↑ 3 above"
+                && ClaudeText.MoreRows(4, 2, 0, 0, 0, 0, 0, 0) == "+4 below · 2 need you" && ClaudeText.MoreRows(0, 0, 0, 0, 5, 1, 0, 2) == "↑ 5 above · 1 needs you · 2 your turn", "The footer words are wrong.");
+            // The Lead on #13: what waits above is never counted as below.
+            Assert(ClaudeText.MoreRows(15, 0, 0, 6, 4, 1, 0, 0) == "+15 below · 6 your turn · ↑ 1 needs you", "A row above is counted as below: " + ClaudeText.MoreRows(15, 0, 0, 6, 4, 1, 0, 0));
+            // Your turn is the header's: a done thread whose car is in the pit (compacting) isn't one.
+            var compacting = view.Threads.First(t => t.Id == "sample-3");
+            Assert(compacting.Running && compacting.State == ClaudeState.Done && compacting.Pit != PitState.Done && !compacting.YourTurn, "A compacting thread counts as your turn.");
+            Assert(view.Groups(ClaudePeriod.Today).Sum(g => g.Threads.Count(t => t.YourTurn)) == view.Sessions.Count(t => t.Pit == PitState.Done), "Your turn isn't counted as the header counts it.");
             Assert(ClaudeText.MoreProjects(3, 0, 1, 1) == "+3 more projects · 1 stuck · 1 your turn" && ClaudeText.MoreProjects(1, 0, 0, 0) == "+1 more project", "Medium's more words are wrong.");
             Assert(ClaudeView.Fixture(Now, false, false).Attention(Now).All(a => a.Kind != ClaudeAttention.Need), "A calm sample has a thread that needs you.");
         });
@@ -132,6 +159,17 @@ internal static class ClaudeAttentionTests
                                 more.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
                                 AppController.Render(window, size, 1, Path.Combine(renders, name + "-scrolled.png"));
                                 Assert(ledger.VerticalOffset > offset, "The footer didn't scroll to what's out of view at " + size + ".");
+                                AppController.Render(window, size, 1, Path.Combine(renders, name + "-scrolled.png"));
+                                Whole(ledger, size, "after the footer's scroll");
+                                // Scrolled past the top rows: nothing above is counted as below.
+                                ledger.ScrollToVerticalOffset(ledger.ScrollableHeight / 2);
+                                AppController.Render(window, size, 1, Path.Combine(renders, name + "-middle.png"));
+                                AppController.Render(window, size, 1, Path.Combine(renders, name + "-middle.png"));
+                                Whole(ledger, size, "in the middle");
+                                string said = text.Text; int arrow = said.IndexOf('\u2191');
+                                if (needs && ledger.VerticalOffset > 100) Assert(arrow >= 0 && said.IndexOf("needs you", StringComparison.Ordinal) > arrow, "The needs-you row above is counted below at " + size + ": " + said);
+                                int turnBelow = Count(said, arrow, "your turn"), header = card.View.Sessions.Count(t => t.Pit == PitState.Done);
+                                Assert(turnBelow <= header, "The footer counts more your-turn threads than the header at " + size + ": " + said + " / " + header);
                                 footerSeen = true;
                             }
                             var medium = window.FindName("ClaudeMoreProjects") as TextBlock;
