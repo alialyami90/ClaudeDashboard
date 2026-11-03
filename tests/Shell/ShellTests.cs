@@ -430,7 +430,7 @@ internal static class ShellTests
             }
         });
 
-
+        check("Shell window place: a saved place opens only where a screen can still show its title bar", () => {
             var main = new Rect(0, 0, 1920, 1040); var left = new Rect(-1280, 0, 1280, 984);
             Assert(WindowPlacement.Visible(new Rect(100, 100, 1200, 700), new[] { main }), "A window on the main screen was called off-screen.");
             Assert(WindowPlacement.Visible(new Rect(-1200, 60, 1000, 600), new[] { main, left }), "A window on the left monitor was called off-screen.");
