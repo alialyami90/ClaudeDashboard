@@ -14,6 +14,27 @@ Claude Dashboard: the lap chart's Reliability and Sources views (decision 030, p
 - **Sources** lists Hooks, Logs, Telemetry, Plan meters and Claude app threads, each with its state (ClaudeHealth's levels, glyph and word), freshness (the engine's logs read, telemetry's last event and port, the app threads' read time and count, the plan's next check), what it gives and one action (Connect or Disconnect, Open folder, Change port, Check now or Sign in, Show archived). The actions go through the window's Act, the same path and confirmations as Settings → Claude; the view never writes Claude Code's settings itself, and an action's error shows above the rows.
 - **Checks:** medians, longest and failures per tool, the failure rate, the last hour's API errors, stuck turns split by a 10-minute gap with their reasons, no turn text reaching the view, telemetry off, the five sources, each button calling Act once with its action and showing its error, and both views inside their width at 640 × 420, 1000 × 600 and 1600 × 900 at 100% and 140%. Renders `claude-{reliability,sources}-<size>-{100,140}.png` and `claude-reliability-1000x600-claude.png`.
 
+## v0.57.0 (unreleased)
+
+The lap chart's package D (decision 030): the Limits and History tabs.
+
+- **Limits** shows the 5-hour window from its start to its reset. It has the use curve from the plan readings, the "≈ limit" at the last 30 minutes' pace (dashed, amber with a wall where it hits 100% before the reset) and at today's average from tokens (dotted), and a mark where heavy use began. With fewer than 3 plan readings it shows no projection and says why. Beside it: the week's laps by day (each day's ≈ share from its tokens) with the pace to the reset; the weekly windows (all models, each model's own, extra usage, the spend limit, each saying when it isn't reported); and this window's tokens by project.
+- **History** shows the 8-week calendar of tokens per day, the hour-of-day profile with a tick at the same hour last week, and the last 7 days: tokens, ≈ $ at API prices, threads, times it needed you, and the longest wait (amber from 15 minutes). Below that are this week's projects. It reads ClaudeHistory's day files (through the view context) only when today's tokens or the date change, and at most once a minute. While History is off it says so and points to Settings → Claude → History.
+- **At the limit** (the engine's `Reached`, or 100%) Limits says "Limit reached. It resets …" in Amber, and draws no pace or average line.
+- **Keyboard:** each tab's page is one tab stop with a spoken name ("Limits page", "History page") that scrolls with the arrow, Page and Home/End keys, and a redraw keeps its focus and scroll position. The week's laps show whole percents, and "<1%" for a little use.
+- Both draw in code with the palette's brushes, say Sample over the fixture at every size, start no timers, and redraw only when the snapshot or the minute changes.
+- **Checks** (`tests/Claude/LimitsHistoryTests.cs`): both tabs at 640 × 420, 1000 × 600 and 1600 × 900, at 100% and 140%; no projection under 3 readings; the engine's projections taken as they are and marked ≈; the onset rule; honest weekly-window rows; the History model; and reading the day files once a minute.
+
+## v0.56.1 (unreleased)
+
+Claude Dashboard: lap chart follow-ups, and "Limit reached" from the engine.
+
+- **`ClaudeLimitProjection.Reached`**: when the newest plan reading of the 5-hour window is already at 100%, both projections say Reached. `LimitAt` is then null, so no view ever shows "≈ limit" at a time that has already passed. Live's 5-hour line and the curve's label say "Limit reached" in Amber, with no wall. Shell's header keys off the same flag.
+- **A frame clock for the views.** A view asks the window for frames while a car moves (`ClaudeViewContext.Frames`). The window's one timer for it runs only while that view is on screen, the window isn't minimised and Quiet mode isn't keeping the cars still, the same rule as Garage's cars. A view is told Quiet (`ClaudeViewContext.Quiet`).
+- **Each view tab has its name** for screen readers. Tab after Live's last lane landed on a tab with none.
+- **The header says "Limit reached"** in Amber, with no "≈ limit" time, while the 5-hour window is Reached.
+- **Checks:** a full window is Reached with no time, in the engine and on Live's line.
+
 ## v0.56.0 (unreleased)
 
 Claude Dashboard: the Live tab, the lap chart (package C of the lap chart plan). From 640 wide, Live is the first tab.
