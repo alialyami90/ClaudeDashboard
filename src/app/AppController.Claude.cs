@@ -61,10 +61,12 @@ namespace ClaudeDashboard
         }
 
         // A labelled fixture instead of this PC's sessions, for renders (--render-claude-sample) and checks.
-        public void UseClaudeSample(bool needsYou)
+        public void UseClaudeSample(bool needsYou) { UseClaudeSample(needsYou, false); }
+        // crowded: 25 threads over eight projects (renders and the layout checks).
+        public void UseClaudeSample(bool needsYou, bool crowded)
         {
             claudeSample = true;
-            claudeView = ClaudeView.Fixture(DateTime.UtcNow, needsYou);
+            claudeView = ClaudeView.Fixture(DateTime.UtcNow, needsYou, crowded);
             ClaudeChoices(claudeView);
             claudeCard.Update(claudeView);
             UpdateHeader();

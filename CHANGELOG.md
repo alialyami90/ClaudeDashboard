@@ -6,6 +6,16 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.49.0 (unreleased)
+
+Claude Dashboard: the attention rail (observability critique, issue 1). In 5 h and Today the window says first what's waiting on you, and nothing that is hides off the bottom.
+
+- **Projects are ranked by what waits on you:** Needs you, then Stuck, then Your turn, then Working, then the rest, most recent first within each. Before, only Needs you jumped the queue.
+- **The pit stop strip is a short queue.** It holds every running thread that needs you, is stuck, has been your turn for 10 minutes or more, or is working with no hook event or log reply for 5 minutes ("Silent"). It shows one at a time with "1 of 4" and Next. Needs you and Stuck stay Amber; Your turn and Silent are calm, and Go to it is Amber only for the first two. Silent is honest about what it knows: a long tool run looks the same.
+- **A clipped ledger keeps a footer.** When the Large ledger's rows don't all fit, a line under it that never scrolls away says "+7 below · 1 stuck · 2 your turn" (or "↑ 3 above" at the bottom), Amber when a hidden row needs you or is stuck. Pressing it scrolls to the first hidden row that waits on you, else the next row below. Its room is taken only while rows are hidden.
+- **Medium counts what it can't show:** a last row "+3 more projects · 1 your turn", and its Needs-you line says how long ("Needs you 4 min · Fix login").
+- **A crowded sample** of 25 threads over eight projects (`--render-claude-crowded`, with one of each kind of attention) for the checks and renders. Three new checks; renders at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900, calm and with Needs you, go to `artifacts\renders`.
+
 ## v0.47.3 (unreleased)
 
 Claude Dashboard: the code's namespace is renamed.
