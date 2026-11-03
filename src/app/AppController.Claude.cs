@@ -59,6 +59,8 @@ namespace ClaudeDashboard
             window.StateChanged += (sender, e) => { UpdateClaudeLive(); if (CardShown) claudeDirty = true; };
             claudeToast = new ClaudeToast(id => { if (!disposed) { ShowWindow(); FocusClaudeSession(id); } });
             claudeHistory = new ClaudeHistory(claude.BridgeFolder);
+            // v0.60.0: the live writer takes today's and yesterday's detail from the backfill's tally of the logs.
+            claudeHistory.Details = date => claude.Usage.Backfill == null ? null : claude.Usage.Backfill.DetailFor(date);
             if (Program.Rendering) return;
             // A watched folder changed or telemetry arrived (package 3): the card looks at once, on its own thread.
             claude.Changed = () => { try { window.Dispatcher.BeginInvoke(new Action(ClaudeWatchFired)); } catch (Exception) { } };
@@ -156,7 +158,10 @@ namespace ClaudeDashboard
         {
             lastClaudeScan = DateTime.UtcNow; claudeLogsWaiting = false;
             // v0.59.0: the background scan also steps the past days' backfill (never the UI thread's scan).
-            var scan = Task.Run(() => claude.Usage.Scan(DateTime.UtcNow, true));
+            // v0.60.0: and then works out the Insights ranges from the day files, still off the UI thread.
+            bool history = settings.ClaudeHistory;
+            var days = claudeHistory;
+            var scan = Task.Run(() => { claude.Usage.Scan(DateTime.UtcNow, true); WorkOutInsights(history, days); });
             claudeScan = scan;
             try { await scan; } catch (Exception) { }
             if (disposed) return;
@@ -164,9 +169,19 @@ namespace ClaudeDashboard
             if (claude.Watch.Running && CardShown) RefreshClaudeView();
         }
 
+        // v0.60.0: the Insights ranges (7 days, 30 days, all kept) from the day files; on the scan's thread, never the UI's.
+        private void WorkOutInsights(bool history, ClaudeHistory days)
+        {
+            DateTime at = DateTime.UtcNow;
+            try { claude.Insights = history && days != null ? ClaudeInsightsSet.Compute(days.Kept(at), days.LocalDate(at), at) : null; } catch (Exception) { }
+        }
+
         private async void StepClaudeBackfill()
         {
-            var step = Task.Run(() => claude.Usage.StepBackfill(DateTime.UtcNow));
+            bool history = settings.ClaudeHistory;
+            var days = claudeHistory;
+            // Once a step writes days (the pass ends), the Insights ranges are worked out again at once.
+            var step = Task.Run(() => { bool wrote = claude.Usage.StepBackfill(DateTime.UtcNow); if (wrote) WorkOutInsights(history, days); return wrote; });
             claudeScan = step;
             try { await step; } catch (Exception) { }
             if (disposed) return;

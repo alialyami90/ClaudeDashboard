@@ -6,6 +6,48 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.60.0 (unreleased)
+
+Claude Dashboard: the Insights engine (decision 031, part A). Ali asked: "show me a detailed view of the logs. Where can i have different charts or comparisons or most used or least used models efforts or tool or etc. Give me more". The view (part B, the Insights tab) comes in v0.61.0.
+
+- **Day files v2.** A day file now carries `"v": 2` and a `detail` section (`ClaudeDayDetail`) built from Claude Code's logs:
+  - models: replies, input, output, cache read and write, thinking tokens and ≈ $ for each;
+  - effort level per model;
+  - thinking: replies that thought, total and longest thinking time;
+  - tools: calls, errors, ≈ time and calls by model for each;
+  - MCP servers, skills and plugins;
+  - permissions: allowed without asking, allowed by a rule, asked, denied;
+  - health: API errors, retries, compactions and stop reasons;
+  - each session's length;
+  - lines added and removed, overall and per project.
+  - Numbers plus model, effort, tool, MCP server, skill and plugin names and project folders only. No prompt, reply, thinking, tool input or output, file path from a tool, or branch name is kept.
+- **How the logs are read** (`ClaudeDetailTally`):
+  - Model ids are normalised (`[1m]` and the like taken off). Claude Code's own `<synthetic>` replies count only as API errors.
+  - Each reply counts once by its request id, and each tool call and result once by its id, a helper's copy included.
+  - `api-request-blob` lines repeat content blocks, so they are skipped.
+  - A tool's ≈ time is the gap between its call's line and its result's line, since there is no duration in the logs. The day keeps a histogram of these times for an ≈ median.
+- **Who writes it.**
+  - `ClaudeBackfill` tallies the detail from the same pieces of log it already reads. A past day with no file gets v2. A v1 day with as many replies gets the detail added, keeping its counts, Needs and LongestWait. A partial day is rebuilt as before.
+  - Once its pass is done, the backfill follows the logs written since (changed in the last two days), within its step budget. The live writer (`ClaudeHistory.Save`) takes today's and yesterday's detail from it, and otherwise keeps the detail a file already has.
+  - Today is still never written by the backfill.
+- **`ClaudeInsights`**: one range (7 days, 30 days, or all kept) with the previous equal range. It holds:
+  - totals, and a per-day series;
+  - rankings of models, tools, projects, MCP servers, skills and plugins, biggest first with ties by name, plus `Most` and `Least`;
+  - an hour × weekday heat grid;
+  - `Change` for the comparison;
+  - why a range is empty, or why its days have no detail yet.
+- **`ClaudeInsightsSet`** holds Week, Month and All. It is worked out from the day files after each background scan, and when the backfill writes days, off the UI thread. It is published as `ClaudeView.Insights`, and the view only picks one. `ClaudeInsightsSet.SampleSet(now)` is the labelled sample, and the fixture carries it.
+- `ClaudeLogActivity.CountLines` is now shared by the card and the tally.
+- **Checks** (`InsightsEngineTests`, with fixture logs in throwaway folders):
+  - every v2 field from a day of logs, counted once even with a helper's copy;
+  - request blobs not counted, model ids normalised, the error join, ≈ tool time;
+  - no text, path, branch or id in the detail;
+  - the backfill writing v2, and upgrading a v1 day while keeping its counts, needs and waits;
+  - following today's new lines, once;
+  - the live writer writing and keeping v2;
+  - 7 days, 30 days and All with the previous range, ties by name, least used;
+  - an empty range and v1-only days saying why, and the sample.
+
 ## v0.59.3 (unreleased)
 
 Faster History from the logs (Ali: "why is log rreading so slow").

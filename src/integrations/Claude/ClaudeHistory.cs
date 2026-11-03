@@ -189,13 +189,19 @@ namespace ClaudeDashboard
             foreach (var day in Roll(replies, names))
             {
                 var stored = Read(day.Date);
+                // v0.60.0: the day's detail from the logs (the backfill's tally, for today and yesterday), else what
+                // the file already holds.
+                var detail = Details == null ? null : Details(day.Date);
+                day.Detail = detail ?? (stored == null ? null : stored.Detail);
                 if (stored != null)
                 {
                     day.Needs = Math.Max(day.Needs, stored.Needs); day.LongestWait = Math.Max(day.LongestWait, stored.LongestWait);
                     if (day.Tokens < stored.Tokens || day.Replies < stored.Replies)
                     {
-                        if (day.Needs == stored.Needs && day.LongestWait == stored.LongestWait) continue;
+                        bool newer = detail != null && (stored.Detail == null || detail.Replies >= stored.Detail.Replies) && (stored.Detail == null || ClaudeJson.Compact(detail.ToJson()) != ClaudeJson.Compact(stored.Detail.ToJson()));
+                        if (day.Needs == stored.Needs && day.LongestWait == stored.LongestWait && !newer) continue;
                         stored.Needs = day.Needs; stored.LongestWait = day.LongestWait;
+                        if (newer) stored.Detail = detail;
                         try { ClaudeBridge.WriteAtomic(DayPath(stored.Date), ClaudeJson.Compact(stored.ToJson())); wrote = true; } catch (Exception) { }
                         continue;
                     }
@@ -228,9 +234,35 @@ namespace ClaudeDashboard
             if (day == null || day.Date.Date >= today.Date) return false;
             var stored = Read(day.Date.Date);
             if (stored == null) return WriteNew(day, today);
-            if (day.Replies <= stored.Replies) return false;
+            if (day.Replies <= stored.Replies)
+            {
+                // v0.60.0: a whole day kept before v2 gets its detail from the logs; its counts, needs and waits stay.
+                if (stored.Detail != null || day.Detail == null) return false;
+                stored.Detail = day.Detail;
+                try { ClaudeBridge.WriteAtomic(DayPath(stored.Date), ClaudeJson.Compact(stored.ToJson())); return true; } catch (Exception) { return false; }
+            }
             day.Needs = stored.Needs; day.LongestWait = stored.LongestWait; day.FromLogs = true;
             try { ClaudeBridge.WriteAtomic(DayPath(day.Date.Date), ClaudeJson.Compact(day.ToJson())); return true; } catch (Exception) { return false; }
+        }
+
+        // v0.60.0: where the live writer gets a day's detail (the backfill's tally of the logs); null: none.
+        public Func<DateTime, ClaudeDayDetail> Details;
+
+        // Every day file kept, oldest first (for Insights): only days that have a file.
+        public List<ClaudeDay> Kept(DateTime now)
+        {
+            DateTime oldest = LocalDate(now).AddDays(-(KeptDays - 1));
+            var list = new List<ClaudeDay>();
+            string[] files;
+            try { if (!Directory.Exists(folder)) return list; files = Directory.GetFiles(folder, "*.json"); } catch (Exception) { return list; }
+            foreach (var path in files.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+            {
+                DateTime date;
+                if (!DateTime.TryParseExact(Path.GetFileNameWithoutExtension(path), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) || date < oldest) continue;
+                var day = Read(date);
+                if (day != null) list.Add(day);
+            }
+            return list;
         }
 
         // Deletes day files older than a year (and stray files that aren't days).
