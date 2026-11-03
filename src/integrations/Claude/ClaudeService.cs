@@ -63,6 +63,9 @@ namespace WidgetScreen
         // Tokens read from the prompt cache in each period: its own ledger column, apart from Tokens (Ali, 1 Nov 2026).
         public readonly Dictionary<ClaudePeriod, long> CacheReads = new Dictionary<ClaudePeriod, long>();
         public long CacheReadsFor(ClaudePeriod period) { long value; return CacheReads.TryGetValue(period, out value) ? value : 0; }
+        // The Title is the first line of the thread's first request (no typed, generated or app name): kept in memory
+        // only, so exports use the id label instead.
+        public bool TitleAsked;
         public string Shown { get { return String.IsNullOrWhiteSpace(Title) ? ProjectName : Title; } }
         public long TokensFor(ClaudePeriod period) { long value; return Tokens.TryGetValue(period, out value) ? value : 0; }
         public double CostFor(ClaudePeriod period) { double value; return Cost.TryGetValue(period, out value) ? value : 0; }
@@ -133,6 +136,10 @@ namespace WidgetScreen
         // The pit wall (decision 017): tokens a minute over the last hour (oldest first) and now, the rev counter's
         // scale, the 5-hour lanes by project and today's facts. Worked out when the view is made.
         public double[] Burn = new double[ClaudePace.BurnMinutes];
+        // Package 4: tokens a day for the last 7 days (oldest first, today last) and by this time a week ago, from the
+        // history files; null when History is off or there is none yet.
+        public long[] Days;
+        public long? LastWeekByNow;
         public double Rate, Scale = ClaudePace.MinScale;
         public List<ClaudeLane> Lanes = new List<ClaudeLane>();
         public ClaudeFacts Facts = new ClaudeFacts();
@@ -278,6 +285,7 @@ namespace WidgetScreen
             // An hour of burn rising to now, and a lane per project for the last five hours.
             for (int i = 0; i < ClaudePace.BurnMinutes; i++) view.Burn[i] = Math.Max(2000, 18000 + 14000 * Math.Sin(i / 7.0) + i * 300 + (i > 48 ? (i - 48) * 2600 : 0));
             view.Rate = 50000; view.Scale = ClaudePace.Scale(view.Burn.Max());
+            view.Days = new long[] { 3100000, 4800000, 2200000, 0, 5900000, 4100000, 4588800 }; view.LastWeekByNow = 3400000;
             var profiles = new Dictionary<string, int[]> {
                 { "widget-screen", new[] { 0, 0, 1, 2, 3, 2, 1, 0, 0, 1, 3, 4, 4, 3, 2, 3, 5, 6, 7, 6, 5, 6, 8, 9, 8, 7, 8, 9, 10, 9 } },
                 { "api-server", new[] { 2, 3, 4, 5, 4, 3, 2, 1, 1, 2, 3, 3, 2, 1, 0, 0, 0, 1, 2, 2, 1, 0, 0, 0, 0, 1, 0, 0, 3, 4 } },
@@ -801,7 +809,10 @@ namespace WidgetScreen
                 // Placeholders such as "Remote Control session (from a project)" count as none; the card falls back
                 // to a label from the id.
                 string rename, typed, asked; named.TryGetValue(s.Id, out rename); titles.TryGetValue(s.Id, out typed); prompts.TryGetValue(s.Id, out asked);
-                s.Title = ClaudeTitles.Pick(rename, typed, s.Title, a == null ? null : a.Title, asked);
+                // Package 4: a name taken from the request is shown, but never written to a file (the CSV uses the id).
+                bool fromRequest;
+                s.Title = ClaudeTitles.Name(rename, typed, s.Title, a == null ? null : a.Title, asked, out fromRequest);
+                s.TitleAsked = fromRequest;
                 // Where it runs, beside the name: a Remote Control thread says so, running or ended.
                 if (a != null && a.Remote) s.Where = "Remote Control";
                 else if (!s.Running && s.Where.Length == 0 && a != null) s.Where = "Desktop";

@@ -34,6 +34,17 @@ namespace WidgetScreen
             return found == null ? "" : found.Trim();
         }
 
+        // A thread's name in that order, and whether it came from the request (fromRequest), which is kept in memory
+        // only: exports use the id label for those.
+        public static string Name(string rename, string typed, string own, string app, string request, out bool fromRequest)
+        {
+            string named = Pick(rename, typed, own, app);
+            if (named.Length > 0) { fromRequest = false; return named; }
+            named = Pick(request);
+            fromRequest = named.Length > 0;
+            return named;
+        }
+
         // A request's first line, about 60 characters, as a thread's name. A Remote Control thread's request arrives
         // wrapped in its envelope (the person's <message>, or a brief's <note>); Claude Code's own notes and a
         // compacted thread's summary aren't requests.

@@ -2,6 +2,21 @@
 
 The Claude Code widget on both apps, built from the design brief below (kept as Ali approved it). The technical choices are in [decision 014](../decisions/014-claude-code-bridge.md), [decision 015](../decisions/015-claude-sign-in-and-telemetry.md) (the fix that made it work with the Claude app's Code tab) [decision 016](../decisions/016-claude-projects-and-threads.md) (projects with their threads, and the refresh intervals) [decision 023](../decisions/023-claude-trust-the-sources.md) (which sessions are alive, Stuck, the plan check and the telemetry port) [decision 024](../decisions/024-claude-honest-numbers.md) (where costs come from, the side panel facts, and Windows first for packages 2–4) and [decision 025](../decisions/025-claude-instant-and-everywhere.md) (watchers, notifications, phone alerts, helpers on the car, resolved without the app).
 
+## Cockpit (package 4, decision 027, v0.47.0)
+
+Package 4 of the Watcher action plan, the last one, Windows only. It lands after the Claude Dashboard transformation (phase 6 of the transformation plan) and is built for its single window. The list as the action plan wrote it (4.1–4.6), fitted to the new app on 2 Nov 2026:
+
+| # | Item | What it does | Where |
+| --- | --- | --- | --- |
+| 4.1 | ~~Answer from the notification and the car~~ | Declined (Ali, 2 Nov 2026; decision 027): the dashboard never answers a permission dialog. A Needs-you notification or car only brings the session's own window forward, where the user answers. | — |
+| 4.2 | ~~The same from the phone~~ | Dropped for now: the phone link is removed in phase 3. Moves to the Android companion on the roadmap. | — |
+| 4.3 | **Cloud garage** | Cloud and Remote Control threads from the Claude app's own records show as cars in a Cloud garage, with Ready, Working, Needs you and Done from the record. The second-PC garage over the link is dropped with the link. | `ClaudeAppThreads`, `ClaudeService` (not built yet: waits on a look at the real records) |
+| 4.4 | **History** | One small summary file per day (`claude\history\YYYY-MM-DD.json`: tokens, replies, threads, needs, the longest wait, per garage), kept 8 weeks; 7-day bars and a "same time last week" tick at the foot of the plan row's rev tile; Settings → Claude → History → Keep a daily summary, which turns it off and deletes the files. | `ClaudeHistory`, `DaySpark`, Settings |
+| 4.5 | **Export** | Settings → Claude → History → Copy summary (Markdown) and Save CSV of the last 7 days' ledger. | `ClaudeExport`, Settings → Claude → History |
+| 4.6 | **Plain mode** | A list view of the same data with the same colours, chosen in Settings → Claude → Show a plain list; also the screen-reader path. | `ClaudeCard.BuildPlain`, Settings |
+
+Left out on purpose, as in the action plan: the session launcher and the status-line companion.
+
 ## Instant and everywhere (decision 025, v0.41.0)
 
 Package 3 of the Watcher action plan, Windows only (the phone link already sends what the phone will show).

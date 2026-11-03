@@ -228,7 +228,7 @@ namespace WidgetScreen
         {
             if (port <= 0) port = TelemetryPort;
             var root = Load();
-            if (String.IsNullOrEmpty(hookSource) || !File.Exists(hookSource)) throw new InvalidOperationException(ClaudeBridge.HookExe + " is missing from Widget Screen's folder. Reinstall Widget Screen, then try again.");
+            if (String.IsNullOrEmpty(hookSource) || !File.Exists(hookSource)) throw new InvalidOperationException(ClaudeBridge.HookExe + " is missing from Claude Dashboard's folder. Reinstall Claude Dashboard, then try again.");
             Directory.CreateDirectory(BridgeFolder);
             Directory.CreateDirectory(ClaudeBridge.SessionsFolder(BridgeFolder));
             CopyHook(hookSource);
@@ -247,7 +247,6 @@ namespace WidgetScreen
                 group["hooks"] = new List<object> { hook };
                 list.Add(group);
             }
-
             // The user's own status line keeps showing: the bridge runs it and prints what it prints.
             var line = ClaudeJson.Obj(root, "statusLine");
             string previous = ClaudeBridge.PreviousStatusLinePath(BridgeFolder);
@@ -346,7 +345,7 @@ namespace WidgetScreen
             catch (Exception e) { throw new InvalidOperationException("Couldn't read " + SettingsPath + ": " + e.Message); }
             if (String.IsNullOrWhiteSpace(text)) return new JsonObject();
             object parsed;
-            if (!ClaudeJson.TryParse(text, out parsed) || !(parsed is JsonObject)) throw new InvalidOperationException("Claude Code's settings.json isn't valid JSON, so Widget Screen left it alone. Fix the file (or let Claude Code rewrite it), then try again.");
+            if (!ClaudeJson.TryParse(text, out parsed) || !(parsed is JsonObject)) throw new InvalidOperationException("Claude Code's settings.json isn't valid JSON, so Claude Dashboard left it alone. Fix the file (or let Claude Code rewrite it), then try again.");
             return (JsonObject)parsed;
         }
 
