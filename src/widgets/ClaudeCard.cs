@@ -1738,6 +1738,18 @@ namespace ClaudeDashboard
             return root;
         }
         // A mini plan tile: the 5-hour or the week's percentage, its reset and pace, over a pace meter.
+        // What a mini tile's middle line leaves the pace beside the big reading.
+        private static double PaceRoom(FrameworkElement middle, TextBlock value, double tileWidth)
+        {
+            double line = middle.ActualWidth > 0 ? middle.ActualWidth : tileWidth - 24;
+            // The reading fills the rest of its line, so it's measured by its text, not its width.
+            double reading = Wide(value, value.Text.Length > 0 ? value.Text : "100%");
+            return line - reading - 8;
+        }
+        private static double SmallRoom(FrameworkElement line, TextBlock label, TextBlock value, double width)
+        {
+            return (line.ActualWidth > 0 ? line.ActualWidth : width - 24) - Wide(label, label.Text) - 8 - Wide(value, value.Text) - 8;
+        }
         private Border MiniTile(bool fiveHour, double tileWidth)
         {
             var stack = new StackPanel();
@@ -1750,6 +1762,9 @@ namespace ClaudeDashboard
             var value = Reading("—", 28); value.SetResourceReference(TextBlock.ForegroundProperty, "Text"); middle.Children.Add(value);
             stack.Children.Add(middle);
             var bar = new PaceBar { Height = 8 }; stack.Children.Add(bar);
+            // The pace is fitted again once the tile's width is known (the first fill runs before layout).
+            List<string> paceForms = null;
+            middle.SizeChanged += (sender, e) => { if (paceForms != null && Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Fit(pace, PaceRoom(middle, value, tileWidth), paceForms); };
             string name = fiveHour ? "ClaudeFiveHour" : "ClaudeWeek";
             names.Add(value, name + "Percent"); names.Add(reset, name + "Reset"); names.Add(pace, name + "Pace"); names.Add(bar, name + "Bar");
             fills.Add(now => {
@@ -1759,8 +1774,8 @@ namespace ClaudeDashboard
                 reset.Text = w == null ? (fiveHour ? "none now" : "") : !w.ResetsAt.HasValue ? "" : !w.Current(now) ? "reset" : pct >= 100 ? "back " + ClaudeText.When(w.ResetsAt.Value, now, use24) : ClaudeText.When(w.ResetsAt.Value, now, use24);
                 reset.SetResourceReference(TextBlock.ForegroundProperty, pct >= 100 ? "Warning" : "Muted");
                 // v0.53.0: in time, like the tank ("≈ empty 9:34 am", "≈ 76% by reset"), in what room the reading leaves.
-                double tileRoom = (stack.ActualWidth > 0 ? stack.ActualWidth : tileWidth - 20) - ClaudeCard.Wide(value, value.Text.Length > 0 ? value.Text : "100%") - 8;
-                Fit(pace, tileRoom, ClaudeText.PaceTimes(projection, fiveHour ? view.LimitEtaMinutes : Double.NaN, w, fiveHour ? ClaudePace.FiveHours : ClaudePace.Week, now, use24).Where(f => !f.Contains(", ")).ToList());
+                paceForms = ClaudeText.PaceTimes(projection, fiveHour ? view.LimitEtaMinutes : Double.NaN, w, fiveHour ? ClaudePace.FiveHours : ClaudePace.Week, now, use24).Where(f => !f.Contains(", ")).ToList();
+                Fit(pace, PaceRoom(middle, value, tileWidth), paceForms);
                 pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                 bar.Value = pct / 100; bar.Projection = Double.IsNaN(projection) ? Double.NaN : projection / 100; bar.Pace = elapsed; bar.Warn = ClaudePace.Warns(projection) || ClaudeText.Warns(pct); bar.InvalidateVisual();
             });
@@ -1823,6 +1838,8 @@ namespace ClaudeDashboard
                 bottom.Children.Add(line);
                 var bar = names.Add(new PaceBar { Height = 8, Margin = new Thickness(0, 4, 0, 0) }, "ClaudeSmallMeter"); bottom.Children.Add(bar);
                 names.Add(value, "ClaudeSmallPercent"); names.Add(right, "ClaudeSmallPace");
+                List<string> smallForms = null;
+                line.SizeChanged += (sender, e) => { if (smallForms != null && Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Fit(right, SmallRoom(line, label, value, width), smallForms); };
                 fills.Add(now => {
                     bool weekly = view.Limits.FiveHour == null;
                     var w = weekly ? view.Limits.Week : view.Limits.FiveHour;
@@ -1834,8 +1851,8 @@ namespace ClaudeDashboard
                     var forms = new List<string>();
                     foreach (var p in paces) { forms.Add(String.Join(" · ", new[] { p, when, asOf }.Where(x => x.Length > 0))); forms.Add(String.Join(" · ", new[] { p, when }.Where(x => x.Length > 0))); }
                     foreach (var p in paces) forms.Add(p);
-                    double lineRoom = (line.ActualWidth > 0 ? line.ActualWidth : width - 24) - ClaudeCard.Wide(label, label.Text) - 8 - ClaudeCard.Wide(value, value.Text) - 8;
-                    Fit(right, lineRoom, forms.Distinct().ToList()); right.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
+                    smallForms = forms.Distinct().ToList();
+                    Fit(right, SmallRoom(line, label, value, width), smallForms); right.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                     bar.Value = pct / 100; bar.Projection = Double.IsNaN(projection) ? Double.NaN : projection / 100; bar.Pace = elapsed; bar.Warn = ClaudePace.Warns(projection) || ClaudeText.Warns(pct); bar.InvalidateVisual();
                 });
                 root.Children.Add(At(bottom, 1));
