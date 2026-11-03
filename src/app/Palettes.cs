@@ -61,6 +61,8 @@ namespace ClaudeDashboard
             resources["Accent"] = Brush(AccentColor(theme, accent));
             double scale = Double.IsNaN(textScale) || textScale <= 0 ? 1 : Math.Max(0.9, Math.Min(1.4, textScale));
             resources["SmallSize"] = 13.0 * scale;
+            // Captions (the header's plan stamp and Sample flag, Settings' notes) follow the text size too (v0.51.0).
+            resources["CaptionSize"] = Math.Round(12.0 * scale);
             resources["BodySize"] = 15.0 * scale;
             resources["TitleSize"] = 20.0 * scale;
             resources["CardRadius"] = new CornerRadius(16);
