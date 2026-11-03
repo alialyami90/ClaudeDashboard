@@ -273,6 +273,7 @@ namespace ClaudeDashboard
             return list.OrderBy(a => ClaudeAttention.Rank(a.Kind)).ThenByDescending(a => a.For).ThenBy(a => a.Thread.Id, StringComparer.Ordinal).ToList();
         }
         // crowded: 25 threads over eight projects, with one of each kind of attention, for the layout checks and renders.
+        public const string SampleLongTool = "mcp__github__create_pull_request_review_comment_reply";
         public static ClaudeView Fixture(DateTime now, bool needsYou, bool crowded)
         {
             var view = new ClaudeView { Connected = true, Sample = true, LogsRead = true, Plan = ClaudePlanState.Current };
@@ -339,7 +340,12 @@ namespace ClaudeDashboard
             if (crowded) threads.First(t => t.Id == "crowd-3").LastSign = now.AddMinutes(-8);
             // What the working threads are in now (the live rows' Now): one in Bash for 2 minutes, one editing.
             var bash = threads.First(t => t.Id == "sample-2"); bash.Tool = "Bash"; bash.ToolSince = now.AddMinutes(-2);
-            if (crowded) { var edit = threads.First(t => t.Id == "crowd-4"); edit.Tool = "Edit"; edit.ToolSince = now.AddSeconds(-4); }
+            if (crowded)
+            {
+                var edit = threads.First(t => t.Id == "crowd-4"); edit.Tool = "Edit"; edit.ToolSince = now.AddSeconds(-4);
+                // An MCP tool with a name past 40 characters: the row ends it in "…" and its tip has it whole.
+                var mcp = threads.First(t => t.Id == "crowd-7"); mcp.Tool = ClaudeView.SampleLongTool; mcp.ToolSince = now.AddSeconds(-20);
+            }
             foreach (var t in threads) t.Pit = ClaudePace.State(t, now, DateTime.MinValue, DateTime.MinValue, DateTime.MinValue, DateTime.MinValue);
             view.Threads = threads;
             view.Sessions = Order(threads.Where(t => t.Running));

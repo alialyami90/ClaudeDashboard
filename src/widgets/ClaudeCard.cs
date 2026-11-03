@@ -1131,7 +1131,10 @@ namespace ClaudeDashboard
             var middle = Columns(Auto, Star); middle.Margin = new Thickness(0, 2, 0, 4);
             var value = Big("—"); middle.Children.Add(value);
             var notes = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            // Scribe's nit on v0.53.0: the week's pace is fitted again when its room settles, like the tank's.
+            List<string> weekForms = null;
             var pace = Right(Trimmed(Text("", Scaled(13), "Muted"))); var extra = Right(Trimmed(Text("", Scaled(13), "Muted")));
+            notes.SizeChanged += (sender, e) => { if (weekForms != null && Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Fit(pace, e.NewSize.Width, weekForms); };
             notes.Children.Add(pace); notes.Children.Add(extra); middle.Children.Add(At(notes, 0, 1));
             stack.Children.Add(middle);
             var laps = names.Add(new WeekLaps { Height = 16 + Math.Ceiling(Scaled(11) * 1.33), TextScale = textScale }, "ClaudeLaps"); stack.Children.Add(laps);
@@ -1142,7 +1145,8 @@ namespace ClaudeDashboard
                 lap.Text = ClaudeText.Lap(ClaudePace.LapNow(elapsed));
                 resets.Text = w == null ? "" : w.Current(now) ? ClaudeText.WeekReset(w, use24) : "reset";
                 if (w == null) value.Text = "—"; else SetBig(value, pct, ClaudeText.Warns(pct) ? "Warning" : "Text");
-                Fit(pace, notes.ActualWidth > 0 ? notes.ActualWidth : 160, ClaudeText.PaceTimes(projection, Double.NaN, w, ClaudePace.Week, now, use24)); pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
+                weekForms = ClaudeText.PaceTimes(projection, Double.NaN, w, ClaudePace.Week, now, use24);
+                Fit(pace, notes.ActualWidth > 0 ? notes.ActualWidth : 160, weekForms); pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                 extra.Text = ClaudeText.Extras(view.Limits, now);
                 laps.Percent = pct; laps.Projection = projection; laps.Now = ClaudePace.LapNow(elapsed); laps.Days = ClaudeText.LapDays(w); laps.InvalidateVisual();
             });
@@ -1675,12 +1679,16 @@ namespace ClaudeDashboard
             root.Children.Add(At(tiles, 2));
             var groups = view.Groups(period);
             double rowHeight = CardSizing.ClaudeMediumRow(textScale), room = height - CardSizing.ClaudeMini(textScale) - 6;
-            int fit = Math.Max(1, (int)Math.Floor(room / rowHeight));
+            // The Lead on v0.53.1: the room is exact (the body less the tiles and the gap), but at 140% three full rows
+            // missed it by a few units, so one project showed over "+2 more". The "+N more" line is only as tall as its
+            // words, so the project rows get whatever room it leaves.
+            double moreHeight = CardSizing.ClaudeMediumMore(textScale);
+            int all = Math.Max(1, (int)Math.Floor((room + 0.5) / rowHeight));
             var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
             if (groups.Count == 0) list.Children.Add(Empty(width));
             bool money = width >= 400;
             // Issue 1: projects that don't fit are counted on a last row, with what in them is waiting on you.
-            int rows = groups.Count > fit ? Math.Max(0, fit - 1) : groups.Count;
+            int rows = groups.Count <= all ? groups.Count : Math.Max(0, (int)Math.Floor((room - moreHeight + 0.5) / rowHeight));
             for (int i = 0; i < rows; i++)
             {
                 var group = groups[i];
@@ -1733,7 +1741,7 @@ namespace ClaudeDashboard
             }
             if (rows < groups.Count)
             {
-                var moreLine = new Border { Height = rowHeight, BorderThickness = new Thickness(0, 1, 0, 0) }; moreLine.SetResourceReference(Border.BorderBrushProperty, "ControlBorder");
+                var moreLine = new Border { Height = moreHeight, BorderThickness = new Thickness(0, 1, 0, 0) }; moreLine.SetResourceReference(Border.BorderBrushProperty, "ControlBorder");
                 var moreText = names.Add(Trimmed(Text("", Scaled(13), "Muted")), "ClaudeMoreProjects"); moreText.VerticalAlignment = VerticalAlignment.Center; moreText.Margin = new Thickness(6, 0, 0, 0);
                 moreLine.Child = moreText; list.Children.Add(moreLine);
                 int from = rows;
@@ -2167,6 +2175,8 @@ namespace ClaudeDashboard
         // beside the project's name when they leave it 110 units.
         public const double ClaudeMiniHeight = 84;
         public static double ClaudeMini(double textScale) { return ClaudeMiniHeight + Math.Max(0, Math.Ceiling(1.33 * (Math.Round(12 * textScale) - 12))); }
+        // Medium's "+N more projects" line: its words and a little room, not a whole project row (v0.53.1).
+        public static double ClaudeMediumMore(double textScale) { return Math.Ceiling(Math.Round(13 * textScale) * 1.33) + 8; }
         public static double ClaudeMediumRow(double textScale) { return Math.Max(44, Math.Ceiling(Math.Round(15 * textScale) * 1.33 + Math.Round(12 * textScale) * 1.33 + 8)); }
         public static int ClaudeInlineCars(double nameRoom, int threads)
         {
