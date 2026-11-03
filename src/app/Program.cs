@@ -13,12 +13,17 @@ namespace ClaudeDashboard
         [STAThread]
         public static int Main(string[] args) { return ShellProgram.Run(args); }
 
-        internal static void Log(Exception error)
+        // The error log sits beside the settings: the real ones, or a --settings file's, so isolated runs and checks
+        // never write to this PC's %LOCALAPPDATA% (v0.61.1).
+        public static string LogFolder;
+        public static string LogPath { get { return Path.Combine(LogFolder ?? Path.GetDirectoryName(SettingsStore.DefaultPath), "error.log"); } }
+        public static void LogBeside(string settingsPath) { LogFolder = Path.GetDirectoryName(Path.GetFullPath(settingsPath)); }
+
+        public static void Log(Exception error)
         {
             try
             {
-                string directory = Path.GetDirectoryName(SettingsStore.DefaultPath); Directory.CreateDirectory(directory);
-                string path = Path.Combine(directory, "error.log");
+                string path = LogPath; Directory.CreateDirectory(Path.GetDirectoryName(path));
                 if (File.Exists(path) && new FileInfo(path).Length > 1024 * 1024) File.WriteAllText(path, "");
                 File.AppendAllText(path, DateTime.Now.ToString("s") + " " + error + Environment.NewLine);
             }

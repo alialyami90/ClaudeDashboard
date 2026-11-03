@@ -103,7 +103,11 @@ namespace ClaudeDashboard
                     ClaudeInsightRank p;
                     if (!projects.TryGetValue(key, out p)) { p = new ClaudeInsightRank { Name = g.Name, Folder = g.Folder }; projects[key] = p; }
                     p.Value += g.Tokens; p.Replies += g.Replies; p.Cost += g.Cost;
-                    if (d.Detail == null) p.Sessions += g.Threads;
+                    // Sessions by project the same way on every launch (v0.61.1): the detail counts them by folder, so a
+                    // project without a folder always takes the day's threads; one with a folder takes them only on a day
+                    // without detail, and not today while today's detail is still being read (it arrives with it).
+                    bool pendingToday = date == today && d.Detail == null && d.Replies > 0;
+                    if (g.Folder.Length == 0 || (d.Detail == null && !pendingToday)) p.Sessions += g.Threads;
                 }
                 if (d.Detail != null)
                     foreach (var started in d.Detail.ProjectSessions)
