@@ -526,6 +526,17 @@ internal static class ShellTests
                 Assert(AppController.LimitText(few, DateTime.UtcNow, false) == "" && AppController.LimitText(lasts, DateTime.UtcNow, false) == "", "≈ limit shows from 2 readings, or when the window lasts to its reset.");
                 Assert(controller.HeaderAnnounces, "The header summary isn't an Assertive live region.");
                 Assert(AppController.LimitText(new ClaudeView(), DateTime.UtcNow, false) == "", "≈ limit shows with no pace to go by.");
+                // A full 5-hour window (v0.56.1's Reached): "Limit reached", no ≈ time, and the summary in Amber.
+                var full = new ClaudeView { LimitAtPace = new ClaudeLimitProjection { Known = true, Reached = true, Readings = 5, LimitAt = null } };
+                Assert(AppController.LimitText(full, DateTime.UtcNow, false) == " · Limit reached", "A reached limit says: " + AppController.LimitText(full, DateTime.UtcNow, false));
+                var wasPace = sample.LimitAtPace;
+                sample.LimitAtPace = full.LimitAtPace;
+                controller.ShowView(ClaudeViews.Garage);
+                var headerSummary = (TextBlock)window.FindName("ClaudeSummary");
+                Assert(controller.SummaryForms[0].Contains(" · Limit reached") && !controller.SummaryForms[0].Contains("≈ limit"), "The header doesn't say Limit reached: " + controller.SummaryForms[0]);
+                Assert(sample.NeedsYou > 0 || headerSummary.Foreground == window.Resources["Warning"], "A reached limit's summary isn't Amber.");
+                sample.LimitAtPace = wasPace;
+                controller.ShowView(ClaudeViews.Garage);
 
                 // The views' contract: only the one on screen is Visible, and none while minimised; unknown names do nothing.
                 controller.ShowView(ClaudeViews.History);
