@@ -271,14 +271,16 @@ namespace ClaudeDashboard
             }
         }
         // The words that fit: every reason in full; then the short reasons; then the sources that are fine keep only
-        // their glyph (still named in the tooltip); then every source only its name and glyph. Never cut mid-word.
+        // their glyph (still named in the tooltip); then the sources in trouble only their name; then only the Amber ones
+        // (old or failed) keep their name and the waiting and off ones their glyph (Scribe's review of v0.50.0: not
+        // connected, counting and signed out at 360 wide and 140%). Never cut mid-word.
         private void FitSources(double width)
         {
             if (sources.Count < 4 || width <= 0) return;
             double room = width - 6 - 48;
             var sample = Control<TextBlock>("SourceSample");
             double fixedWidth = sample.Visibility == Visibility.Visible ? Measure(sample, sample.Text) + 16 : 0;
-            int tiers = 4, chosen = tiers - 1;
+            int tiers = 5, chosen = tiers - 1;
             for (int tier = 0; tier < tiers; tier++)
             {
                 double used = fixedWidth;
@@ -299,7 +301,8 @@ namespace ClaudeDashboard
             if (tier == 0) return item.Long;
             if (tier == 1) return item.Short;
             if (tier == 2) return ok ? "" : item.Short;
-            return ok ? "" : item.Name;
+            if (tier == 3) return ok ? "" : item.Name;
+            return item.Warns ? item.Name : "";
         }
         private double SourceWidth(int index, string words)
         {

@@ -41,7 +41,7 @@ internal static class ShellTests
             Assert(((TextBlock)window.FindName("SourceGlyph" + i)).Text.Length == 1, name + ": source " + i + " has no glyph.");
             Assert(text.Visibility != Visibility.Visible || !Cut(text), name + ": source " + i + "'s words are cut: " + text.Text);
             right = Math.Max(right, part.TranslatePoint(new Point(part.ActualWidth, 0), line).X);
-            Assert(controller.Sources[i].Level == ClaudeHealthLevel.Ok || text.Visibility == Visibility.Visible, name + ": a source with trouble lost its words.");
+            Assert(!controller.Sources[i].Warns || text.Visibility == Visibility.Visible, name + ": an Amber source lost its words.");
         }
         Assert(right <= line.ActualWidth + 1, name + ": the source-health line runs past the window (" + Math.Round(right) + " of " + Math.Round(line.ActualWidth) + ").");
     }
@@ -223,6 +223,22 @@ internal static class ShellTests
                     Assert(((TextBlock)window.FindName("SourceText2")).Text.StartsWith("Telemetry"), name + ": the telemetry port problem isn't on the line.");
                     if (size.Width >= 1000) Assert(((TextBlock)window.FindName("SourceText2")).Text == "Telemetry off: port 43832 in use" && ((TextBlock)window.FindName("SourceText3")).Text == "Plan 40 min old", name + ": a wide window shortened the reasons.");
                     Assert(window.FindName("ClaudeTelemetryWarning") == null, name + ": the side panel still has its own telemetry warning.");
+                }
+            }
+            // Every source in trouble at once, at the narrowest window with 140% text (Scribe's review of v0.50.0): not
+            // connected, logs still counting and not signed in. The line still fits and keeps whole words.
+            {
+                string name = "shell-sources-360x300-140-off";
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, SettingsFile(Fresh(directory, name), new AppSettings { ClaudePeriod = "Today", TextScale = 1.4 })))
+                {
+                    controller.UseClaudeSample(false);
+                    var off = controller.ClaudeCardView.View;
+                    off.Connected = false; off.LogsRead = false; off.Limits = null; off.Plan = ClaudePlanState.SignedOut;
+                    controller.ClaudeCardView.Update(off);
+                    AppController.Render(window, new Size(360, 300), 1, Path.Combine(renders, name + ".png"));
+                    Assert(controller.Sources.Count(x => x.Level != ClaudeHealthLevel.Ok) == 4, name + ": the view isn't all trouble: " + String.Join(", ", controller.Sources.Select(x => x.Long)));
+                    SourcesWhole(window, controller, name);
                 }
             }
         });
