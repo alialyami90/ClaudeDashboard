@@ -26,7 +26,7 @@ internal static class ClaudeAttentionTests
     {
         check("Claude ranks projects Needs you, Stuck, Your turn, Working, then the rest", () => {
             var view = ClaudeView.Fixture(Now, true, true);
-            Assert(view.Sessions.Count == 25 && view.Sample, "The crowded sample doesn't have 25 threads: " + view.Sessions.Count);
+            Assert(view.Threads.Count == 25 && view.Sample, "The crowded sample doesn't have 25 threads: " + view.Threads.Count);
             var groups = view.Groups(ClaudePeriod.Today);
             var ranks = groups.Select(g => g.Urgency).ToList();
             for (int i = 1; i < ranks.Count; i++) Assert(ranks[i - 1] <= ranks[i], "Projects aren't ranked by what waits on you: " + String.Join(", ", groups.Select(g => g.Name + "=" + g.Urgency)));
