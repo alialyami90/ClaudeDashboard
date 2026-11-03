@@ -18,8 +18,9 @@ namespace ClaudeDashboard
     public sealed class LiveView : IClaudeView
     {
         public const double PanelWidth = 360, SideFrom = 1000, WideLabel = 240, NarrowLabel = 200, CarWidth = 44;
-        // The view's room is the window's width less the view area's 24-unit padding each side.
-        public const double HostPadding = 48;
+        // The panel goes beside the chart when the view's room is this wide: a 1000-unit window less the view area's
+        // 24-unit padding each side and the window's own edges.
+        public const double SideRoom = 920;
         public string Name { get { return ClaudeViews.Live; } }
         public bool Visible { get; set; }
 
@@ -53,7 +54,7 @@ namespace ClaudeDashboard
         public FrameworkElement Build(ClaudeViewContext viewContext, Size viewRoom)
         {
             context = viewContext ?? new ClaudeViewContext(); room = viewRoom;
-            side = room.Width + HostPadding >= SideFrom - 1;
+            side = room.Width >= SideRoom;
             labelWidth = side ? WideLabel : NarrowLabel;
             parts.Clear(); laneKey = "";
             root = new Grid();
