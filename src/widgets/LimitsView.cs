@@ -364,7 +364,7 @@ namespace ClaudeDashboard
             Take(pace, out m.PaceSlope, out m.PaceHits, out m.PaceAtReset);
             if (average != null && average.Known) Take(average, out m.AverageSlope, out m.AverageHits, out m.AverageAtReset);
             else if (average != null && !String.IsNullOrEmpty(average.Why)) m.AverageWhy = average.Why;
-            m.Onset = Onset(m.Readings);
+            m.Onset = OnsetOf(m.Readings);
         }
         private static void Take(ClaudeLimitProjection p, out double slope, out DateTime? hits, out double atReset)
         {
@@ -376,7 +376,7 @@ namespace ClaudeDashboard
 
         // Where heavy use began: the start of the run of readings, up to the latest, that climb at least twice the
         // window's average pace. None when the whole window is that steep, the run has ended, or the use is flat.
-        public static DateTime? Onset(IList<LapReading> readings)
+        public static DateTime? OnsetOf(IList<LapReading> readings)
         {
             if (readings == null || readings.Count < ReadingsNeeded) return null;
             var first = readings[0]; var last = readings[readings.Count - 1];

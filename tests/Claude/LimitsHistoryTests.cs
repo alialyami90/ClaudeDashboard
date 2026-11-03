@@ -111,11 +111,11 @@ internal static class LimitsHistoryTests
 
         check("Lap chart: heavy use's onset is where the readings start climbing at twice the window's pace", () => {
             var slowThenFast = Readings(-120, 5, -100, 8, -80, 11, -60, 14, -40, 17, -30, 27, -20, 37, -10, 47, 0, 57);
-            Assert(LimitsModel.Onset(slowThenFast) == Now.AddMinutes(-40), "onset: " + LimitsModel.Onset(slowThenFast));
-            Assert(!LimitsModel.Onset(Readings(-30, 10, -20, 20, -10, 30, 0, 40)).HasValue, "steady use has an onset");
-            Assert(!LimitsModel.Onset(Readings(-30, 10, -20, 10, -10, 10)).HasValue, "flat use has an onset");
-            Assert(!LimitsModel.Onset(Readings(-60, 5, -50, 25, -40, 45, -30, 46, -20, 47, 0, 48)).HasValue, "heavy use that ended has an onset");
-            Assert(!LimitsModel.Onset(Readings(-10, 5, 0, 20)).HasValue, "two readings have an onset");
+            Assert(LimitsModel.OnsetOf(slowThenFast) == Now.AddMinutes(-40), "onset: " + LimitsModel.OnsetOf(slowThenFast));
+            Assert(!LimitsModel.OnsetOf(Readings(-30, 10, -20, 20, -10, 30, 0, 40)).HasValue, "steady use has an onset");
+            Assert(!LimitsModel.OnsetOf(Readings(-30, 10, -20, 10, -10, 10)).HasValue, "flat use has an onset");
+            Assert(!LimitsModel.OnsetOf(Readings(-60, 5, -50, 25, -40, 45, -30, 46, -20, 47, 0, 48)).HasValue, "heavy use that ended has an onset");
+            Assert(!LimitsModel.OnsetOf(Readings(-10, 5, 0, 20)).HasValue, "two readings have an onset");
         });
 
         check("Lap chart: weekly windows name extra usage and the spend limit honestly", () => {
