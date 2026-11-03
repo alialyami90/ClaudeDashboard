@@ -125,6 +125,13 @@ internal static class ClaudeTimelineTests
             Assert(!ClaudeTimeline.AtAverage(timeline.Readings(Now), window, Now, Double.NaN).Known, "No average still projected.");
             Assert(!ClaudeTimeline.AtPace(timeline.Readings(Now), new ClaudeLimitWindow { Percent = 5, ResetsAt = Now.AddMinutes(-1) }, Now).Known, "A window that reset projected.");
             Assert(timeline.Readings(Now.AddHours(6)).Count == 0, "Readings older than five hours were kept.");
+            // v0.56.1: at 100% the limit is reached, and no time (in the past) is given.
+            var full = new ClaudeTimeline(Now.AddHours(-1));
+            full.Reading(Now.AddMinutes(-20), 90, window.ResetsAt, Now); full.Reading(Now.AddMinutes(-10), 97, window.ResetsAt, Now); full.Reading(Now.AddMinutes(-5), 100, window.ResetsAt, Now);
+            var reached = ClaudeTimeline.AtPace(full.Readings(Now), new ClaudeLimitWindow { Percent = 100, ResetsAt = window.ResetsAt }, Now);
+            Assert(reached.Known && reached.Reached && !reached.LimitAt.HasValue && !reached.BeforeReset, "A full window doesn't say Reached, or gives a past time: " + reached.LimitAt);
+            Assert(ClaudeTimeline.AtAverage(full.Readings(Now), new ClaudeLimitWindow { Percent = 100, ResetsAt = window.ResetsAt }, Now, 10).Reached, "The average projection doesn't say Reached.");
+            Assert(!pace.Reached, "A window under 100% says Reached.");
         });
 
         check("Claude timeline: typical tool times are medians per tool (v0.54.0)", () => {

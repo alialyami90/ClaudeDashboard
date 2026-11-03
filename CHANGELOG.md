@@ -6,6 +6,13 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.56.1 (unreleased)
+
+Claude Dashboard: "Limit reached" from the engine.
+
+- **`ClaudeLimitProjection.Reached`**: when the newest plan reading of the 5-hour window is already at 100%, both projections say Reached. `LimitAt` is then null, so no view ever shows "≈ limit" at a time that has already passed. Live's 5-hour line and the curve's label say "Limit reached" in Amber, with no wall. Shell's header keys off the same flag.
+- **Checks:** a full window is Reached with no time, in the engine and on Live's line.
+
 ## v0.56.0 (unreleased)
 
 Claude Dashboard: the Live tab, the lap chart (package C of the lap chart plan). From 640 wide, Live is the first tab.
