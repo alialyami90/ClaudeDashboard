@@ -96,7 +96,7 @@ internal static class ClaudeLiveTests
                         {
                             using (var controller = new AppController(window, path))
                             {
-                                controller.UseClaudeSample(false, true);
+                                controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(false, true);
                                 string png = Path.Combine(renders, name + ".png");
                                 AppController.Render(window, size, 1, png);
                                 AppController.Render(window, size, 1, png);
@@ -156,7 +156,7 @@ internal static class ClaudeLiveTests
                     {
                         using (var controller = new AppController(window, path))
                         {
-                            controller.UseClaudeSample(needs, !needs);
+                            controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(needs, !needs);
                             string png = Path.Combine(Path.GetFullPath(Path.Combine(directory, "..", "renders")), name + ".png");
                             Directory.CreateDirectory(Path.GetDirectoryName(png));
                             AppController.Render(window, size, 1, png);

@@ -414,6 +414,7 @@ namespace ClaudeDashboard
             view.ToolTimes = ToolTimes(runs);
             view.ToolTimesKnown = true;
             foreach (var t in view.Threads) t.ToolTimes = ToolTimes(runs.Where(r => r.Session == t.Id));
+            foreach (var t in view.Threads.Where(x => x.Running)) t.AskedToday = t.Id.Sum(c => (int)c) % 5;
             view.AskedToday = new Dictionary<string, int>(StringComparer.Ordinal) { { "Bash", 9 }, { "Edit", 4 }, { "WebFetch", 2 } };
             view.ApiErrors = new List<ClaudeApiError> { new ClaudeApiError { At = now.AddMinutes(-70), Session = "sample-2", Status = 500, Attempt = 1 } };
             if (retrying != null) { view.ApiErrors.Add(new ClaudeApiError { At = now.AddSeconds(-75), Session = retrying.Id, Status = 529, Attempt = 1 }); view.ApiErrors.Add(new ClaudeApiError { At = now.AddSeconds(-40), Session = retrying.Id, Status = 529, Attempt = 2 }); }
