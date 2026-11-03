@@ -58,6 +58,13 @@ internal static class ShellTests
         probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
         return probe.DesiredSize.Width > block.ActualWidth + 1;
     }
+    // Whether an element and every parent are Visible (IsVisible needs a shown window, and the checks never show one).
+    private static bool Shown(DependencyObject element, DependencyObject root)
+    {
+        for (var e = element; e != null && e != root; e = VisualTreeHelper.GetParent(e))
+            if (e is UIElement && ((UIElement)e).Visibility != Visibility.Visible) return false;
+        return true;
+    }
     private static List<TextBlock> Texts(DependencyObject root)
     {
         var found = new List<TextBlock>();
@@ -424,7 +431,7 @@ internal static class ShellTests
                 var view = controller.ClaudeCardView.View; view.LogsFailed = true;
                 controller.ClaudeCardView.Update(view);
                 AppController.Render(window, new Size(1280, 760), 1, Path.Combine(Renders(directory), "shell-logs-unreadable-1280x760.png"));
-                var words = Texts(window).Where(t => t.IsVisible && t.Text.Contains("NO LOGS")).ToList();
+                var words = Texts(window).Where(t => Shown(t, window) && t.ActualWidth > 0 && t.Text.Contains("NO LOGS")).ToList();
                 Assert(words.Count >= 2, "The side panel doesn't say NO LOGS for the tokens and tools: " + words.Count);
                 foreach (var t in words) Assert(!Cut(t), "The side panel cuts \"" + t.Text + "\".");
             }
