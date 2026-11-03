@@ -18,6 +18,16 @@ Claude Dashboard: every number says where it came from (observability critique, 
 - **One meaning for "working".** The header's summary and the line under each project's name both count working sessions as "2 working", as the chips say it, where the header said "running" for working sessions and the project line said it for open ones.
 - **The header's summary at 140% text on the smallest window** shortens further instead of being cut ("1 needs you · 1 your turn · 7…"): to the most urgent part with the thread count ("1 needs you · 7 threads"), then that part alone.
 
+## v0.49.0 (unreleased)
+
+Claude Dashboard: the attention rail (observability critique, issue 1). In 5 h and Today the window says first what's waiting on you, and nothing that is hides off the bottom.
+
+- **Projects are ranked by what waits on you:** Needs you, then Stuck, then Your turn, then Working, then the rest, most recent first within each. Before, only Needs you jumped the queue.
+- **The pit stop strip is a short queue.** It holds every running thread that needs you, is stuck, has been your turn for 10 minutes or more, or is working with no hook event or log reply for 5 minutes ("Silent"). It shows one at a time with "1 of 4" and Next. Needs you and Stuck stay Amber; Your turn and Silent are calm, and Go to it is Amber only for the first two. Silent goes by a new `heard` time in the session file that only hook events set, so the status line's refresh (which runs while a turn's clock does) can't make a hung turn look alive; when the car is in a long tool run it reads "In a tool for 8 min" instead.
+- **A clipped ledger keeps a footer.** When the Large ledger's rows don't all fit, a line under it that never scrolls away says "+7 below · 1 stuck · 2 your turn" (or "↑ 3 above" at the bottom), Amber when a hidden row needs you or is stuck. What waits above is said after an arrow ("+15 below · 6 your turn · ↑ 1 needs you"), and Your turn is counted as the header counts it (a compacting thread isn't one). Pressing it scrolls to the first hidden row that waits on you, else the next row below. Its room is taken only while rows are hidden, and the rows end whole wherever the ledger is scrolled to.
+- **Medium counts what it can't show:** a last row "+3 more projects · 1 your turn", and its Needs-you line says how long ("Needs you 4 min · Fix login").
+- **A crowded sample** of 25 threads over eight projects (`--render-claude-crowded`, with one of each kind of attention) for the checks and renders. Four new checks; renders at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900, calm and with Needs you, go to `artifacts\renders`.
+
 ## v0.48.0 (unreleased)
 
 Claude Dashboard and Widget Screen both watch Claude Code, so closing either leaves the other working ([decision 028](docs/decisions/028-claude-both-apps-watch.md)).

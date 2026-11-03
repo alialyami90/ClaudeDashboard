@@ -149,7 +149,9 @@ internal static class ClaudeReviewTests
                     // The roll overlay is under the content, and an ended car rolls in under its cover, dimmed.
                     var host = (Panel)window.FindName("ClaudeBody");
                     Assert(host.Children.Count > 0 && host.Children[0] is Canvas, "The roll overlay isn't under the card's content.");
-                    Assert(card.Toggle("C:\\Code\\api-server") && card.Animating, "The garage didn't start rolling its cars in.");
+                    // The top garage with an ended car (projects rank by what waits on you since v0.49.0, so it's on screen).
+                    string rolled = card.View.Groups(card.Period).First(g => g.Threads.Any(t => !t.Running)).Folder;
+                    Assert(card.Toggle(rolled) && card.Animating, "The garage didn't start rolling its cars in.");
                     var overlay = (Canvas)host.Children[0];
                     bool coveredSeen = false;
                     for (int i = 0; i < 12 && card.Animating; i++)
