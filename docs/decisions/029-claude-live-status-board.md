@@ -84,7 +84,7 @@ The critique's points that v0.48.0 to v0.53.0 didn't take on, roughly by how muc
    - The share bar under each garage name has no label.
    - "+1 hidden" adds tokens you can't see to the project's total.
    - Check the renders to see whether the 7-day bars still read as part of the hour's line now that both sit in the burn tile.
-   - **From the v0.53.1 renders (Lead):** at 1000 × 600 the crowded tank fits only the short "≈ empty 10:19 am" and drops "37 min before reset", which is the more useful half. A form like "≈ empty in 26 min" may fit and say more. Crowded Medium at 140% cuts the stuck reason to "Stuck · Overloaded, try a…". A short form ("Stuck · Overloaded") with the full reason in the tip would keep it whole.
+   - **From the v0.53.1 renders (Lead):** at 1000 × 600 the crowded tank fits only the short "≈ empty 10:19 am" and drops "37 min before reset", which is the more useful half. A shorter form that keeps the gap ("≈ empty 10:19 am, 37 min early") may fit and say more. Crowded Medium at 140% cuts the stuck reason to "Stuck · Overloaded, try a…". A short form ("Stuck · Overloaded") with the full reason in the tip would keep it whole.
 7. **The critique's first question:** with 6+ sessions, should the home be the attention queue, with garages as the drill-down? The queue now exists in the strip, so this is a layout choice rather than a data one.
 8. **Not verified live:** Ctrl+1 on the real PC; a screen reader reading the live region aloud; Now with real telemetry for MCP tools and long runs.
 9. **Done in v0.53.1:** Watcher's follow-up (a check for long tool names, Medium's row count at 140%, the week pace refitting when its tile settles).
