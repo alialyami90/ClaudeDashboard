@@ -44,6 +44,15 @@ namespace ClaudeDashboard
         public bool Use24Hour;
         // The fixture is showing (--render-claude-sample, the checks): the view says Sample wherever it shows numbers.
         public bool Sample;
+        // Quiet mode with Settings → Claude → keep the cars still (the Garage card's rule): nothing moves. The view is
+        // built again when it changes, so it is read at Build.
+        public bool Quiet;
+        // Frame ticks for motion (v0.56.1), the Garage frame clock's rule: the view calls Frames(step, fps) when a car
+        // starts moving and Frames(null, 0) when everything is still. step(seconds) gets the time since the last frame
+        // (at most 0.25 s), fps is held to 4..24. The host's one timer runs only while a step is asked for, this view
+        // is on screen and Visible, the window isn't minimised, Quiet is off and no picture is being rendered. A view
+        // that goes out of sight loses its request; it asks again from the Refresh that follows when it's back.
+        public Action<Action<double>, double> Frames = (step, fps) => { };
         // Brings a session's terminal or editor forward (as clicking a car does). Returns null when it worked, or what
         // went wrong, for the view to show. Never answers a permission prompt (decision 027).
         public Func<string, string> Focus = id => null;
