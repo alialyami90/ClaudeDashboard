@@ -28,6 +28,23 @@ internal static class ShellTests
         SettingsStore.Save(path, settings);
         return path;
     }
+    // The source-health line fits: every word it shows is whole, and its parts stay inside the window.
+    private static void SourcesWhole(Window window, AppController controller, string name)
+    {
+        var line = (StackPanel)window.FindName("SourceLine");
+        Assert(line.Visibility == Visibility.Visible && line.ActualHeight > 0, name + ": the source-health line isn't showing.");
+        double right = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            var part = (FrameworkElement)window.FindName("Source" + i);
+            var text = (TextBlock)window.FindName("SourceText" + i);
+            Assert(((TextBlock)window.FindName("SourceGlyph" + i)).Text.Length == 1, name + ": source " + i + " has no glyph.");
+            Assert(text.Visibility != Visibility.Visible || !Cut(text), name + ": source " + i + "'s words are cut: " + text.Text);
+            right = Math.Max(right, part.TranslatePoint(new Point(part.ActualWidth, 0), line).X);
+            Assert(!controller.Sources[i].Warns || text.Visibility == Visibility.Visible, name + ": an Amber source lost its words.");
+        }
+        Assert(right <= line.ActualWidth + 1, name + ": the source-health line runs past the window (" + Math.Round(right) + " of " + Math.Round(line.ActualWidth) + ").");
+    }
     private static Color ColorOf(object brush) { var solid = brush as SolidColorBrush; return solid == null ? Colors.Transparent : solid.Color; }
     private static Color Hex(string hex) { return (Color)ColorConverter.ConvertFromString(hex); }
     // Whether a TextBlock's words are wider than the room it got (cut off with an ellipsis, or clipped).
@@ -35,6 +52,8 @@ internal static class ShellTests
     {
         if (String.IsNullOrEmpty(block.Text)) return false;
         var probe = new TextBlock { Text = block.Text, FontFamily = block.FontFamily, FontSize = block.FontSize, FontWeight = block.FontWeight, FontStyle = block.FontStyle, FontStretch = block.FontStretch };
+        // Measured as the window draws it (Display mode), not a lone TextBlock's Ideal widths.
+        TextOptions.SetTextFormattingMode(probe, TextOptions.GetTextFormattingMode(block));
         probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
         return probe.DesiredSize.Width > block.ActualWidth + 1;
     }
@@ -92,7 +111,12 @@ internal static class ShellTests
                         Assert(window.FindName("ClaudeHeading") == null && window.FindName("ClaudePeriod0") == null, size.Name + ": the card drew its own heading in the window.");
                         var summary = (TextBlock)window.FindName("ClaudeSummary");
                         Assert(summary.Text.Length > 0 && summary.Text != "Reading Claude Code…", size.Name + ": the header has no summary.");
-                        Assert(((TextBlock)window.FindName("ClaudeFlag")).Text.Contains("SAMPLE"), size.Name + ": the fixture doesn't say it's a sample.");
+                        // Sample is pinned on the source-health line at every size (observability critique, issue 3), and
+                        // the header's stamp says when the plan numbers are from, never "LIVE".
+                        Assert(((TextBlock)window.FindName("SourceSample")).Visibility == Visibility.Visible && ((TextBlock)window.FindName("SourceSample")).ActualWidth > 0, size.Name + ": the fixture doesn't say it's a sample.");
+                        string stamp = ((TextBlock)window.FindName("ClaudeFlag")).Text;
+                        Assert(stamp.StartsWith("PLAN · ") && !stamp.Contains("LIVE"), size.Name + ": the plan stamp is \"" + stamp + "\".");
+                        SourcesWhole(window, controller, size.Name);
                         // The summary is never cut mid-word, and from 1000 units wide it's the whole summary (on the
                         // header's line, or on its own line under it).
                         Assert(!Cut(summary), size.Name + ": the header's summary is cut: \"" + summary.Text + "\" in " + Math.Round(summary.ActualWidth));
@@ -115,24 +139,108 @@ internal static class ShellTests
         check("Shell header at the smallest window: Small keeps its 5-hour meter, and the summary stays whole words", () => {
             // A 360 × 300 window (its outer size, the minimum) has a client area of about 360 × 261 on Windows 10 and 11.
             string renders = Renders(directory);
+            // And 360 × 300 at 140% text, where the summary was cut ("1 needs you · 1 your turn · 7…"; Lead's review of
+            // v0.50.0).
+            foreach (double tall in new[] { 261.0, 300.0 })
             foreach (double scale in new[] { 1.0, 1.4 })
                 foreach (bool needs in new[] { false, true })
                 {
-                    string name = "shell-360x261-" + Math.Round(scale * 100) + (needs ? "-needs" : "");
+                    if (tall == 300 && scale == 1.0) continue;
+                    string name = "shell-360x" + tall + "-" + Math.Round(scale * 100) + (needs ? "-needs" : "");
                     string folder = Fresh(directory, name);
                     var window = AppController.LoadWindow("ShellWindow");
                     using (var controller = new AppController(window, SettingsFile(folder, new AppSettings { ClaudePeriod = "Week", TextScale = scale })))
                     {
                         controller.UseClaudeSample(needs);
-                        AppController.Render(window, new Size(360, 261), 1, Path.Combine(renders, name + ".png"));
+                        AppController.Render(window, new Size(360, tall), 1, Path.Combine(renders, name + ".png"));
                         var card = controller.ClaudeCardView;
                         Assert(card.Current == CardSizing.Design.Small, name + " isn't Small.");
                         Assert(window.FindName("ClaudeSmallMeter") != null, name + ": Small lost its 5-hour meter (header " + (controller.HeaderTwoLines ? 84 : 56) + ").");
                         var summary = (TextBlock)window.FindName("ClaudeSummary");
-                        Assert(summary.Text == ClaudeText.Summary(card.View, card.Period, true) || summary.Text == ClaudeText.ShortSummary(card.View, card.Period), name + ": the summary isn't the whole or the short one: " + summary.Text);
+                        var forms = new[] { ClaudeText.Summary(card.View, card.Period, true), ClaudeText.ShortSummary(card.View, card.Period), ClaudeText.ShortSummary(card.View, card.Period, 1, true), ClaudeText.ShortSummary(card.View, card.Period, 1, false) };
+                        Assert(forms.Contains(summary.Text), name + ": the summary isn't the whole one or a short form: " + summary.Text);
+                        Assert(!Cut(summary), name + ": the header's summary is cut: \"" + summary.Text + "\" in " + Math.Round(summary.ActualWidth));
                         Assert(summary.TextTrimming == TextTrimming.WordEllipsis, name + ": the summary could be cut mid-word.");
+                        Assert(((TextBlock)window.FindName("SourceSample")).Visibility == Visibility.Visible, name + ": Small doesn't say it's a sample.");
+                        SourcesWhole(window, controller, name);
                     }
                 }
+        });
+
+        check("Shell source-health line: each source says ok, waiting, old or off and why, at every size", () => {
+            DateTime now = DateTime.UtcNow;
+            // The fixture: every source fine.
+            var view = ClaudeView.Fixture(now, false);
+            var fine = ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = view.TelemetryWarning });
+            Assert(fine.Count == 4 && fine.Select(x => x.Name).SequenceEqual(new[] { "Hooks", "Logs", "Telemetry", "Plan" }) && fine.All(x => x.Level == ClaudeHealthLevel.Ok && x.Long == x.Name), "The sample's sources aren't all fine: " + String.Join(", ", fine.Select(x => x.Long)));
+            // Each source's trouble, in words.
+            view.LogsFailed = true; view.TelemetryWarning = "Telemetry off: port 43832 in use"; view.Limits.UpdatedAt = now.AddMinutes(-40);
+            var bad = ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = view.TelemetryWarning });
+            Assert(bad[1].Level == ClaudeHealthLevel.Failed && bad[1].Long == "Logs unreadable" && bad[1].Tip.StartsWith(ClaudeText.NoLogs), "Unreadable logs: " + bad[1].Long);
+            Assert(bad[2].Level == ClaudeHealthLevel.Failed && bad[2].Long == "Telemetry off: port 43832 in use" && bad[2].Short == "Telemetry off", "A busy telemetry port: " + bad[2].Long);
+            Assert(bad[3].Level == ClaudeHealthLevel.Old && bad[3].Long == "Plan 40 min old" && bad[3].Warns, "Old plan numbers: " + bad[3].Long);
+            view.LogsFailed = false; view.LogsRead = false;
+            Assert(ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = view.TelemetryWarning })[1].Level == ClaudeHealthLevel.Waiting, "Logs still being read don't say so.");
+            view.Connected = false; view.Sample = false; view.Limits = null; view.Plan = ClaudePlanState.SignedOut; view.TelemetryWarning = "";
+            var off = ClaudeHealth.Of(view, now, false, new ClaudeLinks());
+            Assert(off[0].Long == "Hooks off: not connected" && off[2].Long == "Telemetry off: not connected" && off[3].Long == "Plan off: not signed in" && off.All(x => !x.Warns || x.Name == "Logs"), "Off sources: " + String.Join(", ", off.Select(x => x.Long)));
+            view.Connected = true;
+            Assert(ClaudeHealth.Of(view, now, false, new ClaudeLinks())[2].Long == "Telemetry off: not set up", "Telemetry that isn't sent here doesn't say so.");
+            Assert(ClaudeHealth.Of(null, now, false, null).All(x => x.Level == ClaudeHealthLevel.Waiting), "Before the first reading the sources aren't waiting.");
+            // Widget Screen (decision 028): holding the telemetry port is neither off nor an error; holding the hooks
+            // asks for Reconnect, in Amber.
+            var shared = ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, TelemetryProblem = "Telemetry goes to Widget Screen while it's open", WidgetScreenHasTelemetry = true });
+            Assert(shared[2].Long == "Telemetry with Widget Screen" && shared[2].Level == ClaudeHealthLevel.Waiting && !shared[2].Warns, "Telemetry with Widget Screen: " + shared[2].Long + " / " + shared[2].Level);
+            var taken = ClaudeHealth.Of(view, now, false, new ClaudeLinks { TelemetrySetUp = true, HooksElsewhere = @"C:\Users\ali\AppData\Local\WidgetScreen\claude" });
+            Assert(taken[0].Long == "Hooks with Widget Screen · Reconnect" && taken[0].Warns, "Hooks with Widget Screen: " + taken[0].Long);
+            Assert(new[] { ClaudeHealthLevel.Ok, ClaudeHealthLevel.Waiting, ClaudeHealthLevel.Old, ClaudeHealthLevel.Off, ClaudeHealthLevel.Failed }.Select(l => ClaudeHealth.Glyph(l)).Distinct().Count() == 5, "Two levels share a glyph, so colour alone tells them apart.");
+
+            // Loading and unavailable look different: "≈" while counting, "—" and why when the logs can't be read.
+            var counting = ClaudeView.Fixture(now, false); counting.LogsRead = false;
+            Assert(ClaudeText.Fact(ClaudeFactKinds.Tokens, counting, ClaudePeriod.Today, false, false)[0].StartsWith("≈"), "Tokens being counted don't say ≈.");
+            var failed = ClaudeView.Fixture(now, false); failed.LogsFailed = true;
+            var tokens = ClaudeText.Fact(ClaudeFactKinds.Tokens, failed, ClaudePeriod.Today, false, false);
+            Assert(tokens[0] == "—" && tokens[1].EndsWith("LOGS UNREADABLE") && tokens[2] == ClaudeText.NoLogs, "Unreadable logs look like a count in progress: " + String.Join(" / ", tokens));
+            // One meaning for "running": the header counts working sessions as working.
+            Assert(!ClaudeText.Summary(ClaudeView.Fixture(now, false), ClaudePeriod.Today, true).Contains("running"), "The header still says running for working sessions.");
+
+            // In the window: the line shows each trouble, Amber for the failed and old ones, at the smallest and a wide size.
+            string renders = Renders(directory);
+            foreach (var size in new[] { new Size(360, 261), new Size(640, 420), new Size(1000, 600), new Size(1600, 900) })
+            {
+                string name = "shell-sources-" + size.Width + "x" + size.Height;
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, SettingsFile(Fresh(directory, name), new AppSettings { ClaudePeriod = "Today" })))
+                {
+                    controller.UseClaudeSample(false);
+                    var trouble = controller.ClaudeCardView.View;
+                    trouble.LogsFailed = true; trouble.TelemetryWarning = "Telemetry off: port 43832 in use"; trouble.Limits.UpdatedAt = DateTime.UtcNow.AddMinutes(-40);
+                    controller.ClaudeCardView.Update(trouble);
+                    AppController.Render(window, size, 1, Path.Combine(renders, name + ".png"));
+                    SourcesWhole(window, controller, name);
+                    var logs = (TextBlock)window.FindName("SourceText1");
+                    Assert(logs.Visibility == Visibility.Visible && logs.Text.StartsWith("Logs") && ColorOf(logs.Foreground) == ColorOf(window.Resources["Warning"]), name + ": unreadable logs don't show in Amber words: " + logs.Text);
+                    Assert(((TextBlock)window.FindName("SourceText2")).Text.StartsWith("Telemetry"), name + ": the telemetry port problem isn't on the line.");
+                    if (size.Width >= 1000) Assert(((TextBlock)window.FindName("SourceText2")).Text == "Telemetry off: port 43832 in use" && ((TextBlock)window.FindName("SourceText3")).Text == "Plan 40 min old", name + ": a wide window shortened the reasons.");
+                    Assert(window.FindName("ClaudeTelemetryWarning") == null, name + ": the side panel still has its own telemetry warning.");
+                }
+            }
+            // Every source in trouble at once, at the narrowest window with 140% text (Scribe's review of v0.50.0): not
+            // connected, logs still counting and not signed in. The line still fits and keeps whole words.
+            {
+                string name = "shell-sources-360x300-140-off";
+                var window = AppController.LoadWindow("ShellWindow");
+                using (var controller = new AppController(window, SettingsFile(Fresh(directory, name), new AppSettings { ClaudePeriod = "Today", TextScale = 1.4 })))
+                {
+                    controller.UseClaudeSample(false);
+                    var troubled = controller.ClaudeCardView.View;
+                    troubled.Connected = false; troubled.LogsRead = false; troubled.Limits = null; troubled.Plan = ClaudePlanState.SignedOut;
+                    controller.ClaudeCardView.Update(troubled);
+                    AppController.Render(window, new Size(360, 300), 1, Path.Combine(renders, name + ".png"));
+                    Assert(controller.Sources.Count(x => x.Level != ClaudeHealthLevel.Ok) == 4, name + ": the view isn't all trouble: " + String.Join(", ", controller.Sources.Select(x => x.Long)));
+                    SourcesWhole(window, controller, name);
+                }
+            }
         });
 
         check("Shell header: the period switch chooses and keeps the period, Quiet toggles, and narrow windows fold the words away", () => {

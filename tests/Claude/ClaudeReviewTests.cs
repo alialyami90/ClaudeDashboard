@@ -149,7 +149,9 @@ internal static class ClaudeReviewTests
                     // The roll overlay is under the content, and an ended car rolls in under its cover, dimmed.
                     var host = (Panel)window.FindName("ClaudeBody");
                     Assert(host.Children.Count > 0 && host.Children[0] is Canvas, "The roll overlay isn't under the card's content.");
-                    Assert(card.Toggle("C:\\Code\\api-server") && card.Animating, "The garage didn't start rolling its cars in.");
+                    // The top garage with an ended car (projects rank by what waits on you since v0.49.0, so it's on screen).
+                    string rolled = card.View.Groups(card.Period).First(g => g.Threads.Any(t => !t.Running)).Folder;
+                    Assert(card.Toggle(rolled) && card.Animating, "The garage didn't start rolling its cars in.");
                     var overlay = (Canvas)host.Children[0];
                     bool coveredSeen = false;
                     for (int i = 0; i < 12 && card.Animating; i++)
@@ -241,15 +243,17 @@ internal static class ClaudeReviewTests
         });
 
         check("Claude Large says how fresh the plan numbers are", () => {
-            // Review fix 10: "LIVE · AS OF …" on Large, "AS OF …" alone when they're old, nothing extra on Medium.
+            // Review fix 10, renamed by the observability critique (issue 3): "PLAN · 2:17 AM" in the window's header,
+            // never "LIVE"; elsewhere only when the numbers are old. Sample and the plan's age are on the source-health
+            // line, so the stamp leaves them out.
             var view = ClaudeView.Fixture(DateTime.UtcNow, false);
             string large = ClaudeText.Flag(view, DateTime.UtcNow, false, true), medium = ClaudeText.Flag(view, DateTime.UtcNow, false);
-            Assert(large.StartsWith("SAMPLE · LIVE · AS OF ") && medium == "SAMPLE", "The freshness stamp is wrong: \"" + large + "\" / \"" + medium + "\"");
+            Assert(large.StartsWith("PLAN · ") && !large.Contains("LIVE") && !large.Contains("SAMPLE") && medium == "", "The freshness stamp is wrong: \"" + large + "\" / \"" + medium + "\"");
             view.Limits.UpdatedAt = DateTime.UtcNow.AddHours(-1);
             string old = ClaudeText.Flag(view, DateTime.UtcNow, false, true);
-            Assert(old.Contains("AS OF") && !old.Contains("LIVE"), "Old numbers still say live: " + old);
+            Assert(old.StartsWith("PLAN · ") && !old.Contains("LIVE") && ClaudeText.Flag(view, DateTime.UtcNow, false) == old, "Old numbers still say live, or the stamp hides them: " + old);
             view.Limits = null;
-            Assert(ClaudeText.Flag(view, DateTime.UtcNow, false, true) == "SAMPLE", "No plan numbers still got a stamp.");
+            Assert(ClaudeText.Flag(view, DateTime.UtcNow, false, true) == "", "No plan numbers still got a stamp.");
         });
 
         check("Claude's telemetry receiver wants application/json, the window cache forgets gone processes, and Connect keeps dated backups", () => {
