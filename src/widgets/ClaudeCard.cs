@@ -1276,8 +1276,8 @@ namespace ClaudeDashboard
             foreach (var lane in view.Lanes)
             {
                 bool thread = lane.Session.Length > 0;
-                var row = Columns(new GridLength(104), Star); row.Margin = new Thickness(0, thread ? 3 : 6, 0, 0);
-                var name = Trimmed(Text(thread ? "· " + lane.Name : lane.Name, thread ? 11 : 12, thread ? "Muted" : "Text"));
+                var row = Columns(new GridLength(Scaled(104)), Star); row.Margin = new Thickness(0, thread ? 3 : 6, 0, 0);
+                var name = Trimmed(Text(thread ? "· " + lane.Name : lane.Name, Scaled(thread ? 11 : 12), thread ? "Muted" : "Text"));
                 if (thread) name.Margin = new Thickness(8, 0, 0, 0);
                 name.ToolTip = lane.Name;
                 row.Children.Add(name);
@@ -1286,7 +1286,7 @@ namespace ClaudeDashboard
                 lanes.Children.Add(row);
             }
             if (view.Lanes.Count == 0) { var none = Text("Nothing in the last 5 hours.", Scaled(12), "Muted"); none.Margin = new Thickness(0, 6, 0, 0); lanes.Children.Add(none); }
-            var axis = Columns(new GridLength(104), Star); axis.Margin = new Thickness(0, 4, 0, 0);
+            var axis = Columns(new GridLength(Scaled(104)), Star); axis.Margin = new Thickness(0, 4, 0, 0);
             var times = new Grid { Margin = new Thickness(8, 0, 0, 0) };
             var start = Text("", Scaled(11), "Muted"); var middle = Text("", Scaled(11), "Muted"); middle.HorizontalAlignment = HorizontalAlignment.Center; var end = Text("now", Scaled(11), "Muted"); end.HorizontalAlignment = HorizontalAlignment.Right;
             times.Children.Add(start); times.Children.Add(middle); times.Children.Add(end);
@@ -1445,14 +1445,14 @@ namespace ClaudeDashboard
             var root = Rows(Star, Auto);
             var first = view.Sessions.FirstOrDefault();
             var top = Columns(Auto, Star); top.VerticalAlignment = VerticalAlignment.Center;
-            double size = CardSizing.ClaudeSmallCar(width, height - (caption ? CardSizing.ClaudeSmallMeter(textScale) : 0));
+            double size = CardSizing.ClaudeSmallCar(width, height - (caption ? CardSizing.ClaudeSmallMeterHeight : 0));
             var car = Car(first, first == null ? "" : first.Project, size, "ClaudeSmallCar", true);
             var tap = Tappable(car.View, first); car.Row = tap;
             top.Children.Add(tap);
             var side = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
             if (first == null)
             {
-                var message = names.Add(Wrapped(view.Connected ? ClaudeText.NoSessions : ClaudeText.NotConnected, width < 300 ? Scaled(13) : Scaled(15), height - (caption ? CardSizing.ClaudeSmallMeter(textScale) : 0)), "ClaudeMessage");
+                var message = names.Add(Wrapped(view.Connected ? ClaudeText.NoSessions : ClaudeText.NotConnected, width < 300 ? Scaled(13) : Scaled(15), height - (caption ? CardSizing.ClaudeSmallMeterHeight : 0)), "ClaudeMessage");
                 side.Children.Add(message);
             }
             else
@@ -1460,6 +1460,8 @@ namespace ClaudeDashboard
                 var project = names.Add(Trimmed(Text("", Scaled(17), "Text")), "ClaudeTitle0"); project.FontWeight = FontWeights.SemiBold; side.Children.Add(project);
                 var state = names.Add(Trimmed(Text("", Scaled(13), "Muted")), "ClaudeState0"); side.Children.Add(state);
                 var more = names.Add(Trimmed(Text("", Scaled(12), "Muted")), "ClaudeMore"); side.Children.Add(more);
+                double room = height - (caption ? CardSizing.ClaudeSmallMeterHeight : 0);
+                if (room < CardSizing.ClaudeSmallSide(textScale, true, view.Sample)) more.Visibility = Visibility.Collapsed;
                 string id = first.Id;
                 fills.Add(now => {
                     var s = view.Sessions.FirstOrDefault(x => x.Id == id); if (s == null) return;
@@ -1795,9 +1797,13 @@ namespace ClaudeDashboard
         // Small: the 5-hour meter (its line and bar) only when the project, state, count and Sample flag still fit
         // beside the car above it.
         public const double ClaudeSmallMeterHeight = 52;
-        public static bool ClaudeSmallMeter(double bodyHeight, double textScale) { return bodyHeight >= ClaudeSmallMeter(textScale) + Math.Ceiling(Math.Round(17 * textScale) * 1.33 + Math.Round(13 * textScale) * 1.33 + Math.Round(12 * textScale) * 1.33) + Math.Ceiling(Math.Round(13 * textScale) * 1.33); }
-        // The meter's own height: its 12-unit line (beside the 28-unit number) and bar, growing with the text.
-        public static double ClaudeSmallMeter(double textScale) { return ClaudeSmallMeterHeight + Math.Max(0, Math.Ceiling(1.33 * (Math.Round(12 * textScale) - 12))); }
+        public static bool ClaudeSmallMeter(double bodyHeight, double textScale) { return bodyHeight >= ClaudeSmallMeterHeight + Math.Ceiling(Math.Round(17 * textScale) * 1.33) + 34 + 17; }
+        // The words beside Small's car: the project, its state and the Sample flag, and the "+2 working" line when
+        // there's room for it too (it steps aside first as the text grows, so the meter keeps its place).
+        public static double ClaudeSmallSide(double textScale, bool more, bool sample)
+        {
+            return Math.Ceiling(1.33 * (Math.Round(17 * textScale) + Math.Round(13 * textScale) + (more ? Math.Round(12 * textScale) : 0) + (sample ? Math.Round(13 * textScale) : 0)));
+        }
         // The Small car: a third of the card's width, as long as the room above the meter allows.
         public static double ClaudeSmallCar(double bodyWidth, double room) { return Clamp(Math.Floor(Math.Min(bodyWidth * 0.34, room * 140 / 60)), 48, 120); }
         private static double Clamp(double value, double min, double max) { return Double.IsNaN(value) ? min : Math.Max(min, Math.Min(max, value)); }

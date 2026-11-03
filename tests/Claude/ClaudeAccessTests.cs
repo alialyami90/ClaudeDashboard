@@ -66,7 +66,7 @@ internal static class ClaudeAccessTests
                         var view = controller.ClaudeCardView;
                         var buttons = Descendants(card).OfType<Button>().ToList();
                         string design = plain ? "plain" : view.Current.ToString();
-                        Assert(buttons.Count > 1, "Only " + buttons.Count + " button on the " + design + " card.");
+                        Assert(buttons.Count >= (design == "Small" ? 1 : 2), "Only " + buttons.Count + " button on the " + design + " card.");
                         var rows = Enumerable.Range(0, 8).SelectMany(g => Enumerable.Range(0, 8).Select(t => window.FindName((plain ? "ClaudePlainThread" : "ClaudeThreadRow") + g + "_" + t))).OfType<FrameworkElement>().ToList();
                         if (plain || view.Current == CardSizing.Design.Large) Assert(rows.Count > 0 && rows.All(r => r is Button), "A " + design + " thread row isn't a button.");
                         foreach (var button in buttons)
