@@ -73,15 +73,49 @@ namespace ClaudeDashboard
             }
             if (Value > 0.002) dc.DrawGeometry(null, Line(Warn ? B("Warning") : B("Accent"), 10), Arc(0, Value, r));
             var tick = Line(B("Muted"), 1.5, false);
-            for (int i = 0; i <= 10; i++) { double a = Angle(i / 10.0); dc.DrawLine(tick, At(a, r - 12), At(a, r - (i % 5 == 0 ? 20 : 16))); }
+            // v0.57.2: the end labels are placed first, and a tick that would cross one is left out (at 140% the "100"
+            // read "T00" under the last tick since v0.51.0). The label marks that end of the scale itself.
+            var low = Words(Low, Math.Round(10 * TextScale), B("Muted"));
+            var high = Words(High, Math.Round(10 * TextScale), B("Muted"));
+            var labels = LabelBoxes(low.Width, low.Height, low.Baseline, high.Width, high.Height, high.Baseline);
+            for (int i = 0; i <= 10; i++)
+            {
+                double a = Angle(i / 10.0);
+                Point p0 = At(a, r - 12), p1 = At(a, r - (i % 5 == 0 ? 20 : 16));
+                if (TickHidden(p0, p1, labels)) continue;
+                dc.DrawLine(tick, p0, p1);
+            }
             if (!Double.IsNaN(Pace)) { double a = Angle(Pace); dc.DrawLine(Line(B("Text"), 2.5), At(a, r - 7), At(a, r + 8)); }
             double n = Angle(Value);
             dc.DrawLine(Line(B("Text"), 3), new Point(70, 74), At(n, r - 18));
             dc.DrawEllipse(B("Text"), null, new Point(70, 74), 6, 6);
-            var low = Words(Low, Math.Round(10 * TextScale), B("Muted")); dc.DrawText(low, new Point(10, 84 - low.Baseline));
-            var high = Words(High, Math.Round(10 * TextScale), B("Muted")); dc.DrawText(high, new Point(130 - high.Width, 84 - high.Baseline));
+            dc.DrawText(low, labels[0].TopLeft);
+            dc.DrawText(high, labels[1].TopLeft);
             dc.Pop();
         }
+        // The end labels' boxes in the gauge's 140 × 84 units: the low one from x 10, the high one ending at 130, both on
+        // the bottom edge's baseline.
+        public static Rect[] LabelBoxes(double lowWidth, double lowHeight, double lowBaseline, double highWidth, double highHeight, double highBaseline)
+        {
+            return new[] { new Rect(10, 84 - lowBaseline, lowWidth, lowHeight), new Rect(130 - highWidth, 84 - highBaseline, highWidth, highHeight) };
+        }
+        // Whether a tick from p0 to p1 would cross a label (with a unit's room around it).
+        public static bool TickHidden(Point p0, Point p1, Rect[] labels)
+        {
+            foreach (var box in labels)
+            {
+                if (box.Width <= 0) continue;
+                var room = new Rect(box.X - 1, box.Y - 1, box.Width + 2, box.Height + 2);
+                for (int s = 0; s <= 8; s++)
+                {
+                    var p = new Point(p0.X + (p1.X - p0.X) * s / 8, p0.Y + (p1.Y - p0.Y) * s / 8);
+                    if (room.Contains(p)) return true;
+                }
+            }
+            return false;
+        }
+        // For the checks: the gauge's tick ends, the same as it draws them.
+        public static Point[] Tick(int i) { const double r = 58; double a = Angle(i / 10.0); return new[] { At(a, r - 12), At(a, r - (i % 5 == 0 ? 20 : 16)) }; }
     }
 
     // A flat meter: used, the projection hatched past it, and a pace tick. Values are 0–1.
