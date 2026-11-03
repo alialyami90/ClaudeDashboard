@@ -52,6 +52,8 @@ internal static class ShellTests
     {
         if (String.IsNullOrEmpty(block.Text)) return false;
         var probe = new TextBlock { Text = block.Text, FontFamily = block.FontFamily, FontSize = block.FontSize, FontWeight = block.FontWeight, FontStyle = block.FontStyle, FontStretch = block.FontStretch };
+        // Measured as the window draws it (Display mode), not a lone TextBlock's Ideal widths.
+        TextOptions.SetTextFormattingMode(probe, TextOptions.GetTextFormattingMode(block));
         probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
         return probe.DesiredSize.Width > block.ActualWidth + 1;
     }

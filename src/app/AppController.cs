@@ -33,12 +33,11 @@ namespace ClaudeDashboard
         private double headerWidth, headerHeight;
         // The text size the card is laid out for: the saved one, or the one Settings previews.
         private double appearanceScale = 1;
-        // The source-health line's height (it follows the text size) and what it shows now.
+        // The source-health line's height (it follows the text size) and what it shows now. It overlaps the lower 16
+        // units of the card's bottom padding, so its own row is that much shorter.
         private double sourceHeight = 24;
+        private const double SourceOverlap = 16;
         private List<ClaudeHealthItem> sources = new List<ClaudeHealthItem>();
-        // The card's bottom padding is 8 where the other sides have 24 (ShellWindow.xaml): the card is laid out as if it
-        // had 24 there too, so its body is the room it really gets.
-        private const double CardBottomGiven = 24 - 8;
         private static readonly ClaudePeriod[] HeaderPeriods = { ClaudePeriod.FiveHour, ClaudePeriod.Today, ClaudePeriod.Week };
 
         public AppSettings CurrentSettings { get { return settings; } }
@@ -168,7 +167,7 @@ namespace ClaudeDashboard
             appearanceScale = textScale;
             // The source-health line's words follow the text size, and its row grows with them.
             sourceHeight = Math.Ceiling(16 * textScale) + 8;
-            Control<Grid>("DashboardContent").RowDefinitions[2].Height = new GridLength(sourceHeight);
+            Control<Grid>("DashboardContent").RowDefinitions[2].Height = new GridLength(sourceHeight - SourceOverlap);
             foreach (var name in new[] { "SourceSample", "SourceText0", "SourceText1", "SourceText2", "SourceText3", "SourceGlyph0", "SourceGlyph1", "SourceGlyph2", "SourceGlyph3" })
                 Control<TextBlock>(name).FontSize = Math.Round(12 * textScale, 1);
             claudeCard.Restyle();
@@ -179,7 +178,7 @@ namespace ClaudeDashboard
         {
             var host = Find<Border>("ClaudeCard");
             if (host == null || host.ActualWidth <= 0 || host.ActualHeight <= 0) return;
-            claudeCard.Fit(new Rect(0, 0, host.ActualWidth, host.ActualHeight + CardBottomGiven), appearanceScale);
+            claudeCard.Fit(new Rect(0, 0, host.ActualWidth, host.ActualHeight), appearanceScale);
         }
 
         // The header keeps the summary as long as it can: the app name goes first (the title bar names it), then the
@@ -219,7 +218,7 @@ namespace ClaudeDashboard
             FitSources(width);
         }
         // The card's room under a header of one or two lines, as the card counts it.
-        private double CardRoom(double headerLines) { return headerHeight - 6 - (headerLines == 1 ? 56 : 84) - sourceHeight + CardBottomGiven; }
+        private double CardRoom(double headerLines) { return headerHeight - 6 - (headerLines == 1 ? 56 : 84) - SourceRow; }
         // Whether a second header line (28 more units) leaves the card its room: Small keeps its 5-hour meter if it had
         // it, and nothing drops from Medium or Large to Small.
         private bool SecondLineFits(double width)
@@ -234,6 +233,8 @@ namespace ClaudeDashboard
         public bool HeaderTwoLines { get; private set; }
         // For the checks: the source-health line's height and the four sources it shows.
         public double SourceLineHeight { get { return sourceHeight; } }
+        // The rows the line takes from the card: its height less the padding it overlaps.
+        public double SourceRow { get { return sourceHeight - SourceOverlap; } }
         public List<ClaudeHealthItem> Sources { get { return sources; } }
 
         // The source-health line (observability critique, issue 3): each source's glyph and colour by its level, its
@@ -300,6 +301,8 @@ namespace ClaudeDashboard
         {
             if (String.IsNullOrEmpty(text)) return 0;
             var probe = new TextBlock { Text = text, FontFamily = block.FontFamily, FontSize = block.FontSize, FontWeight = block.FontWeight, FontStyle = block.FontStyle, FontStretch = block.FontStretch };
+            // The window draws text in Display mode, whose widths differ from a lone TextBlock's Ideal ones.
+            TextOptions.SetTextFormattingMode(probe, TextOptions.GetTextFormattingMode(block));
             probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
             return Math.Ceiling(probe.DesiredSize.Width) + 1;
         }

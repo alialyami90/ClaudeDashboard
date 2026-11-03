@@ -269,11 +269,10 @@ internal static class SmokeTests
                     {
                         AppController.Lay(window, size);
                         // The 3-unit frame on each side, the header (56 units on one line, 84 with the summary under it) and
-                        // the source-health line under the card.
+                        // the source-health line's row under the card (it also overlaps 16 units of the card's padding).
                         double head = controller.HeaderTwoLines ? 84 : 56;
-                        Assert(Math.Abs(card.ActualWidth - (size.Width - 6)) < 1 && Math.Abs(card.ActualHeight - (size.Height - 6 - head - controller.SourceLineHeight)) < 1, "The card doesn't fill a " + size + " window: " + card.ActualWidth + " × " + card.ActualHeight);
-                        // The card's bottom padding is 8, not 24, so it's laid out 16 units taller than its border.
-                        Assert(controller.ClaudeCardView.Current == CardSizing.Claude(card.ActualWidth, card.ActualHeight + 16), "The card's design doesn't follow a " + size + " window.");
+                        Assert(Math.Abs(card.ActualWidth - (size.Width - 6)) < 1 && Math.Abs(card.ActualHeight - (size.Height - 6 - head - controller.SourceRow)) < 1, "The card doesn't fill a " + size + " window: " + card.ActualWidth + " × " + card.ActualHeight);
+                        Assert(controller.ClaudeCardView.Current == CardSizing.Claude(card.ActualWidth, card.ActualHeight), "The card's design doesn't follow a " + size + " window.");
                     }
                 }
                 window.Close();
