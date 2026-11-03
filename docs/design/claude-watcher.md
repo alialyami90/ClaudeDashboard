@@ -68,7 +68,7 @@ Package 1 of the Watcher action plan, both apps:
 - **Usage-limit waits.** Claude Code carrying on by itself is Working; waiting for Enter is Needs you; giving up is Stuck.
 - **Context ring.** A ring on the car's corner from 60% of the context window (muted), 80% and 95% (warning, filled at 95%). The tip says "Context 82% used, compaction soon". Medium shows the fullest car's ring per garage.
 - **No usage meters.** When Anthropic says the plan has none (403), the plan row says "Your plan has no usage meters." and the sign-in stays.
-- **Telemetry port.** If something else holds the port Claude Code sends telemetry to, the side panel says "Telemetry off: port 43832 in use" and Settings → Claude offers Update connection, which moves it to a free port (43832–43839).
+- **Telemetry port.** If something else holds the port Claude Code sends telemetry to, the source-health line under the card says "Telemetry off: port 43832 in use" (the side panel did until v0.50.0) and Settings → Claude offers Update connection, which moves it to a free port (43832–43839).
 - **More hooks** for failed tools, denied permissions, helpers, tasks, model switches and folder changes; Settings → Claude offers Update connection once to add them.
 
 ## Archived and hidden threads (decision 020)

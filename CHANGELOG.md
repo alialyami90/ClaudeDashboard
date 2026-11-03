@@ -6,6 +6,18 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.50.0 (unreleased)
+
+Claude Dashboard: every number says where it came from (observability critique, issue 3).
+
+- **The source-health line.** Under the card, at every size: Hooks · Logs · Telemetry · Plan, each with a Segoe MDL2 glyph and words. A source is fine, still waiting ("Logs counting…", "Plan reading…"), old ("Plan 12 min old"), off with the reason ("Hooks off: not connected", "Telemetry off: not set up", "Plan off: not signed in") or failed ("Logs unreadable", "Telemetry off: port 43832 in use"). Old and failed are Amber; each level has its own glyph, so colour isn't the only sign. The tooltip and the screen-reader name give the full reason. On a narrow window the reasons shorten, then the fine sources keep only their glyph; the line never folds away and never cuts a word. The line sits over the lower part of the card's bottom padding, so its own row is 8 units at 100% text and Small keeps its 5-hour meter at the smallest window.
+- **"Telemetry off: port 43832 in use"** moves from the side panel (only from 1000 units wide) to this line, and so do v0.48.0's Widget Screen states: "Telemetry with Widget Screen" while Widget Screen is open with the port (calm, since it hands the port back within about 10 seconds of closing), and "Hooks with Widget Screen · Reconnect" in Amber when Widget Screen took Claude Code's hooks.
+- **Sample is pinned** at the start of the line at every size, Small included, instead of in the header flag that narrow windows dropped.
+- **Loading and unavailable look different.** While Claude Code's logs are still being read, token counts, cache reads and replies (or the API value) show "≈" ("≈1.2M") and the side panel's period says COUNTING. When the logs can't be read, all three show "—" with "Can't read Claude Code's logs." in the tip, and the side panel says LOGS UNREADABLE.
+- **"PLAN · 2:17 AM"** replaces "LIVE · AS OF 2:17 PM" in the header. Numbers up to 15 minutes old were called live; how old they are is now on the source-health line.
+- **One meaning for "working".** The header's summary and the line under each project's name both count working sessions as "2 working", as the chips say it, where the header said "running" for working sessions and the project line said it for open ones.
+- **The header's summary at 140% text on the smallest window** shortens further instead of being cut ("1 needs you · 1 your turn · 7…"): to the most urgent part with the thread count ("1 needs you · 7 threads"), then that part alone.
+
 ## v0.49.0 (unreleased)
 
 Claude Dashboard: the attention rail (observability critique, issue 1). In 5 h and Today the window says first what's waiting on you, and nothing that is hides off the bottom.
