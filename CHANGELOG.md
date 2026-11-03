@@ -6,6 +6,15 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.48.0 (unreleased)
+
+Claude Dashboard and Widget Screen both watch Claude Code, so closing either leaves the other working ([decision 028](docs/decisions/028-claude-both-apps-watch.md)).
+
+- **One bridge feeds both apps.** `ClaudeHook.exe` writes each Claude Code event and status-line reading into Claude Dashboard's bridge folder and, when it exists, into Widget Screen's `%LOCALAPPDATA%\WidgetScreen\claude`, in the files Widget Screen 0.41.0 reads. Hooks run without either app open, so whichever app was closed is current the moment it opens.
+- **Telemetry goes to whichever app is open.** Both apps take the telemetry port within about 10 seconds when the other closes. While Widget Screen holds it, the card says "Telemetry goes to Widget Screen while it's open" instead of "Telemetry off", and Settings → Claude no longer offers Update connection for it.
+- **Widget Screen taking the hooks back is shown.** If Widget Screen's Settings → Claude → Update connection points Claude Code's hooks at its own bridge, the card says "Live updates go to Widget Screen: reconnect in Settings → Claude", and Settings → Claude names that bridge and offers Reconnect, which keeps both apps current again.
+- **Checks:** the hook writes to both folders only while Widget Screen's exists, and never twice to one; Settings sees hooks run by another bridge and gets them back on Reconnect. Widget Screen's folder is a throwaway one in the checks (`WIDGETSCREEN_CLAUDE_BRIDGE`).
+
 ## v0.47.3 (unreleased)
 
 Claude Dashboard: the code's namespace is renamed.

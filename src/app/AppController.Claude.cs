@@ -121,7 +121,7 @@ namespace ClaudeDashboard
             {
                 bool was = claude.Connected; claude.CheckConnected(); changed |= was != claude.Connected;
                 if (claude.Connected) claude.StartTelemetry(); else claude.Telemetry.Stop();
-                changed |= claudeView != null && claudeView.TelemetryWarning != claude.TelemetryWarning();
+                changed |= claudeView != null && claudeView.TelemetryWarning != claude.ConnectionWarning();
             }
             if (changed || claudeDirty) RefreshClaudeView();
         }
@@ -287,13 +287,19 @@ namespace ClaudeDashboard
             if (!SettingsOpen) return;
             claude.CheckConnected();
             bool update = claude.Connector.NeedsUpdate();
+            string elsewhere = claude.HooksElsewhere;
             string portWarning = claude.TelemetryWarning();
-            Text("ClaudeConnectionStatus", !claude.Connected ? "Not connected" : update ? "Connected by an earlier version. Update the connection to add the latest hooks (API errors, subagents, tasks, model switches, usage-limit waits) and telemetry."
+            // Widget Screen holding the port isn't something to fix: it hands it back within 10 s of closing (decision 028).
+            bool widgetScreenPort = claude.Connected && claude.WidgetScreenOpen && portWarning.Length > 0;
+            Text("ClaudeConnectionStatus", !claude.Connected ? "Not connected"
+                : elsewhere != null ? "Claude Code's hooks run Widget Screen's bridge (" + elsewhere + "), so live updates reach Widget Screen only. Sessions still show here from Claude Code's own files. Reconnect to bring the hooks back: Claude Dashboard's bridge keeps Widget Screen up to date too."
+                : update ? "Connected by an earlier version. Update the connection to add the latest hooks (API errors, subagents, tasks, model switches, usage-limit waits) and telemetry."
+                : widgetScreenPort ? "Connected. Telemetry goes to Widget Screen while it's open, and comes here within 10 seconds of closing it. Hooks reach both apps."
                 : portWarning.Length > 0 ? portWarning + ". Update the connection to send telemetry to a free port." : "Connected. Every Claude Code session on this PC shows on the pit wall.");
-            update |= claude.Connected && portWarning.Length > 0;
+            update |= claude.Connected && portWarning.Length > 0 && !widgetScreenPort;
             Text("ClaudeFolderText", "Claude Code folder: " + claude.ConfigFolder);
             var connect = Control<Button>("ClaudeConnectButton");
-            connect.Content = update ? "Update connection" : "Connect Claude Code";
+            connect.Content = elsewhere != null ? "Reconnect" : update ? "Update connection" : "Connect Claude Code";
             connect.Visibility = !claude.Connected || update ? Visibility.Visible : Visibility.Collapsed;
             Control<Button>("ClaudeDisconnectButton").Visibility = claude.Connected ? Visibility.Visible : Visibility.Collapsed;
             var conflicts = claude.Connector.TelemetryConflicts();
