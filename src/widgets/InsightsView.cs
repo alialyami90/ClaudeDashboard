@@ -608,7 +608,7 @@ namespace ClaudeDashboard
         public bool Sample;
         public string Missing = "";
         public string Range = Week;
-        public DateTime From, To;
+        public DateTime Start, End;
         // Days in this range rebuilt from Claude Code's logs (History's backfill), and whether the period before exists.
         public int FromLogs;
         public bool HasPrevious;
@@ -652,7 +652,7 @@ namespace ClaudeDashboard
         }
         public string ComparedLine()
         {
-            string span = From.ToString("d MMM", CultureInfo.InvariantCulture) + " to " + To.ToString("d MMM", CultureInfo.InvariantCulture);
+            string span = Start.ToString("d MMM", CultureInfo.InvariantCulture) + " to " + End.ToString("d MMM", CultureInfo.InvariantCulture);
             if (Range == All) return span + " · everything kept, so nothing to compare with";
             return span + " · compared with the previous " + (Range == Week ? "7" : "30") + " days" + (HasPrevious ? "" : " (none kept)");
         }
@@ -735,7 +735,7 @@ namespace ClaudeDashboard
         public static InsightsModel From(ClaudeInsights ins)
         {
             var d = ins.Detail ?? new ClaudeDayDetail(); var prior = ins.PriorDetail ?? new ClaudeDayDetail();
-            var m = new InsightsModel { Sample = ins.Sample, Missing = ins.Missing ?? "", Range = ins.Label, From = ins.Start, To = ins.End, HasPrevious = ins.PriorStart.HasValue,
+            var m = new InsightsModel { Sample = ins.Sample, Missing = ins.Missing ?? "", Range = ins.Label, Start = ins.Start, End = ins.End, HasPrevious = ins.PriorStart.HasValue,
                 FromLogs = ins.DaysFromLogs, DaysWithFiles = ins.DaysWithFiles, DaysWithDetail = ins.DaysWithDetail,
                 Tokens = ins.Tokens, Replies = ins.Replies, Cost = ins.Cost, PrevTokens = ins.PriorTokens, PrevReplies = ins.PriorReplies, PrevCost = ins.PriorCost,
                 Sessions = d.Sessions, PrevSessions = prior.Sessions, ThinkingReplies = d.ThinkingReplies };
