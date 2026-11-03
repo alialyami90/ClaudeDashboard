@@ -108,14 +108,17 @@ internal static class InsightsViewTests
                 Assert(insights.Shown.Range == ClaudeInsights.Month && insights.Range == ClaudeInsights.Month, "30 days didn't show");
                 Assert(Texts(insights.Page).Any(t => t.Contains("compared with the previous 30 days")), "the comparison line didn't follow");
                 insights.Choose(ClaudeInsights.All);
+                AppController.Lay(window, new Size(1100, 700));
                 Assert(insights.Shown.Range == ClaudeInsights.All && !insights.Shown.HasPrevious, "All didn't show");
                 insights.Choose(ClaudeInsights.Week);
+                AppController.Lay(window, new Size(1100, 700));
                 if (insights.Shown.Models.Count > 1)
                 {
                     string model = insights.Shown.Models[1].Name;
                     var filter = Descendants(insights.Page).OfType<Button>().FirstOrDefault(b => System.Windows.Automation.AutomationProperties.GetName(b) == "Tools for " + model);
                     Assert(filter != null, "no filter button for " + model);
                     filter.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                    AppController.Lay(window, new Size(1100, 700));
                     Assert(Descendants(insights.Page).OfType<Button>().Any(b => System.Windows.Automation.AutomationProperties.GetName(b) == "Tools for " + model + ", shown"), "the filter didn't take");
                 }
                 Assert(insights.Page.IsTabStop && insights.Page.FocusVisualStyle == CardParts.PageFocus, "the page isn't a tab stop with the shared ring");
