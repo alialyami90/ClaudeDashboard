@@ -126,7 +126,7 @@
     <Setter Property="Foreground" Value="{DynamicResource Muted}"/><Setter Property="FontSize" Value="{DynamicResource SmallSize}"/>
     <Setter Property="MinHeight" Value="32"/>
     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
-      <Border x:Name="TabChrome" Background="Transparent" CornerRadius="6" Padding="12,6" Margin="0,0,4,0" MinHeight="32" BorderThickness="1" BorderBrush="Transparent"><ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/></Border>
+      <Border x:Name="TabChrome" Background="Transparent" CornerRadius="6" Padding="12,4" Margin="0,0,4,0" MinHeight="32" BorderThickness="1" BorderBrush="Transparent"><ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/></Border>
       <ControlTemplate.Triggers>
         <Trigger Property="IsSelected" Value="True"><Setter Property="Foreground" Value="{DynamicResource Text}"/><Setter TargetName="TabChrome" Property="Background" Value="{DynamicResource Selected}"/><Setter TargetName="TabChrome" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter TargetName="TabChrome" Property="BorderThickness" Value="2"/></Trigger>
         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabChrome" Property="Background" Value="{DynamicResource Raised}"/></Trigger>

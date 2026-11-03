@@ -103,15 +103,20 @@ internal static class ShellTests
                     if (shown is PlaceholderView) Assert(Texts(host).Any(t => t.Text == "Coming in " + ClaudeViews.Coming(view) + "."), name + ": " + view + "'s placeholder doesn't say when it comes.");
                 }
                 var line = (FrameworkElement)window.FindName("SourceLine");
-                Assert(controller.SourcesInTabRow && line.Parent == window.FindName("TabSources"), name + ": the source-health line isn't in the tab row.");
+                // In the tab row from 1000 wide (beside the tabs or under them, with every reason); narrower, beside the tabs
+                // when its shortest form fits there, else at the card's foot, where it costs the card 8 units rather than a
+                // line. One control either way.
+                Assert(controller.SourcesInTabRow == (line.Parent == window.FindName("TabSources")) && (controller.SourcesInTabRow || line.Parent == window.FindName("DashboardContent")), name + ": the source-health line is in two places or none.");
+                Assert(controller.SourcesInTabRow || size.Width < 1000, name + ": the source-health line left the tab row.");
                 Assert(((TextBlock)window.FindName("SourceSample")).Visibility == Visibility.Visible, name + ": the tab row doesn't say Sample.");
                 SourcesWhole(window, controller, name + "-" + view);
+                var summary = (TextBlock)window.FindName("ClaudeSummary");
+                Assert(controller.SummaryForms.Contains(summary.Text) && !Cut(summary), name + ": the summary is cut or not one of its forms: " + summary.Text);
+                if (!controller.SourcesInTabRow) continue;
                 var row = (FrameworkElement)window.FindName("TabRow");
                 var holder = (FrameworkElement)window.FindName("TabSources");
                 Assert(holder.TranslatePoint(new Point(holder.ActualWidth, 0), row).X <= row.ActualWidth + 1, name + ": the source-health line runs past the tab row.");
                 if (!controller.SourcesUnderTabs) Assert(tabs.TranslatePoint(new Point(tabs.ActualWidth, 0), row).X <= holder.TranslatePoint(new Point(0, 0), row).X + 1, name + ": the tabs run under the source-health line.");
-                var summary = (TextBlock)window.FindName("ClaudeSummary");
-                Assert(controller.SummaryForms.Contains(summary.Text) && !Cut(summary), name + ": the summary is cut or not one of its forms: " + summary.Text);
             }
         }
     }

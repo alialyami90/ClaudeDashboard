@@ -48,7 +48,11 @@ namespace ClaudeDashboard
         private string viewChosen = ClaudeViews.Garage;
         private readonly Dictionary<string, IClaudeView> views = new Dictionary<string, IClaudeView>();
         private readonly Dictionary<string, string> viewBuilt = new Dictionary<string, string>();
-        private bool tabsShown, choosingTab, sourcesUnderTabs;
+        private bool tabsShown, choosingTab;
+        // Where the source-health line is from 640 wide: beside the tabs, on its own line under them, or (when neither has
+        // room for it, at 640 and 140% text) at the card's foot as below 640. It is always the same control.
+        private enum SourcePlace { Beside, Under, Foot }
+        private SourcePlace sourcePlace = SourcePlace.Foot;
 
         public AppSettings CurrentSettings { get { return settings; } }
         public Window MainWindow { get { return window; } }
@@ -274,11 +278,12 @@ namespace ClaudeDashboard
         public double SourceLineHeight { get { return sourceHeight; } }
         // The units under the header that the card doesn't get: the tab row from 640 wide (the source-health line is in
         // it), otherwise the source-health line's row less the padding it overlaps.
-        public double SourceRow { get { return tabsShown ? Control<Grid>("TabRow").ActualHeight : sourceHeight - SourceOverlap; } }
-        private void SetSourceRow() { Control<Grid>("DashboardContent").RowDefinitions[3].Height = new GridLength(tabsShown ? 0 : sourceHeight - SourceOverlap); }
+        public double SourceRow { get { return (tabsShown ? Control<Grid>("TabRow").ActualHeight : 0) + (SourcesAtFoot ? sourceHeight - SourceOverlap : 0); } }
+        private bool SourcesAtFoot { get { return !tabsShown || sourcePlace == SourcePlace.Foot; } }
+        private void SetSourceRow() { Control<Grid>("DashboardContent").RowDefinitions[3].Height = new GridLength(SourcesAtFoot ? sourceHeight - SourceOverlap : 0); }
         // Whether the source-health line is in the tab row, and on a line of its own under the tabs (for the checks).
-        public bool SourcesInTabRow { get { return tabsShown; } }
-        public bool SourcesUnderTabs { get { return tabsShown && sourcesUnderTabs; } }
+        public bool SourcesInTabRow { get { return !SourcesAtFoot; } }
+        public bool SourcesUnderTabs { get { return tabsShown && sourcePlace == SourcePlace.Under; } }
         public List<ClaudeHealthItem> Sources { get { return sources; } }
 
         // The source-health line (observability critique, issue 3): each source's glyph and colour by its level, its
@@ -305,23 +310,27 @@ namespace ClaudeDashboard
         private void FitSources(double width)
         {
             if (sources.Count < 4 || width <= 0) return;
-            PlaceSources();
             double room = width - 6 - 48;
             var sample = Control<TextBlock>("SourceSample");
             double fixedWidth = sample.Visibility == Visibility.Visible ? Measure(sample, sample.Text) + 16 : 0;
             int tiers = 5;
             Func<int, double> used = tier => { double sum = fixedWidth; for (int i = 0; i < 4; i++) sum += SourceWidth(i, SourceWords(sources[i], tier)) + (i < 3 ? 16 : 0); return sum; };
-            // From 640 wide the line sits at the tab row's right end, beside the tabs; when even its shortest form has no
-            // room there, it takes a line of its own under them, right-aligned, with the row's whole width.
+            // From 640 wide the line sits at the tab row's right end, beside the tabs. From 1000 wide it keeps every reason
+            // in full (as it did under the card), on a line of its own under the tabs when they leave it too little room.
+            // Narrower, it shortens beside the tabs; when even its shortest form has no room there (640 at 140% text) it
+            // stays at the card's foot, which costs the card 8 units where a line under the tabs would cost a row.
             if (tabsShown)
             {
                 double beside = room - Desired(Control<TabControl>("ViewTabs")) - 16;
-                sourcesUnderTabs = used(tiers - 1) > beside;
-                if (!sourcesUnderTabs) room = beside;
+                var place = used(0) <= beside ? SourcePlace.Beside : width >= 1000 ? SourcePlace.Under : used(tiers - 1) <= beside ? SourcePlace.Beside : SourcePlace.Foot;
+                if (place == SourcePlace.Beside) room = beside;
+                if (place != sourcePlace) { sourcePlace = place; SetSourceRow(); }
                 var holder = Control<Border>("TabSources");
-                Grid.SetRow(holder, sourcesUnderTabs ? 1 : 0); Grid.SetColumn(holder, sourcesUnderTabs ? 0 : 1); Grid.SetColumnSpan(holder, sourcesUnderTabs ? 2 : 1);
-                holder.Margin = new Thickness(sourcesUnderTabs ? 0 : 16, sourcesUnderTabs ? 4 : 0, 0, 0);
+                bool under = place == SourcePlace.Under;
+                Grid.SetRow(holder, under ? 1 : 0); Grid.SetColumn(holder, under ? 0 : 1); Grid.SetColumnSpan(holder, under ? 2 : 1);
+                holder.Margin = new Thickness(under ? 0 : 16, under ? 4 : 0, 0, 0);
             }
+            PlaceSources();
             int chosen = tiers - 1;
             for (int tier = 0; tier < tiers; tier++) if (used(tier) <= room) { chosen = tier; break; }
             for (int i = 0; i < 4; i++)
@@ -445,6 +454,10 @@ namespace ClaudeDashboard
             if (shown == tabsShown) return;
             tabsShown = shown;
             Control<Grid>("TabRow").Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+            // Under the tabs the card needs only 8 units of top padding (the tab row is its gap), which pays for most of
+            // the row's height, so Medium keeps its project rows at 640 × 420 and 140% text (v0.53.1).
+            var top = new Thickness(24, shown ? 8 : 24, 24, 24);
+            Control<Border>("ClaudeCard").Padding = top; Control<Border>("ViewHost").Padding = top;
             SetSourceRow();
             ApplyView();
         }
@@ -452,9 +465,10 @@ namespace ClaudeDashboard
         private void PlaceSources()
         {
             var line = Control<StackPanel>("SourceLine"); var holder = Control<Border>("TabSources"); var content = Control<Grid>("DashboardContent");
-            if (tabsShown && line.Parent != holder) { content.Children.Remove(line); holder.Child = line; }
-            else if (!tabsShown && line.Parent == holder) { holder.Child = null; content.Children.Add(line); Grid.SetRow(line, 3); }
-            line.Margin = tabsShown ? new Thickness(0) : new Thickness(24, -16, 24, 4);
+            bool inRow = !SourcesAtFoot;
+            if (inRow && line.Parent != holder) { content.Children.Remove(line); holder.Child = line; }
+            else if (!inRow && line.Parent == holder) { holder.Child = null; content.Children.Add(line); Grid.SetRow(line, 3); }
+            line.Margin = inRow ? new Thickness(0) : new Thickness(24, -16, 24, 4);
         }
         // Shows the current view: the card for Garage (the other views' card is hidden but keeps its size), or the view in
         // ViewHost. Only the view on screen is Visible, and none while the window is minimised.
