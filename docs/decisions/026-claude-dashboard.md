@@ -57,7 +57,7 @@ Six pull requests, one release each. Each leaves CI green, `build.ps1 -Test` pas
 | 3. Cut the second-screen machinery | v0.44.0 | Canvas, pages, Edit layout, inks, `FocusKeeper`, secondary-monitor fullscreen, the phone link, touch polish, tray mode. Only 127.0.0.1:43832 listens while connected. |
 | 4. The dashboard window | v0.45.0 | New `MainWindow.xaml` and Settings window (Theme, Claude, Window), the Claude palette, remembered position and size, the card sized by the window. Namespace becomes `ClaudeDashboard`. |
 | 5. Move users over | v0.46.0 | `%LOCALAPPDATA%\ClaudeDashboard`; the first run offers to copy the `Claude*` settings, `claude-session.dat` and the `claude\` bridge folder, then re-runs Connect so the hooks point at the new exe. |
-| 6. Watcher package 4 | v0.47.0 | Allow and Deny from the Needs-you notification (a themed toast window of our own), and the rest of the package list. |
+| 6. Watcher package 4 | v0.47.0 | Allow and Deny from the Needs-you notification (a themed toast window of our own), and the rest of the package list. (Allow and Deny were dropped by decision 027; see "As built".) |
 
 Two decisions hold the order together:
 
@@ -112,9 +112,9 @@ Moved in phase 1 to `docs/archive/`, unchanged except for links that the move br
 - Every design note but `claude-watcher.md`, `claude-watcher-v2.html` and `setup.md` → `docs/archive/design/`. `setup.md` stays because the setup exe ships with Claude Dashboard and `scripts/package.ps1` and `scripts/release.ps1` point at it.
 - `AGENTS.md` is deleted rather than archived: it is the source snapshot's copy, still inside `implementation-source.zip`, and `CLAUDE.md` is the one rules file.
 
-The Claude records (014, 015, 016 projects and threads, 017–020, 022 review fixes, 023–025) stay in `docs/decisions/`. Their mentions of the phone, both apps and pages describe what was built at the time.
+The Claude records (014, 015, 016 projects and threads, 017–020, 022 review fixes, 023–025, and 027 from phase 6) stay in `docs/decisions/`. Their mentions of the phone, both apps and pages describe what was built at the time.
 
-## As built (v0.42.0–v0.45.0)
+## As built (v0.42.0–v0.47.0)
 
 Where the releases differ from the plan above, and why. The plan's text is left as Ali approved it.
 
@@ -125,4 +125,6 @@ Where the releases differ from the plan above, and why. The plan's text is left 
 - **The card has no heading.** The window's header carries the name, the live summary, the period switch, Quiet and Settings. The window's edge turns Amber for Needs you and Glacier for Your turn, and the title bar says "Claude needs you".
 - **Settings dropped the corner-radius choice and the touch sizes.** Theme is palette, accent (adding Terracotta), text size, clock and Quiet. Settings controls are 32 units.
 - **Minimised does less.** The app still watches the session files, so Needs you notifies and chimes from the taskbar. It no longer scans logs or works out the view on the clock until the window is restored, and a click on the notification restores it.
-- **The namespace rename moved after phases 5 and 6,** to its own release (v0.47.1), so it doesn't collide with the migration and package 4. That release also has to update `scripts\make-icon.ps1`, which loads `WidgetScreen.PitArt` by name.
+- **The namespace rename moved after phases 5 and 6,** to its own release (v0.47.3, after the docs at v0.47.1 and a header fix at v0.47.2), so it doesn't collide with the migration and package 4. That release also has to update `scripts\make-icon.ps1`, which loads `WidgetScreen.PitArt` by name.
+- **Phase 5 asks before the dashboard starts (v0.46.0).** `Migration` and `AppController.Migration.cs` show the window's confirm sheet first, never for `--render` or `--settings`. **Bring it over** copies every `Claude*` setting and the shared look, `claude-session.dat` and the `claude\` bridge folder (with the earlier status line and the connection record, so Disconnect still restores the user's own `settings.json`), then reconnects from the new folder on the old telemetry port. **Start fresh** saves default settings. Closing the window decides nothing. Widget Screen's folder is only read, and the sheet says to quit Widget Screen, then uninstall it and keep its settings. If reconnecting fails, the status line says so and points to Settings → Claude → Connect.
+- **Phase 6 dropped answering permission prompts (v0.47.0).** Ali chose "No, the notification only opens it" ([decision 027](027-claude-answer-permission-prompts.md)). Package 4 shipped history (one summary file a day in `claude\history\`, kept 8 weeks, and 7-day bars on the rev counter's tile), Copy summary and Save CSV, and the plain list. The cloud garage (4.3) waits on a look at the Claude app's cloud thread records; the phone (4.2) moves to the Android companion.

@@ -37,6 +37,12 @@ The window is an ordinary one, at least 360 × 300, with a 56-unit header (the a
 - **Medium:** two mini plan tiles over the top garages, with up to three cars inline.
 - **Small** (under 360 × 280): the car that needs you, or the busiest running one, over the 5-hour meter.
 
+Where the rev counter shows, its tile carries the last 7 days (v0.47.0): seven small bars, today in the accent, and a tick for what last week had used by this time of day. They come from the daily summary files, so they're gone while History is off; the tip says what they count, and the sample says it's a sample.
+
+## The plain list
+
+Settings → Claude → Show a plain list (v0.47.0) swaps the pit wall for text rows: the plan line, then each project with its totals, and under it one row per thread: its state chip, its name and a line of detail, then its tokens and replies. The same palette, chips and colours; no cars, garages or motion. Each row is named for screen readers, and a click on a running thread brings its window forward. Numbers read before the logs are counted show "≈".
+
 The card has no heading of its own since v0.45.0: the window's header carries the summary and the period switch. Garages stay 48-unit tap targets; Settings controls are 32 units, a desktop window's size, now that the touchscreen minimums are gone (decision 026). The ledger may scroll; nothing else does.
 
 ## Pixel art
