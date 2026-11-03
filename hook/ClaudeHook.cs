@@ -9,7 +9,8 @@ namespace ClaudeDashboard
     // ClaudeHook.exe, the bridge between Claude Code and the dashboard (docs/design/claude-watcher.md, decision 014).
     // Claude Code runs "ClaudeHook.exe hook" for its hooks and "ClaudeHook.exe statusline" for its status line, with JSON
     // on stdin. The files go into the folder this exe sits in (%LOCALAPPDATA%\ClaudeDashboard\claude once connected), so
-    // the dashboard doesn't have to be running. It never blocks Claude Code and always exits 0.
+    // the dashboard doesn't have to be running. It never blocks Claude Code and always exits 0. The same files go into
+    // Widget Screen's bridge folder when it has one (decision 028), so Widget Screen keeps up without its own hooks.
     public static class ClaudeHook
     {
         public static int Main(string[] args)
@@ -19,16 +20,22 @@ namespace ClaudeDashboard
             try { using (var reader = new StreamReader(Console.OpenStandardInput(), new UTF8Encoding(false))) input = reader.ReadToEnd(); }
             catch (Exception) { }
             string folder = AppDomain.CurrentDomain.BaseDirectory;
-            Func<ClaudeProcesses.Owner> owner = () => ClaudeProcesses.Find(Process.GetCurrentProcess().Id);
+            string partner = ClaudeBridge.PartnerFolder(folder);
+            // Looked up once for both folders: finding the owning window walks the process tree.
+            var found = default(ClaudeProcesses.Owner); bool looked = false;
+            Func<ClaudeProcesses.Owner> owner = () => { if (!looked) { looked = true; found = ClaudeProcesses.Find(Process.GetCurrentProcess().Id); } return found; };
+            DateTime now = DateTime.UtcNow;
             if (mode == "hook")
             {
-                try { ClaudeBridge.Hook(input, folder, owner, DateTime.UtcNow); } catch (Exception) { }
+                try { ClaudeBridge.Hook(input, folder, owner, now); } catch (Exception) { }
+                if (partner != null) { try { ClaudeBridge.Hook(input, partner, owner, now); } catch (Exception) { } }
                 return 0;
             }
             if (mode == "statusline")
             {
                 string line = "Claude Code";
-                try { line = ClaudeBridge.StatusLine(input, folder, owner, DateTime.UtcNow); } catch (Exception) { }
+                try { line = ClaudeBridge.StatusLine(input, folder, owner, now); } catch (Exception) { }
+                if (partner != null) { try { ClaudeBridge.StatusLine(input, partner, owner, now); } catch (Exception) { } }
                 try { if (RunPrevious(folder, input)) return 0; } catch (Exception) { }
                 Write(line + "\n");
                 return 0;

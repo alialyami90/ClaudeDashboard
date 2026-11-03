@@ -19,6 +19,15 @@ Claude Dashboard: keyboard and low vision (issue 4 of the observability critique
 - **"Tap" is "Click"** in the tooltips and names.
 - **Checks:** rows, cars and garages are focusable buttons with names; ended rows are Muted at full opacity; the smallest words at 140% are 140% of those at 100%; Amber, Glacier, Muted and Text reach 4.5:1 on Raised, Surface and Page in every palette; the header is an assertive live region; renders at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900 at 100% and 140% go to `artifacts\renders`.
 
+## v0.48.0 (unreleased)
+
+Claude Dashboard and Widget Screen both watch Claude Code, so closing either leaves the other working ([decision 028](docs/decisions/028-claude-both-apps-watch.md)).
+
+- **One bridge feeds both apps.** `ClaudeHook.exe` writes each Claude Code event and status-line reading into Claude Dashboard's bridge folder and, when it exists, into Widget Screen's `%LOCALAPPDATA%\WidgetScreen\claude`, in the files Widget Screen 0.41.0 reads. Hooks run without either app open, so whichever app was closed is current the moment it opens.
+- **Telemetry goes to whichever app is open.** Both apps take the telemetry port within about 10 seconds when the other closes. While Widget Screen holds it, the card says "Telemetry goes to Widget Screen while it's open" instead of "Telemetry off", and Settings → Claude no longer offers Update connection for it.
+- **Widget Screen taking the hooks back is shown.** If Widget Screen's Settings → Claude → Update connection points Claude Code's hooks at its own bridge, the card says "Live updates go to Widget Screen: reconnect in Settings → Claude", and Settings → Claude names that bridge and offers Reconnect, which keeps both apps current again.
+- **Checks:** the hook writes to both folders only while Widget Screen's exists, and never twice to one; Settings sees hooks run by another bridge and gets them back on Reconnect. Widget Screen's folder is a throwaway one in the checks (`WIDGETSCREEN_CLAUDE_BRIDGE`).
+
 ## v0.47.3 (unreleased)
 
 Claude Dashboard: the code's namespace is renamed.

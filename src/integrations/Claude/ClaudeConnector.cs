@@ -133,6 +133,41 @@ namespace ClaudeDashboard
             catch (Exception) { return false; }
         }
 
+        // The bridge folder whose ClaudeHook.exe Claude Code's hooks run when none of them is this one's (decision 028):
+        // Widget Screen's, once its Settings → Claude → Update connection takes them back (both apps count any
+        // ClaudeHook.exe command as their own). Its hooks don't write here, so Settings offers to reconnect. Null when
+        // this bridge has a hook or there's none.
+        public string HookElsewhere()
+        {
+            try
+            {
+                if (!File.Exists(SettingsPath)) return null;
+                var hooks = ClaudeJson.Obj(ClaudeJson.Obj(ClaudeJson.Parse(File.ReadAllText(SettingsPath, Encoding.UTF8))), "hooks");
+                if (hooks == null) return null;
+                string other = null;
+                foreach (var pair in hooks)
+                    foreach (var group in (pair.Value as List<object> ?? new List<object>()).OfType<JsonObject>())
+                        foreach (var hook in (ClaudeJson.List(group, "hooks") ?? new List<object>()).OfType<JsonObject>())
+                        {
+                            if (!Ours(hook)) continue;
+                            string exe = ExeOf(ClaudeJson.Str(hook, "command"));
+                            if (exe == null) continue;
+                            if (ClaudeBridge.SameFolder(exe, HookPath)) return null;
+                            if (other == null) other = Path.GetDirectoryName(exe);
+                        }
+                return other;
+            }
+            catch (Exception) { return null; }
+        }
+        // "\"C:/Users/a/AppData/Local/WidgetScreen/claude/ClaudeHook.exe\" hook" is that exe's path, with backslashes.
+        private static string ExeOf(string command)
+        {
+            if (String.IsNullOrWhiteSpace(command)) return null;
+            command = command.Trim();
+            string exe = command.StartsWith("\"", StringComparison.Ordinal) ? command.Substring(1, Math.Max(0, command.IndexOf('"', 1) - 1)) : command.Split(' ')[0];
+            return exe.Length == 0 ? null : exe.Replace('/', '\\');
+        }
+
         // Telemetry settings the user already has in settings.json's env with other values: Connect leaves telemetry out
         // rather than overwrite them, and Settings → Claude names them.
         public List<string> TelemetryConflicts()
