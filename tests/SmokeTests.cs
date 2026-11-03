@@ -266,7 +266,7 @@ internal static class SmokeTests
                 var window = AppController.LoadWindow("ShellWindow");
                 using (var controller = new AppController(window, path))
                 {
-                    controller.UseClaudeSample(false);
+                    controller.ShowView(ClaudeViews.Garage); controller.UseClaudeSample(false);
                     var card = (System.Windows.FrameworkElement)window.FindName("ClaudeCard");
                     foreach (var size in new[] { new System.Windows.Size(1920, 720), new System.Windows.Size(1000, 480), new System.Windows.Size(2560, 1400), new System.Windows.Size(360, 300) })
                     {
