@@ -196,9 +196,9 @@ namespace WidgetScreen
             else
             {
                 var parts = new List<string>();
-                if (limits.FiveHour != null) parts.Add("5-hour " + Math.Round(Percent(limits.FiveHour, now)).ToString(CultureInfo.InvariantCulture) + "%, " + FiveHourReset(limits.FiveHour, now, use24));
+                if (limits.FiveHour != null) { string reset = FiveHourReset(limits.FiveHour, now, use24); parts.Add("5-hour " + Math.Round(Percent(limits.FiveHour, now)).ToString(CultureInfo.InvariantCulture) + "%" + (reset.Length > 0 ? ", " + reset : "")); }
                 else parts.Add(NoFiveHour);
-                if (limits.Week != null) parts.Add("Week " + Math.Round(Percent(limits.Week, now)).ToString(CultureInfo.InvariantCulture) + "%" + (limits.Week.Current(now) ? ", resets " + WeekReset(limits.Week, use24) : ", reset"));
+                if (limits.Week != null) parts.Add("Week " + Math.Round(Percent(limits.Week, now)).ToString(CultureInfo.InvariantCulture) + "%" + (limits.Week.Current(now) && limits.Week.ResetsAt.HasValue ? ", " + WeekReset(limits.Week, use24) : ", reset"));
                 text = String.Join(" · ", parts);
             }
             if (view != null && view.NeedsYou > 0) text = (view.NeedsYou == 1 ? "1 thread needs you. " : view.NeedsYou + " threads need you. ") + text;

@@ -121,6 +121,7 @@ internal static class ClaudeCockpitTests
                     Assert(view.Plain, "Settings' plain choice didn't reach the card.");
                     var plan = window.FindName("ClaudePlainPlan") as TextBlock;
                     Assert(plan != null && plan.Text.StartsWith("Sample.") && plan.Text.Contains("needs you"), "The plain plan line is wrong: " + (plan == null ? "missing" : plan.Text));
+                    Assert(!plan.Text.Contains("resets resets") && !plan.Text.Contains(", ,") && System.Text.RegularExpressions.Regex.IsMatch(plan.Text, @"Week \d+%, resets [A-Z][a-z]{2} "), "The plain plan line repeats or drops a word: " + plan.Text);
                     var groups = view.View.Groups(view.Period);
                     for (int g = 0; g < groups.Count; g++)
                         for (int t = 0; t < groups[g].Threads.Count; t++)
@@ -137,6 +138,9 @@ internal static class ClaudeCockpitTests
             }
             finally { window.Close(); }
             Assert(ClaudeText.PlainNumbers(new ClaudeSession(), ClaudePeriod.Today, false).StartsWith("≈"), "Numbers before the logs are read aren't marked ≈.");
+            var limits = new ClaudeLimits { FiveHour = new ClaudeLimitWindow { Percent = 23, ResetsAt = DateTime.UtcNow.AddMinutes(90) }, Week = new ClaudeLimitWindow { Percent = 41, ResetsAt = DateTime.UtcNow.AddDays(3) }, UpdatedAt = DateTime.UtcNow, Source = "online" };
+            string line = ClaudeText.PlainPlan(new ClaudeView { Limits = limits }, DateTime.UtcNow, true);
+            Assert(line.StartsWith("5-hour 23%, resets ") && line.Contains(" · Week 41%, resets ") && !line.Contains("resets resets"), "The plain plan line is wrong: " + line);
         });
 
         check("Claude never writes a name taken from a request to the CSV", () => {
