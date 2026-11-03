@@ -23,6 +23,14 @@ namespace ClaudeDashboard
         private ClaudeView claudeView;
         private Task claudeScan;
         private DateTime lastClaudeScan = DateTime.MinValue, lastClaudeRead = DateTime.MinValue, lastClaudeAlive = DateTime.MinValue;
+        // The connection as the source-health line tells it (read every 10 s with the connection; decision 028).
+        private ClaudeLinks claudeLinks = new ClaudeLinks();
+        private ClaudeLinks ReadLinks()
+        {
+            string problem = claude.TelemetryWarning();
+            return new ClaudeLinks { TelemetrySetUp = claude.Connected && claude.Connector.ConfiguredPort() > 0, HooksElsewhere = claude.HooksElsewhere, TelemetryProblem = problem, WidgetScreenHasTelemetry = problem.Length > 0 && claude.WidgetScreenOpen };
+        }
+        private static bool Same(ClaudeLinks a, ClaudeLinks b) { return a.TelemetrySetUp == b.TelemetrySetUp && a.HooksElsewhere == b.HooksElsewhere && a.TelemetryProblem == b.TelemetryProblem && a.WidgetScreenHasTelemetry == b.WidgetScreenHasTelemetry; }
         private bool claudeSample, claudeOnlineBusy, claudeDirty = true, claudeLogsWaiting, claudeWatchTried;
         private readonly ClaudeAlerts claudeAlerts = new ClaudeAlerts();
         private ClaudeToast claudeToast;
@@ -57,6 +65,7 @@ namespace ClaudeDashboard
             claude.CheckConnected();
             // After an update, Claude Code runs the bridge that came with it.
             if (claude.Connected) { claude.Connector.RefreshHook(BundledHook); claude.StartTelemetry(); }
+            claudeLinks = ReadLinks();
             if (claude.Account.StartupWarning != null && pendingMessage == null) pendingMessage = claude.Account.StartupWarning;
         }
 
@@ -123,6 +132,7 @@ namespace ClaudeDashboard
             {
                 bool was = claude.Connected; claude.CheckConnected(); changed |= was != claude.Connected;
                 if (claude.Connected) claude.StartTelemetry(); else claude.Telemetry.Stop();
+                var links = ReadLinks(); changed |= !Same(links, claudeLinks); claudeLinks = links;
                 changed |= claudeView != null && claudeView.TelemetryWarning != claude.ConnectionWarning();
             }
             if (changed || claudeDirty) RefreshClaudeView();

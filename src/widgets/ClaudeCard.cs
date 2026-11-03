@@ -114,10 +114,14 @@ namespace ClaudeDashboard
         // A meter turns Amber from 80%.
         public static bool Warns(double percent) { return percent >= 80; }
         public static double Percent(ClaudeLimitWindow window, DateTime now) { return window == null || !window.Current(now) ? 0 : window.Percent; }
-        // The heading's live summary: "1 needs you · 2 running · 6 threads today".
+        // The heading's live summary: "1 needs you · 2 working · 6 threads today". "Working" is the state, as on the
+        // chips and under a project's name; "running" means a session that is open (observability critique, issue 3).
         // The window header's summary when its line is narrow: the two most urgent parts, then the thread count without
-        // the period's words ("1 needs you · 2 running · 8 threads"), so it stays whole words.
-        public static string ShortSummary(ClaudeView view, ClaudePeriod period)
+        // the period's words ("1 needs you · 2 working · 8 threads"), so it stays whole words.
+        // Narrower still (a 360-wide window at 140% text): most = 1 keeps the most urgent part, and threads = false
+        // leaves out the count ("1 needs you").
+        public static string ShortSummary(ClaudeView view, ClaudePeriod period) { return ShortSummary(view, period, 2, true); }
+        public static string ShortSummary(ClaudeView view, ClaudePeriod period, int most, bool threads)
         {
             if (!view.Connected && view.Threads.Count == 0) return "Not connected";
             var parts = new List<string>();
@@ -125,9 +129,9 @@ namespace ClaudeDashboard
             if (view.Stuck > 0) parts.Add(view.Stuck + " stuck");
             int turn = view.Sessions.Count(s => s.Pit == PitState.Done);
             if (turn > 0) parts.Add(turn + " your turn");
-            if (view.Working > 0) parts.Add(view.Working + " running");
-            parts = parts.Take(2).ToList();
-            parts.Add(Threads(view.Groups(period).Sum(g => g.Threads.Count)));
+            if (view.Working > 0) parts.Add(view.Working + " working");
+            parts = parts.Take(most).ToList();
+            if (threads || parts.Count == 0) parts.Add(Threads(view.Groups(period).Sum(g => g.Threads.Count)));
             return String.Join(" · ", parts);
         }
         public static string Summary(ClaudeView view, ClaudePeriod period, bool threads)
@@ -138,7 +142,7 @@ namespace ClaudeDashboard
             if (view.Stuck > 0) parts.Add(view.Stuck + " stuck");
             int turn = view.Sessions.Count(s => s.Pit == PitState.Done);
             if (turn > 0) parts.Add(turn + " your turn");
-            if (view.Working > 0) parts.Add(view.Working + " running");
+            if (view.Working > 0) parts.Add(view.Working + " working");
             if (threads)
             {
                 int count = view.Groups(period).Sum(g => g.Threads.Count);
@@ -149,16 +153,14 @@ namespace ClaudeDashboard
             if (!threads && parts.Count > 2) parts = parts.Take(2).ToList();
             return String.Join(" · ", parts);
         }
-        // The flag at the heading's right: "SAMPLE", and "AS OF 10:42" when the meters are old or the last check failed.
-        // Large always says how fresh the plan numbers are: "LIVE · AS OF 2:40 PM" (the spec's freshness stamp, review
-        // fix 10).
-        public static string Flag(ClaudeView view, DateTime now, bool use24, bool fresh = false)
+        // The flag at the header's right: when the plan numbers are from, "PLAN · 2:17 AM" (the spec's freshness stamp,
+        // review fix 10). Never "LIVE": numbers up to 15 minutes old aren't live, and how old they are is on the
+        // source-health line ("Plan 12 min old"), as is "Sample" (observability critique, issue 3). always: the window's
+        // header shows it whenever there are numbers; otherwise only when they're old.
+        public static string Flag(ClaudeView view, DateTime now, bool use24, bool always = false)
         {
-            var parts = new List<string>();
-            if (view.Sample) parts.Add("SAMPLE");
-            if (Old(view, now)) parts.Add("AS OF " + Clock(view.Limits.UpdatedAt, use24).ToUpperInvariant());
-            else if (fresh && view.Limits != null && view.Limits.Known) parts.Add("LIVE · AS OF " + Clock(view.Limits.UpdatedAt, use24).ToUpperInvariant());
-            return String.Join(" · ", parts);
+            if (view.Limits == null || !view.Limits.Known || !(always || Old(view, now))) return "";
+            return "PLAN · " + Clock(view.Limits.UpdatedAt, use24).ToUpperInvariant();
         }
         // The meters show numbers that may have moved since: older than 15 minutes, or the last check didn't go through.
         public static bool Old(ClaudeView view, DateTime now)
@@ -365,14 +367,16 @@ namespace ClaudeDashboard
         public static string Wait(TimeSpan time) { return time < TimeSpan.FromMinutes(1) ? (int)Math.Ceiling(time.TotalSeconds) + " s" : Duration(time); }
         public static string Threads(int count) { return count == 1 ? "1 thread" : count + " threads"; }
         public static string Cars(int count) { return count == 1 ? "1 car" : count + " cars"; }
-        // Under a project's name: "3 threads · 2 running · Claude app". Compact (Medium) leaves out where it runs, so
+        // Under a project's name: "3 threads · 2 working · Claude app", "working" as in the header's summary (Lead's
+        // review of v0.50.0). Compact (Medium) leaves out where it runs, so
         // "+N hidden" still fits (review fix 3).
         public static string GroupDetail(ClaudeProjectGroup group, bool compact = false)
         {
             // A project with no thread in the period: when it was last used.
             if (group.Threads.Count == 0) return (group.Hidden > 0 ? group.Hidden + " hidden · " : "") + (group.Seen > DateTime.MinValue ? "Quiet · last used " + Day(group.Seen) : "Quiet");
             var parts = new List<string> { Threads(group.Threads.Count) };
-            if (group.Running > 0) parts.Add(group.Running + " running");
+            int working = group.Threads.Count(t => t.Running && t.State == ClaudeState.Working);
+            if (working > 0) parts.Add(working + " working");
             var where = group.Threads.Where(t => t.Running && t.Where.Length > 0).Select(t => t.Where).Distinct().ToList();
             if (where.Count == 1) { if (!compact) parts.Add(where[0] == "Desktop" ? "Claude app" : where[0]); }
             else if (group.Asleep) parts.Add("ended " + Duration(DateTime.UtcNow - group.LastActive) + " ago");
@@ -531,7 +535,7 @@ namespace ClaudeDashboard
                 case ClaudeFactKinds.Cache:
                     return new[] { Percent(f.CacheHit), "CACHE HITS", ClaudeUsage.Format(f.CacheRead) + " tokens read from the cache " + lower + " (not counted in the token totals)" };
                 case ClaudeFactKinds.Tools:
-                    return new[] { counted ? f.Tools.ToString(c) : "—", ToolsKey(f), ToolsTip(f) };
+                    return new[] { counted ? f.Tools.ToString(c) : view.LogsFailed ? "—" : "≈" + f.Tools.ToString(c), view.LogsFailed ? "TOOLS · LOGS UNREADABLE" : ToolsKey(f), view.LogsFailed ? NoLogs : ToolsTip(f) };
                 case ClaudeFactKinds.Lines:
                     return new[] { f.Added > 0 || f.Removed > 0 ? Added(f.Added) : "—", f.Added > 0 || f.Removed > 0 ? Removed(f.Removed) + " · " + Threads(f.LinesThreads).ToUpperInvariant() : "LINES", "Lines added and removed " + lower + ", from Claude Code's logs" };
                 case ClaudeFactKinds.Slowest:
@@ -551,7 +555,10 @@ namespace ClaudeDashboard
                     return new[] { f.Metrics ? Span(TimeSpan.FromSeconds(f.ActiveCli)) : "—", f.Metrics ? "CLAUDE · YOU " + Span(TimeSpan.FromSeconds(f.ActiveUser)).ToUpperInvariant() : "ACTIVE TIME", f.Metrics ? "Time Claude worked (tools and replies) and time you were active (typing and reading) " + lower + ", from Claude Code's telemetry." : NeedsTelemetry };
                 default:
                     string unknown = Unpriced(view.UnpricedFor(period));
-                    return new[] { counted ? ClaudeUsage.Format(f.Tokens) : "—", !counted ? when : showApi ? when + " · " + unknown + "$" + Dollars(f.Cost) + " API VALUE" : when + " · " + f.Replies + " REPLIES", showApi ? ApiValue(view, period) : TokensTip };
+                    // While the logs are still being read the count so far shows with "≈"; when they can't be read, "—" and
+                    // why, so loading and unavailable look different (observability critique, issue 3).
+                    if (view.LogsFailed) return new[] { "—", when + " · LOGS UNREADABLE", NoLogs };
+                    return new[] { Tokens(f.Tokens, counted), !counted ? when + " · COUNTING" : showApi ? when + " · " + unknown + "$" + Dollars(f.Cost) + " API VALUE" : when + " · " + f.Replies + " REPLIES", showApi ? ApiValue(view, period) : TokensTip };
             }
         }
         // The plan's chips (package 2): the narrower weekly windows the week tile has no room for (it names two),
@@ -600,6 +607,8 @@ namespace ClaudeDashboard
             for (int i = 0; i < 7; i++) days[i] = start.AddDays(i).ToLocalTime().ToString("ddd", CultureInfo.InvariantCulture);
             return days;
         }
+        // A token count: "1.8M", "≈1.2M" while the logs are still being read.
+        public static string Tokens(long tokens, bool counted) { return (counted ? "" : "≈") + ClaudeUsage.Format(tokens); }
         // The cache hit rate: "91%", or "—" with nothing read today.
         public static string Percent(double share) { return Double.IsNaN(share) ? "—" : Math.Round(share * 100) + "%"; }
     }
@@ -1351,7 +1360,7 @@ namespace ClaudeDashboard
                 if (!folded) info.Text = ClaudeText.GroupDetail(g);
                 long total = view.Groups(period).Sum(x => x.Tokens);
                 share.Value = total <= 0 ? 0 : 100.0 * g.Tokens / total;
-                tokens.Text = Counted ? ClaudeUsage.Format(g.Tokens) : "—"; cached.Text = Counted ? ClaudeUsage.Format(g.CacheReads) : ""; dollars.Text = !Counted ? "" : showApi ? "$" + ClaudeText.Dollars(g.Cost) : g.Replies.ToString(CultureInfo.InvariantCulture);
+                tokens.Text = TokenCell(g.Tokens); tokens.ToolTip = Unreadable; cached.Text = Marked(ClaudeUsage.Format(g.CacheReads)); cached.ToolTip = Unreadable; dollars.Text = Marked(showApi ? "$" + ClaudeText.Dollars(g.Cost) : g.Replies.ToString(CultureInfo.InvariantCulture)); dollars.ToolTip = Unreadable;
                 SetModels(mix, g.Models);
                 SetLines(lines, g.Added, g.Removed);
                 RenderGarage(garage, g);
@@ -1417,7 +1426,7 @@ namespace ClaudeDashboard
                         context.ToolTip = ClaudeText.ContextTip(t);
                         context.Visibility = t.Running ? Visibility.Visible : Visibility.Hidden;
                     }
-                    ttokens.Text = Counted ? ClaudeUsage.Format(t.TokensFor(period)) : "—"; tcached.Text = Counted ? ClaudeUsage.Format(t.CacheReadsFor(period)) : ""; tdollars.Text = !Counted ? "" : showApi ? "$" + ClaudeText.Dollars(t.CostFor(period)) : t.RepliesFor(period).ToString(CultureInfo.InvariantCulture);
+                    ttokens.Text = TokenCell(t.TokensFor(period)); ttokens.ToolTip = Unreadable; tcached.Text = Marked(ClaudeUsage.Format(t.CacheReadsFor(period))); tcached.ToolTip = Unreadable; tdollars.Text = Marked(showApi ? "$" + ClaudeText.Dollars(t.CostFor(period)) : t.RepliesFor(period).ToString(CultureInfo.InvariantCulture)); tdollars.ToolTip = Unreadable;
                     SetModels(tmix, t.ModelsFor(period));
                     var l = t.LinesFor(period); SetLines(tlines, l[0], l[1]);
                 });
@@ -1426,6 +1435,12 @@ namespace ClaudeDashboard
         private bool Counted { get { return view.LogsRead && !view.LogsFailed; } }
         // 5 h and Today are the live status board; Week is the ledger (observability critique, issue 2).
         private bool Live { get { return period != ClaudePeriod.Week; } }
+        // A token cell: "≈1.2M" while the logs are still being read, "—" with why in its tip when they can't be
+        // (observability critique, issue 3).
+        private string TokenCell(long tokens) { return Marked(ClaudeUsage.Format(tokens)); }
+        // Cache reads, replies and the API value take the same mark as tokens (Lead's review of v0.50.0).
+        private string Marked(string value) { return view.LogsFailed ? "—" : (Counted ? "" : "≈") + value; }
+        private string Unreadable { get { return view.LogsFailed ? ClaudeText.NoLogs : null; } }
         private static Brush Solid(uint color) { var b = new SolidColorBrush(Color.FromArgb((byte)(color >> 24), (byte)(color >> 16), (byte)(color >> 8), (byte)color)); b.Freeze(); return b; }
         private FrameworkElement Bubble(int count)
         {
@@ -1515,13 +1530,8 @@ namespace ClaudeDashboard
                 facts.Children.Add(names.Add(fact, "ClaudeFact" + i));
             }
             side.Children.Add(facts);
-            // Telemetry can't arrive (decision 023): "Telemetry off: port 43832 in use".
-            var warning = names.Add(Trimmed(Text("", 12, "Warning")), "ClaudeTelemetryWarning"); warning.Margin = new Thickness(4, 2, 4, 0);
-            warning.ToolTip = "Claude Dashboard couldn't listen on the port Claude Code sends telemetry to. Settings → Claude → Update connection picks a free one.";
-            side.Children.Add(warning);
+            // "Telemetry off: port 43832 in use" (decision 023) is on the window's source-health line, at every size.
             fills.Add(now => {
-                warning.Text = view.TelemetryWarning ?? "";
-                warning.Visibility = String.IsNullOrEmpty(view.TelemetryWarning) ? Visibility.Collapsed : Visibility.Visible;
                 double max = Math.Max(1, view.Lanes.SelectMany(l => l.Bins).DefaultIfEmpty(0).Max());
                 foreach (var b in bins) { b.Maximum = max; b.InvalidateVisual(); }
                 start.Text = ClaudeText.Clock(now - ClaudePace.FiveHours, use24); middle.Text = ClaudeText.Clock(now - TimeSpan.FromMinutes(150), use24);
@@ -1614,8 +1624,8 @@ namespace ClaudeDashboard
                     name.SetResourceReference(TextBlock.ForegroundProperty, asking != null ? "Warning" : "Text");
                     sub.Text = asking != null ? "Needs you " + ClaudeText.Duration(now - asking.Since) + " · " + ClaudeText.ThreadTitle(asking, now, use24) : stuck != null ? "Stuck · " + ClaudeText.StuckReason(stuck, view, now, use24) : folded ? ClaudeText.Cars(g.Threads.Count) + " in the garage" : ClaudeText.GroupDetail(g, true);
                     sub.SetResourceReference(TextBlock.ForegroundProperty, asking != null || stuck != null ? "Warning" : "Muted");
-                    tokens.Text = Counted ? ClaudeUsage.Format(g.Tokens) : "—"; dollars.Text = !Counted ? "" : showApi ? "$" + ClaudeText.Dollars(g.Cost) : g.Replies.ToString(CultureInfo.InvariantCulture);
-                    dollars.ToolTip = showApi ? ClaudeText.ApiValueTip : ClaudeText.Replies(g.Replies);
+                    tokens.Text = TokenCell(g.Tokens); tokens.ToolTip = Unreadable; dollars.Text = Marked(showApi ? "$" + ClaudeText.Dollars(g.Cost) : g.Replies.ToString(CultureInfo.InvariantCulture));
+                    dollars.ToolTip = Unreadable ?? (showApi ? ClaudeText.ApiValueTip : ClaudeText.Replies(g.Replies));
                     RenderGarage(garage, g);
                 });
             }
@@ -1702,7 +1712,6 @@ namespace ClaudeDashboard
                     more.Text = String.Join(" · ", parts);
                 });
             }
-            if (view.Sample) side.Children.Add(names.Add(Caption("SAMPLE"), "ClaudeFlag"));
             top.Children.Add(At(side, 0, 1));
             root.Children.Add(top);
             if (meter && caption)
