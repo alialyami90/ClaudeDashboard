@@ -54,6 +54,9 @@ namespace ClaudeDashboard
         // with its backups), OpenLogs, CheckPlan, SignIn, ShowArchived, HideArchived. Returns null when it started or
         // worked, or what went wrong (an unknown name says so).
         public Func<string, string> Act = name => null;
+        // The daily summary files (Settings → Claude → History; ClaudeHistory.Days): the last count days up to now's,
+        // oldest first, a day with no file as an empty ClaudeDay. Null while History is off, and for the fixture.
+        public Func<DateTime, int, IList<ClaudeDay>> History = (now, count) => null;
         // A font size scaled with the text size, rounded as the card rounds it.
         public double Scaled(double size) { return Math.Round(size * TextScale, 1); }
     }

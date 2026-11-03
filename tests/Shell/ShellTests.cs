@@ -316,9 +316,17 @@ internal static class ShellTests
                 AppController.Lay(window, new Size(1280, 760));
                 Click(window, "ShellPeriod0");
                 Assert(controller.ClaudeCardView.Period == ClaudePeriod.FiveHour && controller.CurrentSettings.ClaudePeriod == "FiveHour", "The header's 5 h button didn't choose the 5-hour window.");
-                // The summary is always live (decision 030): the last 5 hours, whichever period Garage shows.
+                // On Garage the summary follows its period (as before v0.55.0); on every other view it's the last 5 hours.
+                controller.ShowView(ClaudeViews.Garage);
                 Click(window, "ShellPeriod2");
-                Assert(controller.ClaudeCardView.Period == ClaudePeriod.Week && ((TextBlock)window.FindName("ClaudeSummary")).Text.Contains("in 5 h"), "The summary followed Garage's period.");
+                Assert(controller.ClaudeCardView.Period == ClaudePeriod.Week && controller.SummaryPeriod == ClaudePeriod.Week && controller.SummaryForms[0].Contains("this week"), "Garage's summary didn't follow its period: " + controller.SummaryForms[0]);
+                controller.ShowView(ClaudeViews.Limits);
+                Assert(controller.SummaryPeriod == ClaudePeriod.FiveHour && controller.SummaryForms[0].Contains("in 5 h"), "Another view's summary isn't the last 5 hours: " + controller.SummaryForms[0]);
+                // Below 640 wide Garage is the only view, so the summary follows the period there too.
+                AppController.Lay(window, new Size(600, 420));
+                Assert(!controller.TabsShown && controller.SummaryPeriod == ClaudePeriod.Week && controller.SummaryForms[0].Contains("this week"), "Below 640 the summary doesn't follow the period: " + controller.SummaryForms[0]);
+                AppController.Lay(window, new Size(1280, 760));
+                controller.ShowView(ClaudeViews.Garage);
                 Click(window, "ShellPeriod0");
                 Click(window, "QuietButton");
                 string warning; Assert(SettingsStore.Load(path, out warning).QuietMode && SettingsStore.Load(path, out warning).ClaudePeriod == "FiveHour", "Quiet mode or the period wasn't saved.");
@@ -508,7 +516,14 @@ internal static class ShellTests
                 CheckViews(controller, window, renders, "", 1.0);
                 // The header is always live and says when the 5-hour limit comes at this pace; an Assertive live region.
                 var sample = controller.ClaudeCardView.View;
-                Assert(!Double.IsNaN(sample.LimitEtaMinutes) && controller.SummaryForms[0].Contains(" · ≈ limit ") && controller.SummaryForms[0].Contains("in 5 h"), "The header doesn't say ≈ limit: " + controller.SummaryForms[0]);
+                Assert(controller.SummaryForms[0].Contains("in 5 h") && controller.SummaryForms[0].Contains(" · ≈ limit ") == sample.LimitAtPace.BeforeReset, "The header's ≈ limit doesn't follow the plan readings' pace: " + controller.SummaryForms[0] + " (" + sample.LimitAtPace.Why + ")");
+                DateTime soon = DateTime.UtcNow.AddMinutes(50);
+                var paced = new ClaudeView { LimitAtPace = new ClaudeLimitProjection { Known = true, Readings = 4, LimitAt = soon } };
+                Assert(AppController.LimitText(paced, DateTime.UtcNow, false) == " · ≈ limit " + ClaudeText.Clock(soon, false), "≈ limit doesn't say when: " + AppController.LimitText(paced, DateTime.UtcNow, false));
+                // Fewer than 3 readings, or a window that lasts to its reset: no ≈ limit.
+                var few = new ClaudeView { LimitAtPace = new ClaudeLimitProjection { Known = false, Readings = 2, LimitAt = soon, Why = "Only 2 plan readings so far: ≈ limit needs 3" } };
+                var lasts = new ClaudeView { LimitAtPace = new ClaudeLimitProjection { Known = true, Readings = 5, LimitAt = null } };
+                Assert(AppController.LimitText(few, DateTime.UtcNow, false) == "" && AppController.LimitText(lasts, DateTime.UtcNow, false) == "", "≈ limit shows from 2 readings, or when the window lasts to its reset.");
                 Assert(controller.HeaderAnnounces, "The header summary isn't an Assertive live region.");
                 Assert(AppController.LimitText(new ClaudeView(), DateTime.UtcNow, false) == "", "≈ limit shows with no pace to go by.");
 
