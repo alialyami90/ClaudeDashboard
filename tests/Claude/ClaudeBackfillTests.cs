@@ -113,7 +113,7 @@ internal static class ClaudeBackfillTests
             Assert(ClaudeSources.Backfill(view) == "Past days from the logs: reading 12 of 51 logs · logs from 3 Oct 2026", "Reading: " + ClaudeSources.Backfill(view));
             view.BackfillDone = true; view.BackfillDays = 24;
             Assert(ClaudeSources.Backfill(view) == "Past days built from the logs: 24 days · logs from 3 Oct 2026", "Done: " + ClaudeSources.Backfill(view));
-            Assert(ClaudeSources.Exempt.Contains("Claude desktop app") && ClaudeSources.Exempt.Contains("exempt"), "The desktop app's exemption isn't said.");
+            Assert(ClaudeSources.Exempt.Contains("Claude desktop app") && ClaudeSources.Exempt.Contains("kept past") && ClaudeSources.Exempt.StartsWith("Claude Code's docs say"), "The desktop app's exemption isn't said, with its source.");
         });
 
         check("Claude keep logs a year: adds cleanupPeriodDays with a backup, keeps a larger value, Undo and Disconnect put back the earlier one (v0.59.0)", () => {
@@ -140,7 +140,7 @@ internal static class ClaudeBackfillTests
             Assert(connector.UndoKeepLogs() == null && connector.CleanupDays() == 60, "Undo didn't put 60 back: " + connector.CleanupDays());
             root = load(); root[ClaudeConnector.CleanupKey] = new JsonNumber(400); File.WriteAllText(settings, ClaudeJson.Write(root) + "\n");
             string larger = File.ReadAllText(settings); int backups = connector.DatedBackups().Count;
-            Assert(connector.KeepLogsAYear() == "Claude Code already keeps its logs 400 days." && File.ReadAllText(settings) == larger && connector.DatedBackups().Count == backups && !connector.LogsKeptByUs, "A larger value wasn't kept as it was.");
+            Assert(ClaudeConnector.AlreadyKept(connector.KeepLogsAYear()) && connector.KeepLogsAYear() == "Claude Code already keeps its logs 400 days." && !ClaudeConnector.AlreadyKept(null) && File.ReadAllText(settings) == larger && connector.DatedBackups().Count == backups && !connector.LogsKeptByUs, "A larger value wasn't kept as it was.");
 
             // Disconnect takes the key back out only when the dashboard put it there.
             root = load(); root.Remove(ClaudeConnector.CleanupKey); File.WriteAllText(settings, ClaudeJson.Write(root) + "\n");

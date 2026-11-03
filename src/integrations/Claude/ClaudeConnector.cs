@@ -370,13 +370,17 @@ namespace ClaudeDashboard
         }
         // Whether the dashboard set the 365 days (its record is there).
         public bool LogsKeptByUs { get { try { return File.Exists(LogsRecordPath); } catch (Exception) { return false; } } }
+        // What Keep logs a year says when Claude Code already keeps them a year or more: not a failure, so Sources
+        // shows it as the tile's plain line (which says the same), not the Amber error line.
+        public const string AlreadyKeptWords = "Claude Code already keeps its logs ";
+        public static bool AlreadyKept(string said) { return said != null && said.StartsWith(AlreadyKeptWords, StringComparison.Ordinal); }
         // Sets cleanupPeriodDays to 365. Returns null when it wrote it, or what it found instead ("already kept N days").
         // Throws InvalidOperationException (settings.json isn't valid JSON, say) with a message for the user.
         public string KeepLogsAYear()
         {
             var root = Load();
             var current = root.Get(CleanupKey) as JsonNumber;
-            if (current != null && !Double.IsNaN(current.Value) && current.Value >= LogsYear) return "Claude Code already keeps its logs " + (long)current.Value + " days.";
+            if (current != null && !Double.IsNaN(current.Value) && current.Value >= LogsYear) return AlreadyKeptWords + (long)current.Value + " days.";
             Backup();
             var record = new JsonObject();
             // A second press keeps the first record's earlier value.

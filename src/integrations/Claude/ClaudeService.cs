@@ -497,6 +497,7 @@ namespace ClaudeDashboard
         {
             Connected = Connector.IsConnected();
             HooksElsewhere = Connected ? Connector.HookElsewhere() : null;
+            ReadLogsKept();
             WidgetScreenOpen = false;
             if (Connected && !Telemetry.Running)
                 try { var open = System.Diagnostics.Process.GetProcessesByName("WidgetScreen"); WidgetScreenOpen = open.Length > 0; foreach (var p in open) p.Dispose(); } catch (Exception) { }
@@ -1049,15 +1050,15 @@ namespace ClaudeDashboard
                 view.BackfillOn = backfill.Enabled; view.BackfillDone = backfill.Done; view.BackfillRead = backfill.FilesRead; view.BackfillTotal = backfill.FilesTotal;
                 view.BackfillDays = backfill.DaysWritten; view.OldestLog = backfill.OldestLog;
             }
-            // settings.json's cleanupPeriodDays, read at most every 30 s (or at once after Keep logs a year).
-            if (logsKeptRead == DateTime.MinValue || now - logsKeptRead >= TimeSpan.FromSeconds(30) || now < logsKeptRead) { logsKept = Connector.CleanupDays(); logsKeptByUs = Connector.LogsKeptByUs; logsKeptRead = now; }
-            view.LogsKeptDays = logsKept; view.LogsKeptByUs = logsKeptByUs;
+            // settings.json's cleanupPeriodDays, read with the connection every 10 s (CheckConnected) and at once after
+            // Keep logs a year or its Undo; no read of its own here.
+            var kept = logsKept;
+            if (kept != null) { view.LogsKeptDays = kept.Item1; view.LogsKeptByUs = kept.Item2; }
         }
-        private DateTime logsKeptRead = DateTime.MinValue;
-        private int? logsKept;
-        private bool logsKeptByUs;
-        // After Sources' Keep logs a year or Undo: the next snapshot reads settings.json again.
-        public void LogsKeptChanged() { logsKeptRead = DateTime.MinValue; }
+        private volatile Tuple<int?, bool> logsKept;
+        private void ReadLogsKept() { try { logsKept = Tuple.Create(Connector.CleanupDays(), Connector.LogsKeptByUs); } catch (Exception) { } }
+        // After Sources' Keep logs a year or Undo: settings.json is read again now.
+        public void LogsKeptChanged() { ReadLogsKept(); }
 
         // Package 2, the cost's sources: Claude Code's own cost (telemetry) wins, then the price table; a session whose
         // replies came from a model the table doesn't know shares the rest of its status-line total between those

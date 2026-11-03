@@ -21,11 +21,12 @@ Claude Dashboard: History from the logs (Ali: "I've been using claude for more t
   - how long Claude Code keeps its logs, or "30 days (Claude Code's default)";
   - the backfill's progress ("reading 12 of 51 logs") or its result ("24 days");
   - the oldest day the logs hold;
-  - that Claude desktop app sessions are already exempt from the cleanup.
+  - that Claude Code's docs say Claude desktop app sessions are kept past the cleanup (code.claude.com/docs/en/data-usage).
 - **Keep logs a year** (Ali's option C), a button on that tile. It writes only when pressed: it sets `cleanupPeriodDays` to 365 in Claude Code's `settings.json`, using Connect's merge, dated backups and atomic write.
-  - If it's already 365 or more, it says "already keeps its logs N days" and writes nothing.
+  - If it's already 365 or more, it writes nothing; the tile says how long the logs are kept, as plain text, not as an error.
   - **Undo** puts the earlier value back, or takes the key out if there was none.
   - Disconnect does the same, but only when the dashboard set the key and it still holds 365. A user's own value is left alone. `logs-kept.json` in the bridge folder records what was there before.
+  - The setting is read along with the 10-second connection check (and right after a press), not on a timer of its own.
 - **Checks** (old-dated logs and a `settings.json` in throwaway folders, never the PC's own):
   - the right days are built, in budgeted steps;
   - existing days and today are skipped, and days past a year are left out;

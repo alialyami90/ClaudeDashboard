@@ -116,7 +116,9 @@ namespace ClaudeDashboard
 
         // v0.59.0, History from the logs: how long Claude Code keeps its logs, how far the past days' backfill has got
         // and the oldest day the logs hold, and the one button (Keep logs a year, or Undo).
-        public const string Exempt = "Sessions from the Claude desktop app are already exempt from Claude Code's cleanup.";
+        // Source: https://code.claude.com/docs/en/data-usage ("Transcripts of sessions started or most recently continued
+        // in Claude Desktop or Cowork are exempt from that limit by default"), Scribe's review of v0.59.0.
+        public const string Exempt = "Claude Code's docs say sessions from the Claude desktop app are kept past this cleanup.";
         public const string KeepLogs = "KeepLogs", UndoKeepLogs = "UndoKeepLogs";
         public static string LogsKept(ClaudeView view)
         {

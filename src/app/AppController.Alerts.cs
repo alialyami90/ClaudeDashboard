@@ -138,7 +138,8 @@ namespace ClaudeDashboard
                     try { said = name == "KeepLogs" ? claude.Connector.KeepLogsAYear() : claude.Connector.UndoKeepLogs(); }
                     catch (Exception e) { said = e.Message; }
                     claude.LogsKeptChanged(); claudeDirty = true;
-                    return said;
+                    // "Already keeps N days" isn't a failure: the tile's own line says it, so nothing goes to the error line.
+                    return ClaudeConnector.AlreadyKept(said) ? null : said;
                 }
                 default:
                     return "Unknown action: " + (name ?? "(none)") + ".";
