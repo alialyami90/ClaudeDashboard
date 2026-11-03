@@ -66,6 +66,11 @@ namespace ClaudeDashboard
         // The Title is the first line of the thread's first request (no typed, generated or app name): kept in memory
         // only, so exports use the id label instead.
         public bool TitleAsked;
+        // The newest sign the session is alive: a hook event, a reply in its log or its state changing (the attention
+        // queue's "silent" and the live rows).
+        public DateTime LastSign;
+        // Your turn as the header counts it (a running thread whose car is parked done), so the footer and the queue agree.
+        public bool YourTurn { get { return Running && Pit == PitState.Done; } }
         public string Shown { get { return String.IsNullOrWhiteSpace(Title) ? ProjectName : Title; } }
         public long TokensFor(ClaudePeriod period) { long value; return Tokens.TryGetValue(period, out value) ? value : 0; }
         public double CostFor(ClaudePeriod period) { double value; return Cost.TryGetValue(period, out value) ? value : 0; }
@@ -115,6 +120,23 @@ namespace ClaudeDashboard
         public bool Working { get { return Threads.Any(t => t.Running && t.State == ClaudeState.Working); } }
         // Its garage's state: needs you (the beacon), busy (light under the shutter), all ended (dimmed) or quiet.
         public PitState Garage { get { return NeedsYou ? PitState.Need : Working ? PitState.Work : Asleep ? PitState.End : Threads.Any(t => t.Running && t.State == ClaudeState.Done) ? PitState.Done : PitState.Idle; } }
+        // The observability critique's issue 1: a project with something waiting on you comes first. Needs you, then
+        // Stuck, then Your turn, then Working, then anything else running, then the rest.
+        public bool Stuck { get { return Threads.Any(t => t.Running && t.State == ClaudeState.Stuck); } }
+        public bool YourTurn { get { return Threads.Any(t => t.YourTurn); } }
+        public int Urgency { get { return NeedsYou ? 0 : Stuck ? 1 : YourTurn ? 2 : Working ? 3 : Running > 0 ? 4 : 5; } }
+    }
+
+    // One line of the attention queue (the pit stop strip): a running thread that needs you, is stuck, has waited on
+    // your reply 10 minutes or more, or is working with no sign of life for 5 minutes or more, and for how long.
+    public sealed class ClaudeAttention
+    {
+        public const string Need = "need", Stuck = "stuck", Turn = "turn", Silent = "silent";
+        public static readonly TimeSpan TurnWaits = TimeSpan.FromMinutes(10), SilentAfter = TimeSpan.FromMinutes(5);
+        public ClaudeSession Thread;
+        public string Kind = "";
+        public TimeSpan For;
+        public static int Rank(string kind) { return kind == Need ? 0 : kind == Stuck ? 1 : kind == Turn ? 2 : 3; }
     }
 
     // Everything the Claude card shows at one moment.
@@ -193,7 +215,7 @@ namespace ClaudeDashboard
                     Hidden = g.Count(t => !Shows(t)), Seen = g.Max(t => t.LastActive),
                     Tokens = g.Sum(t => t.TokensFor(period)), Cost = g.Sum(t => t.CostFor(period)), Mix = GroupMix(g, period), Models = GroupModels(g, period),
                     Added = g.Sum(t => t.LinesFor(period)[0]), Removed = g.Sum(t => t.LinesFor(period)[1]), Replies = g.Sum(t => t.RepliesFor(period)), CacheReads = g.Sum(t => t.CacheReadsFor(period)) })
-                .OrderBy(g => g.NeedsYou ? 0 : g.Running > 0 ? 1 : 2).ThenByDescending(g => g.LastActive).ThenBy(g => g.Name, StringComparer.OrdinalIgnoreCase).ToList()
+                .OrderBy(g => g.Urgency).ThenByDescending(g => g.LastActive).ThenBy(g => g.Name, StringComparer.OrdinalIgnoreCase).ToList()
                 .Concat(Known.Where(k => !Threads.Any(t => (t.Running || t.LastActive >= start) && String.Equals(t.Project, k.Key, StringComparison.OrdinalIgnoreCase)))
                     .OrderByDescending(k => k.Value.Value)
                     .Select(k => new ClaudeProjectGroup { Folder = k.Key, Name = k.Value.Key, Seen = k.Value.Value, Collapsed = Collapsed.Contains(k.Key) })).ToList();
@@ -225,7 +247,26 @@ namespace ClaudeDashboard
         public static int Rank(ClaudeState state) { return state == ClaudeState.NeedsYou ? 0 : state == ClaudeState.Stuck ? 1 : state == ClaudeState.Working ? 2 : state == ClaudeState.Done ? 3 : 4; }
 
         // The labelled fixture for renders and checks ("Sample" in the heading). Never shown as live data.
-        public static ClaudeView Fixture(DateTime now, bool needsYou)
+        public static ClaudeView Fixture(DateTime now, bool needsYou) { return Fixture(now, needsYou, false); }
+        // The attention queue, most urgent first: Needs you, Stuck, Your turn waiting 10+ min, Working but silent 5+
+        // min; the longest waiting first within each.
+        public List<ClaudeAttention> Attention(DateTime now)
+        {
+            var list = new List<ClaudeAttention>();
+            foreach (var t in Sessions)
+            {
+                if (!t.Running) continue;
+                string kind = null; TimeSpan span = now - t.Since;
+                if (t.State == ClaudeState.NeedsYou) kind = ClaudeAttention.Need;
+                else if (t.State == ClaudeState.Stuck) kind = ClaudeAttention.Stuck;
+                else if (t.YourTurn && span >= ClaudeAttention.TurnWaits) kind = ClaudeAttention.Turn;
+                else if (t.State == ClaudeState.Working && t.LastSign > DateTime.MinValue && now - t.LastSign >= ClaudeAttention.SilentAfter) { kind = ClaudeAttention.Silent; span = now - t.LastSign; }
+                if (kind != null) list.Add(new ClaudeAttention { Thread = t, Kind = kind, For = span < TimeSpan.Zero ? TimeSpan.Zero : span });
+            }
+            return list.OrderBy(a => ClaudeAttention.Rank(a.Kind)).ThenByDescending(a => a.For).ThenBy(a => a.Thread.Id, StringComparer.Ordinal).ToList();
+        }
+        // crowded: 25 threads over eight projects, with one of each kind of attention, for the layout checks and renders.
+        public static ClaudeView Fixture(DateTime now, bool needsYou, bool crowded)
         {
             var view = new ClaudeView { Connected = true, Sample = true, LogsRead = true, Plan = ClaudePlanState.Current };
             foreach (ClaudePeriod period in Enum.GetValues(typeof(ClaudePeriod))) view.Starts[period] = ClaudeUsage.Start(period, null, now);
@@ -249,6 +290,19 @@ namespace ClaudeDashboard
                 make("sample-10", "widget-screen", "", null, 2900, "Opus 5.5", 77000),
                 make("sample-3", "photo-manager", "Face grouping", ClaudeState.Done, 6, "Sonnet 5.5", 96400),
                 make("sample-11", "photo-manager", "Thumbnail cache", null, 260, "Sonnet 5.5", 58000) };
+            if (crowded)
+            {
+                // Five more projects: a stuck thread, one waiting on your reply for 15 minutes, one working but silent
+                // for 8, and a crowd of working, done and ended threads, so the ledger overflows.
+                string[] projects = { "scada-bom", "docs-site", "infra", "mobile-app", "data-pipeline" };
+                string[] titles = { "Retry the nightly export", "Split the BOM parser", "Tidy the landing page", "Search box keyboard focus", "Terraform state lock", "Rotate the runner image",
+                    "Offline sync conflicts", "Push token refresh", "Backfill March events", "Schema drift alarm", "Dark mode for charts", "Deduplicate invoices", "Flaky upload test", "Cache the price list", "Archive old builds" };
+                ClaudeState?[] states = { ClaudeState.Stuck, ClaudeState.Done, ClaudeState.Working, ClaudeState.Working, ClaudeState.Done, null, ClaudeState.Working, ClaudeState.Done, null, ClaudeState.Working, null, ClaudeState.Done, ClaudeState.Working, null, null };
+                double[] minutes = { 4, 15, 22, 3, 2, 140, 9, 1, 320, 31, 50, 5, 12, 700, 1900 };
+                for (int i = 0; i < titles.Length; i++)
+                    threads.Add(make("crowd-" + (i + 1), projects[i % projects.Length], titles[i], states[i], minutes[i], i % 3 == 0 ? "Sonnet 5.5" : "Opus 5.5", 30000 + 41000L * ((i * 7) % 11)));
+                var stuck = threads.First(t => t.Id == "crowd-1"); stuck.Reason = "overloaded";
+            }
             if (needsYou) threads[0].Message = "Claude needs your permission to use Bash";
             threads[7].Archived = true; threads[5].Resolved = true;
             // The pit wall's sample readings: each thread's mix, lines and live burn, and what its car does.
@@ -273,6 +327,9 @@ namespace ClaudeDashboard
             // Package 3: a lead with two helpers out and three of five tasks done.
             threads.First(t => t.Id == "sample-2").Workers = 2; threads.First(t => t.Id == "sample-2").TasksDone = 3; threads.First(t => t.Id == "sample-2").TasksTotal = 5;
             threads.First(t => t.Id == "sample-2").Context = 82; threads.First(t => t.Id == "sample-7").Context = 64;
+            // The last sign of life: seconds ago for a working thread, except the crowd's silent one (8 minutes).
+            foreach (var t in threads) t.LastSign = t.Running && t.State == ClaudeState.Working ? now.AddSeconds(-12) : t.LastActive;
+            if (crowded) threads.First(t => t.Id == "crowd-3").LastSign = now.AddMinutes(-8);
             foreach (var t in threads) t.Pit = ClaudePace.State(t, now, DateTime.MinValue, DateTime.MinValue, DateTime.MinValue, DateTime.MinValue);
             view.Threads = threads;
             view.Sessions = Order(threads.Where(t => t.Running));
@@ -723,7 +780,7 @@ namespace ClaudeDashboard
             {
                 sessions[file.Id] = new ClaudeSession { Id = file.Id, State = file.State, Since = ClaudeBridge.FromEpoch(file.Since), Project = file.Project,
                     Title = file.Title, Message = file.Message, Model = ModelName(file.Model), Pid = file.Pid, WindowPid = file.WindowPid, Window = file.Window,
-                    Compacting = file.Compacting && now - ClaudeBridge.FromEpoch(Math.Max(file.LastEvent, file.Since)) < ClaudePace.CompactForgotten,
+                    Compacting = file.Compacting && now - ClaudeBridge.FromEpoch(Math.Max(file.LastEvent, file.Since)) < ClaudePace.CompactForgotten, LastSign = ClaudeBridge.FromEpoch(Math.Max(file.Heard > 0 ? file.Heard : file.LastEvent, file.Since)),
                     Reason = file.State == ClaudeState.Stuck ? file.Error : "", ReasonText = file.State == ClaudeState.Stuck ? file.ErrorText : "", Context = file.Context,
                     Workers = file.Workers.Count, Tasks = file.OpenTasks, TasksDone = file.TasksDone.Count(t => file.Tasks.Contains(t)), TasksTotal = file.Tasks.Count, EndReason = file.Ended ? file.EndReason : "", Failed = file.Failed, Denied = file.Denied, LastError = file.LastError,
                     CostUsd = file.CostUsd, DurationMs = file.DurationMs, ApiMs = file.ApiMs, Style = file.Style, Agent = file.Agent, Worktree = file.Worktree };
@@ -855,6 +912,7 @@ namespace ClaudeDashboard
                     foreach (var pair in starts) { s.Tokens[pair.Key] = ClaudeUsage.Total(mine, pair.Value); s.Cost[pair.Key] = ClaudeUsage.Cost(mine, pair.Value); s.Replies[pair.Key] = mine.Count(u => u.At >= pair.Value); s.CacheReads[pair.Key] = mine.Where(u => u.At >= pair.Value).Sum(u => u.CacheRead); s.HelperTokens[pair.Key] = mine.Where(u => u.At >= pair.Value && u.Sidechain).Sum(u => u.Tokens); }
                 }
                 else if (usage != null) foreach (var pair in starts) { s.Tokens[pair.Key] = 0; s.Cost[pair.Key] = 0; s.Replies[pair.Key] = 0; s.CacheReads[pair.Key] = 0; s.HelperTokens[pair.Key] = 0; }
+                if (s.LastActive > s.LastSign) s.LastSign = s.LastActive;
                 list.Add(s);
             }
             view.Threads = list;
