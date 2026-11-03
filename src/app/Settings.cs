@@ -29,6 +29,11 @@ namespace WidgetScreen
         // A Windows notification when a session needs you, gets stuck or finishes a turn of 10 minutes or more (package 3;
         // on by default, silent in Quiet mode).
         public bool ClaudeToast { get; set; }
+        // Package 4: a small summary file per day, kept 8 weeks, for the plan row's sparkline and Settings → Claude →
+        // History (on by default; turning it off deletes the files).
+        public bool ClaudeHistory { get; set; }
+        // Package 4.6: the pit wall as a plain list of text rows (off by default).
+        public bool ClaudePlain { get; set; }
         // Quiet mode stops other motion; the Claude cars keep moving unless this is set (Ali, 1 Nov 2026; decision 019).
         public bool ClaudeStillInQuiet { get; set; }
         // The ledger's "API value" (what the tokens would cost at API list prices): off by default, since a plan
@@ -74,6 +79,7 @@ namespace WidgetScreen
             Use24HourClock = false;
             ClaudeShowNewProjects = true;
             ClaudeToast = true;
+            ClaudeHistory = true;
             ClaudeCardSeconds = ClaudeIntervals.CardDefault; ClaudePlanSeconds = ClaudeIntervals.PlanDefault;
             ClaudePeriod = "Today";
         }

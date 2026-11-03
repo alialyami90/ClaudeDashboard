@@ -211,5 +211,8 @@ internal static class ClaudeInstantTests
             }
             finally { Environment.SetEnvironmentVariable(ClaudeConnector.ManagedVariable, before); }
         });
+
+        // Package 4's checks run from here, so the shared test list (tests/SmokeTests.cs) doesn't change.
+        ClaudeCockpitTests.Run(directory, check);
     }
 }

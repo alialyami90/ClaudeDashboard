@@ -141,8 +141,8 @@ namespace WidgetScreen
                             stream.ReadTimeout = 10000;
                             string line = ReadRequestLine(stream);
                             string code, error;
-                            if (!ReadCallback(line, state, out code, out error)) { Answer(stream, false, "This isn't the sign-in Widget Screen is waiting for. Go back to Widget Screen and try again."); continue; }
-                            if (!String.IsNullOrEmpty(error)) { Answer(stream, false, "The Claude sign-in was cancelled. You can try again from Widget Screen."); throw new InvalidOperationException("The Claude sign-in was cancelled."); }
+                            if (!ReadCallback(line, state, out code, out error)) { Answer(stream, false, "This isn't the sign-in Claude Dashboard is waiting for. Go back to Claude Dashboard and try again."); continue; }
+                            if (!String.IsNullOrEmpty(error)) { Answer(stream, false, "The Claude sign-in was cancelled. You can try again from Claude Dashboard."); throw new InvalidOperationException("The Claude sign-in was cancelled."); }
                             if (progress != null) progress("Claude approved. Finishing the sign-in…");
                             try
                             {
@@ -153,10 +153,10 @@ namespace WidgetScreen
                             }
                             catch (Exception)
                             {
-                                Answer(stream, false, "Claude approved, but Widget Screen couldn't finish the sign-in. Go back to Widget Screen for the reason.");
+                                Answer(stream, false, "Claude approved, but Claude Dashboard couldn't finish the sign-in. Go back to Claude Dashboard for the reason.");
                                 throw;
                             }
-                            Answer(stream, true, "Widget Screen is signed in to Claude. You can close this tab.");
+                            Answer(stream, true, "Claude Dashboard is signed in to Claude. You can close this tab.");
                             return;
                         }
                     }

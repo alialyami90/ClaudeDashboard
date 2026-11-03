@@ -23,7 +23,7 @@ Until the step that changes them: the C# namespace stays `WidgetScreen` until it
 - `src/integrations/Claude/`: the bridge folder written by `hook/ClaudeHook.cs` (Claude Code's hooks and status line); Claude Code's `sessions\` and `projects\` logs under `%USERPROFILE%\.claude` or `CLAUDE_CONFIG_DIR`, read-only; the Claude app's thread records, read-only; the widget's own **Sign in with Claude** (PKCE, `user:profile`, DPAPI `claude-session.dat`, usage meters from `api.anthropic.com` every 5 minutes); OpenTelemetry to a loopback receiver on **127.0.0.1:43832** (next free up to 43839); `ClaudeWatch` file watchers with a 30 s fallback; alerts and `ClaudeToast`.
 - The card: `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs`. Small, Medium and Large by the `CardSizing.Claude` members, which live at the bottom of `ClaudeCard.cs` since v0.45.0. The window is at least 360 × 300.
 - Settings → Claude → Connect merges into Claude Code's `settings.json` with five dated backups and never overwrites the user's `OTEL_*`; Disconnect takes out exactly that. `ClaudeHook.exe` and the `.widgetscreen-backup` suffix keep their names so Disconnect finds its own entries.
-- Decisions 014, 015, 016 (projects and threads), 017–020, 022 (review fixes), 023–026 are current. Everything else is in `docs/archive/`, read-only history.
+- Decisions 014, 015, 016 (projects and threads), 017–020, 022 (review fixes), 023–027 are current. Everything else is in `docs/archive/`, read-only history.
 
 ## Build, run, test (Windows, PowerShell, from the root)
 

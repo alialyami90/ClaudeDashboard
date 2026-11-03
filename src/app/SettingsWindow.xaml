@@ -56,6 +56,8 @@
               <TextBlock Text="Your Claude plan doesn't pay these prices; the plan meters show your plan's use. Off: each thread's replies show instead." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
               <CheckBox x:Name="ClaudeHideArchivedChoice" Content="Hide resolved and archived threads" AutomationProperties.Name="Hide resolved and archived Claude threads"/>
               <TextBlock Text="Resolved: the Claude app says the latest reply completed the job. Archived: you archived it in the Claude app. On: they leave the pit wall, and each project says how many it hides. Off: they park last, dimmed. A resolved thread that starts working again or needs you shows right away." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <CheckBox x:Name="ClaudePlainChoice" Content="Show a plain list instead of the pit wall" AutomationProperties.Name="Show Claude Code threads as a plain list instead of the pit wall"/>
+              <TextBlock Text="The same projects, threads, states and numbers as rows of text, with no cars or garages. Easier with a screen reader; click a row to bring its session forward." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
               <CheckBox x:Name="ClaudeHideIdleChoice" Content="Hide idle threads" AutomationProperties.Name="Hide idle Claude threads"/>
               <TextBlock Text="Open threads that have waited 30 minutes or more. Their tokens still count in their project's totals." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,20"/>
               <TextBlock Text="Side panel facts" Style="{DynamicResource Heading}"/>
@@ -84,6 +86,11 @@
               </WrapPanel>
               <TextBlock x:Name="ClaudePlanSecondsNote" Text="Anthropic may slow down very frequent checks." Foreground="{DynamicResource Warning}" Style="{DynamicResource Small}" TextWrapping="Wrap" Visibility="Collapsed"/>
               <TextBlock Text="At least 10 seconds. If Anthropic asks Claude Dashboard to slow down, it waits twice as long each time (up to 15 minutes) and the pit wall says when the limits are from, then goes back to your interval." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,20"/>
+              <TextBlock Text="History" Style="{DynamicResource Heading}"/>
+              <CheckBox x:Name="ClaudeHistoryChoice" Content="Keep a daily summary" AutomationProperties.Name="Keep a daily summary of Claude Code use"/>
+              <TextBlock Text="One small file a day on this PC, kept 8 weeks: tokens, replies, threads, how often a session needed you and the longest wait (counted while this window is open, not minimised), per project. No prompts, replies or file contents. Off: the files are deleted." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>
+              <WrapPanel><Button x:Name="ClaudeCopySummaryButton" Content="Copy summary" Margin="0,0,8,8" AutomationProperties.Name="Copy a summary of the last 7 days"/><Button x:Name="ClaudeSaveCsvButton" Content="Save CSV…" Margin="0,0,8,8" AutomationProperties.Name="Save the last 7 days as a CSV file"/></WrapPanel>
+              <TextBlock Text="The last 7 days. Copy summary puts a short Markdown table on the clipboard. Save CSV writes one row per day, project and thread, with what the tokens would cost at API list prices (blank where the price isn't known)." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="0,0,0,20"/>
               <TextBlock Text="Projects" Style="{DynamicResource Heading}"/>
               <CheckBox x:Name="ClaudeShowNewChoice" Content="Show new projects automatically"/>
               <TextBlock Text="Each project is a garage with its threads as cars; click a garage to roll them in. Unticked projects leave the pit wall. The plan meters always show your whole plan." Style="{DynamicResource Small}" TextWrapping="Wrap" Margin="34,0,0,10"/>

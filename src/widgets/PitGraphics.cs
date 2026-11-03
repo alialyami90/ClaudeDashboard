@@ -151,6 +151,33 @@ namespace WidgetScreen
         }
     }
 
+    // Package 4: the plan row's last 7 days, a bar a day (today last, in the accent), with a tick across today's bar at
+    // what last week had used by this time of day.
+    public sealed class DaySpark : PitInstrument
+    {
+        public long[] Values = new long[0];
+        public long? Tick;
+        protected override void OnRender(DrawingContext dc)
+        {
+            double w = ActualWidth, h = ActualHeight;
+            int n = Values.Length;
+            if (w <= 0 || h <= 0 || n == 0) return;
+            double top = Math.Max(1, Math.Max(Values.Max(), Tick ?? 0)), gap = 2, bar = Math.Max(1, (w - gap * (n - 1)) / n);
+            Brush accent = B("Accent"), earlier = Faded(accent, 0.45), track = B("Track");
+            for (int i = 0; i < n; i++)
+            {
+                double x = i * (bar + gap), tall = Values[i] <= 0 ? 0 : Math.Max(2, h * Values[i] / top);
+                dc.DrawRectangle(track, null, new Rect(x, h - 1, bar, 1));
+                if (tall > 0) dc.DrawRectangle(i == n - 1 ? accent : earlier, null, new Rect(x, h - tall, bar, tall));
+            }
+            if (Tick.HasValue)
+            {
+                double x = (n - 1) * (bar + gap), y = Math.Max(1, h - h * Tick.Value / top);
+                dc.DrawLine(Line(B("Text"), 1.5, false), new Point(x - 1.5, y), new Point(x + bar + 1.5, y));
+            }
+        }
+    }
+
     // A thread's or project's model mix: Opus, Sonnet and Haiku shares as one bar.
     public sealed class MixBar : PitInstrument
     {

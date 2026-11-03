@@ -6,6 +6,18 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.47.0 (2 Nov 2026)
+
+Claude Dashboard, phase 6 of decision 026: Watcher package 4, the Cockpit.
+
+- **History.** Settings → Claude → History → Keep a daily summary is on by default. It writes one small file a day to the bridge folder's `history\` and keeps them for 8 weeks. Each file holds tokens, cache reads, replies, threads, the API value, how often a session needed you and the longest wait (counted while the window is open, not minimised), by hour and by project. There are no prompts, replies, file contents or session ids. A day already written never shrinks as its replies age out of the week's scan. Turning the switch off deletes the files.
+- **The last 7 days on the plan row.** Where the rev counter shows, its tile gets small bars, one a day with today in the accent, and a tick for what last week had used by this time of day. They are worked out once a minute from the history files and today's replies. The tip says what they count, and the sample says it's a sample.
+- **Export.** Settings → Claude → History → Copy summary puts the last 7 days on the clipboard as a Markdown table, with the busiest projects. Save CSV… writes one row per day, project and thread: date, project, thread (a typed, generated or Claude app name, else the id label; never the request's first line), session, models, replies, tokens, cache reads and the API value, left blank where the price isn't known. Fields a spreadsheet would run as a formula are defused.
+- **Plain mode.** Settings → Claude → Show a plain list instead of the pit wall. The same projects, threads, states and numbers appear as rows of text, each named for screen readers. Click a row to bring its session forward. Nothing animates. Numbers read before the logs are counted show "≈".
+- **No answering permission prompts** (decision 027, Ali's choice). The dashboard never answers a permission dialog. Needs you only brings the session's window forward.
+- **Not in this version.** The cloud garage (4.3) waits on a look at the Claude app's cloud thread records. The phone (4.2) moves to the Android companion.
+- **Checks.** Nine new checks in `tests/Claude/ClaudeCockpitTests.cs` cover history, the 7-day bars, Copy summary, the CSV and its thread names, and plain mode in a real window with the sample. They also render the bars and the plain list at 1000 × 600 and 640 × 420 into `artifacts\renders`.
+
 ## v0.46.0 (2 Nov 2026)
 
 Claude Dashboard, phase 5 of decision 026: its own settings folder.
