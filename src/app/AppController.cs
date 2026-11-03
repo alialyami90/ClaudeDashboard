@@ -508,7 +508,8 @@ namespace ClaudeDashboard
         }
         private ClaudeViewContext ViewContext()
         {
-            return new ClaudeViewContext { TextScale = appearanceScale, Use24Hour = settings.Use24HourClock, Sample = claudeSample, Focus = id => FocusClaudeSession(id), Show = ShowView, Act = Act };
+            return new ClaudeViewContext { TextScale = appearanceScale, Use24Hour = settings.Use24HourClock, Sample = claudeSample, Focus = id => FocusClaudeSession(id), Show = ShowView, Act = Act,
+                History = (now, count) => settings.ClaudeHistory && !claudeSample && claudeHistory != null ? claudeHistory.Days(now, count) : null };
         }
 
         // The header summary is an assertive live region: when a session starts needing you, a screen reader reads it
