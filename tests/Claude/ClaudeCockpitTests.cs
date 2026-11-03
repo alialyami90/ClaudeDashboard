@@ -139,6 +139,40 @@ internal static class ClaudeCockpitTests
             Assert(ClaudeText.PlainNumbers(new ClaudeSession(), ClaudePeriod.Today, false).StartsWith("≈"), "Numbers before the logs are read aren't marked ≈.");
         });
 
+        check("Claude never writes a name taken from a request to the CSV", () => {
+            bool asked;
+            Assert(ClaudeTitles.Name("", "Fix login", "", "", "rm the secrets folder", out asked) == "Fix login" && !asked, "A typed name lost to the request.");
+            Assert(ClaudeTitles.Name(null, null, "Remote Control session (from a project)", null, "rm the secrets folder", out asked) == "rm the secrets folder" && asked, "A request's name isn't marked.");
+            Assert(ClaudeTitles.Name(null, null, null, null, "", out asked) == "" && !asked, "No name is marked as a request.");
+            string csv = ClaudeExport.Csv(new[] { new ClaudeUsageEntry { At = Now, Session = "abcdef12", Folder = "C:/Code/api", Tokens = 5, Priced = true } }, id => "", f => "", Now, TimeZoneInfo.Utc);
+            Assert(csv.Contains(ClaudeTitles.IdLabel("abcdef12")), "A thread without a kept name doesn't use its id label: " + csv);
+        });
+
+        check("Claude renders the 7-day bars and the plain list for review (artifacts\\renders)", () => {
+            string renders = Path.GetFullPath(Path.Combine(directory, "..", "renders")); Directory.CreateDirectory(renders);
+            foreach (bool plain in new[] { false, true })
+                foreach (var size in new[] { new Size(1000, 600), new Size(640, 420) })
+                {
+                    string name = (plain ? "claude-plain-" : "claude-days-") + size.Width + "x" + size.Height;
+                    string path = Path.Combine(Fresh(directory, name), "settings.xml");
+                    SettingsStore.Save(path, new AppSettings { ClaudePeriod = "Week", ClaudePlain = plain });
+                    var window = AppController.LoadWindow("ShellWindow");
+                    try
+                    {
+                        using (var controller = new AppController(window, path))
+                        {
+                            controller.UseClaudeSample(plain);
+                            string png = Path.Combine(renders, name + ".png");
+                            AppController.Render(window, size, 1, png);
+                            Assert(File.Exists(png) && new FileInfo(png).Length > 0, name + " wasn't rendered.");
+                            if (!plain && window.FindName("ClaudeRevs") != null) Assert(window.FindName("ClaudeDays") is DaySpark, "The 7-day bars aren't on the rev tile at " + size + ".");
+                            if (plain) Assert(window.FindName("ClaudePlainPlan") != null, "The plain list isn't drawn at " + size + ".");
+                        }
+                    }
+                    finally { window.Close(); }
+                }
+        });
+
         check("Claude export writes a safe CSV of the last 7 days and a Markdown summary", () => {
             Assert(ClaudeExport.Field("plain") == "plain" && ClaudeExport.Field("a,b") == "\"a,b\"" && ClaudeExport.Field("say \"hi\"") == "\"say \"\"hi\"\"\"", "Quoting is wrong.");
             Assert(ClaudeExport.Field("=HYPERLINK(1)") == "'=HYPERLINK(1)" && ClaudeExport.Field("@cmd") == "'@cmd" && ClaudeExport.Field("-12.5") == "-12.5", "A formula isn't defused, or a number was.");

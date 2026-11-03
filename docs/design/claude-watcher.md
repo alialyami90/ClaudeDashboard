@@ -12,7 +12,7 @@ Package 4 of the Watcher action plan, the last one, Windows only. It lands after
 | 4.2 | ~~The same from the phone~~ | Dropped for now: the phone link is removed in phase 3. Moves to the Android companion on the roadmap. | — |
 | 4.3 | **Cloud garage** | Cloud and Remote Control threads from the Claude app's own records show as cars in a Cloud garage, with Ready, Working, Needs you and Done from the record. The second-PC garage over the link is dropped with the link. | `ClaudeAppThreads`, `ClaudeService` (not built yet: waits on a look at the real records) |
 | 4.4 | **History** | One small summary file per day (`claude\history\YYYY-MM-DD.json`: tokens, replies, threads, needs, the longest wait, per garage), kept 8 weeks; 7-day bars and a "same time last week" tick at the foot of the plan row's rev tile; Settings → Claude → History → Keep a daily summary, which turns it off and deletes the files. | `ClaudeHistory`, `DaySpark`, Settings |
-| 4.5 | **Export** | Settings → Claude → Copy summary (Markdown) and Save CSV of the last 7 days' ledger. | `ClaudeExport`, Settings → Claude → History |
+| 4.5 | **Export** | Settings → Claude → History → Copy summary (Markdown) and Save CSV of the last 7 days' ledger. | `ClaudeExport`, Settings → Claude → History |
 | 4.6 | **Plain mode** | A list view of the same data with the same colours, chosen in Settings → Claude → Show a plain list; also the screen-reader path. | `ClaudeCard.BuildPlain`, Settings |
 
 Left out on purpose, as in the action plan: the session launcher and the status-line companion.

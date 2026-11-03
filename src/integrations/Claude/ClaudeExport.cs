@@ -78,7 +78,7 @@ namespace WidgetScreen
                 b.Append("\n**Busiest projects**\n\n");
                 foreach (var g in garages) b.Append("- ").Append(Markdown(g.Name)).Append(": ").Append(ClaudeUsage.Format(g.Tokens)).Append(" tokens, ").Append(g.Replies).Append(g.Replies == 1 ? " reply" : " replies").Append("\n");
             }
-            b.Append("\n_From Claude Dashboard, ").Append(now.ToString("d MMM yyyy", CultureInfo.InvariantCulture)).Append(". Tokens are fresh input, cache writes and output._\n");
+            b.Append("\n_From Claude Dashboard, ").Append(now.ToString("d MMM yyyy", CultureInfo.InvariantCulture)).Append(". Tokens are fresh input, cache writes and output. \"Needed you\" counts while the dashboard's window was open._\n");
             return b.ToString();
         }
 

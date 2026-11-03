@@ -63,6 +63,9 @@ namespace WidgetScreen
         // Tokens read from the prompt cache in each period: its own ledger column, apart from Tokens (Ali, 1 Nov 2026).
         public readonly Dictionary<ClaudePeriod, long> CacheReads = new Dictionary<ClaudePeriod, long>();
         public long CacheReadsFor(ClaudePeriod period) { long value; return CacheReads.TryGetValue(period, out value) ? value : 0; }
+        // The Title is the first line of the thread's first request (no typed, generated or app name): kept in memory
+        // only, so exports use the id label instead.
+        public bool TitleAsked;
         public string Shown { get { return String.IsNullOrWhiteSpace(Title) ? ProjectName : Title; } }
         public long TokensFor(ClaudePeriod period) { long value; return Tokens.TryGetValue(period, out value) ? value : 0; }
         public double CostFor(ClaudePeriod period) { double value; return Cost.TryGetValue(period, out value) ? value : 0; }
@@ -806,7 +809,10 @@ namespace WidgetScreen
                 // Placeholders such as "Remote Control session (from a project)" count as none; the card falls back
                 // to a label from the id.
                 string rename, typed, asked; named.TryGetValue(s.Id, out rename); titles.TryGetValue(s.Id, out typed); prompts.TryGetValue(s.Id, out asked);
-                s.Title = ClaudeTitles.Pick(rename, typed, s.Title, a == null ? null : a.Title, asked);
+                // Package 4: a name taken from the request is shown, but never written to a file (the CSV uses the id).
+                bool fromRequest;
+                s.Title = ClaudeTitles.Name(rename, typed, s.Title, a == null ? null : a.Title, asked, out fromRequest);
+                s.TitleAsked = fromRequest;
                 // Where it runs, beside the name: a Remote Control thread says so, running or ended.
                 if (a != null && a.Remote) s.Where = "Remote Control";
                 else if (!s.Running && s.Where.Length == 0 && a != null) s.Where = "Desktop";

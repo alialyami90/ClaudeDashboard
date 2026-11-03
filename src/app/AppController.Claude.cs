@@ -419,11 +419,12 @@ namespace WidgetScreen
             }
             catch (Exception e) { Text("SettingsStatus", "Couldn't save the CSV: " + e.Message); }
         }
-        // A session's thread name for the CSV, or "" when the pit wall doesn't know it (its id is used then).
+        // A thread's typed, generated or Claude app name for the CSV, or "" (its id label is used then). A name taken from
+        // the first request is never written to disk (decision 018).
         private string ClaudeThreadTitle(string id)
         {
-            var session = claudeView == null ? null : claudeView.Sessions.FirstOrDefault(x => x.Id == id);
-            return session == null ? "" : session.Title ?? "";
+            var thread = claudeView == null ? null : claudeView.Threads.FirstOrDefault(x => x.Id == id);
+            return thread == null || thread.TitleAsked ? "" : thread.Title ?? "";
         }
 
         private void StepClaudeSeconds(string box, int step, Func<int, int> clamp, int fallback)
