@@ -10,7 +10,7 @@ Nothing yet.
 
 Claude Dashboard: the header's summary.
 
-- **The summary is never cut.** The header's live summary ("1 needs you · 2 running · 8 threads this week") showed as "8 th…" when the period buttons took its room, even at 1000 × 600. Now it stays beside the name and the buttons only when it fits there whole; otherwise it moves to a line of its own under them (the Sample flag keeps the first line), and the card gives up those 28 units. On a narrow window it shortens to the two most urgent parts and the thread count ("1 needs you · 2 running · 8 threads"), and if even that doesn't fit it stops at a whole word.
+- **The summary is never cut.** The header's live summary ("1 needs you · 2 running · 8 threads this week") showed as "8 th…" when the period buttons took its room, even at 1000 × 600. Now it shows whole beside the name and the buttons when it fits there. Under 1000 wide it next tries its short form there: the two most urgent parts and the thread count ("1 needs you · 2 running · 8 threads"). Otherwise it moves to a line of its own under them (the Sample flag keeps the first line), and the card gives up those 28 units, but only where the card keeps its room: at the smallest window Small keeps its 5-hour meter, and the short form stays on the header's line, stopping at a whole word.
 
 ## v0.47.1 (3 Nov 2026)
 

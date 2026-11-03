@@ -112,6 +112,29 @@ internal static class ShellTests
             Assert(CardSizing.ClaudeSide(1600 - 6 - 48) && !CardSizing.ClaudeSide(1000 - 6 - 48) && CardSizing.ClaudeSide(Math.Round(1600 / 1.5) - 6 - 48), "The side panel's threshold moved.");
         });
 
+        check("Shell header at the smallest window: Small keeps its 5-hour meter, and the summary stays whole words", () => {
+            // A 360 × 300 window (its outer size, the minimum) has a client area of about 360 × 261 on Windows 10 and 11.
+            string renders = Renders(directory);
+            foreach (double scale in new[] { 1.0, 1.4 })
+                foreach (bool needs in new[] { false, true })
+                {
+                    string name = "shell-360x261-" + Math.Round(scale * 100) + (needs ? "-needs" : "");
+                    string folder = Fresh(directory, name);
+                    var window = AppController.LoadWindow("ShellWindow");
+                    using (var controller = new AppController(window, SettingsFile(folder, new AppSettings { ClaudePeriod = "Week", TextScale = scale })))
+                    {
+                        controller.UseClaudeSample(needs);
+                        AppController.Render(window, new Size(360, 261), 1, Path.Combine(renders, name + ".png"));
+                        var card = controller.ClaudeCardView;
+                        Assert(card.Current == CardSizing.Design.Small, name + " isn't Small.");
+                        Assert(window.FindName("ClaudeSmallMeter") != null, name + ": Small lost its 5-hour meter (header " + (controller.HeaderTwoLines ? 84 : 56) + ").");
+                        var summary = (TextBlock)window.FindName("ClaudeSummary");
+                        Assert(summary.Text == ClaudeText.Summary(card.View, card.Period, true) || summary.Text == ClaudeText.ShortSummary(card.View, card.Period), name + ": the summary isn't the whole or the short one: " + summary.Text);
+                        Assert(summary.TextTrimming == TextTrimming.WordEllipsis, name + ": the summary could be cut mid-word.");
+                    }
+                }
+        });
+
         check("Shell header: the period switch chooses and keeps the period, Quiet toggles, and narrow windows fold the words away", () => {
             string folder = Fresh(directory, "header");
             string path = SettingsFile(folder, new AppSettings { ClaudePeriod = "Today" });
