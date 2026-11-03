@@ -54,7 +54,7 @@ namespace ClaudeDashboard
         public PitSprite LaneCar(string id) { Lane lane; return parts.TryGetValue(id ?? "", out lane) ? lane.Car : null; }
         public bool FramesAsked { get { return framesAsked; } }
         public LapTicks Ticks { get { return ticks; } }
-        public LapKey Key { get { return trailKey; } }
+        public LapKey TrailKey { get { return trailKey; } }
         public ScrollViewer PanelScroll { get { return panelScroll; } }
 
         private double S(double size) { return context.Scaled(size); }

@@ -184,7 +184,7 @@ internal static class LapChartTests
                             Assert(placed.Count > 0 && placed[0].Item1 == "now", name + ": the times under the curve are missing.");
                             for (int i = 0; i < placed.Count; i++) for (int j = i + 1; j < placed.Count; j++)
                                 Assert(placed[i].Item3 <= placed[j].Item2 || placed[j].Item3 <= placed[i].Item2, name + ": two times meet.");
-                            Assert(live.Key.Shown >= 2 && AutomationProperties.GetName(live.Key).StartsWith("Key: Working"), name + ": the trails' key shows " + live.Key.Shown);
+                            Assert(live.TrailKey.Shown >= 2 && AutomationProperties.GetName(live.TrailKey).StartsWith("Key: Working"), name + ": the trails' key shows " + live.TrailKey.Shown);
                             Assert(live.FramesAsked, name + ": the moving cars didn't ask for frames.");
                             if (live.SidePanel) Assert(live.PanelOpen && texts.Contains("Last sign of life") && texts.Contains("Go to it"), name + ": the side panel doesn't show the most urgent session.");
                             else
