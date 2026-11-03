@@ -57,7 +57,7 @@ namespace ClaudeDashboard
         public string ClaudePeriod { get; set; }
         // Claude Dashboard's window (phase 4): where and how big it was when it closed (0 wide = never saved), whether it
         // was maximised, whether it opens minimised, and WindowCentred when Settings → Window → Open where I last closed
-        // it is off.
+        // it is off. KeepOnTop: Settings → Window → Keep on top (v0.52.0).
         public double WindowLeft { get; set; }
         public double WindowTop { get; set; }
         public double WindowWidth { get; set; }
@@ -65,6 +65,7 @@ namespace ClaudeDashboard
         public bool WindowMaximised { get; set; }
         public bool StartMinimised { get; set; }
         public bool WindowCentred { get; set; }
+        public bool KeepOnTop { get; set; }
         // The four facts on the Claude card's side panel (package 2), from ClaudeFactKinds.All.
         [XmlArray("ClaudeFacts"), XmlArrayItem("Fact")]
         public string[] ClaudeFacts { get; set; }

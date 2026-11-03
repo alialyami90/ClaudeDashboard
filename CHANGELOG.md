@@ -6,6 +6,16 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.52.0 (unreleased)
+
+Claude Dashboard: alerts that respect attention (observability critique, issue 5).
+
+- **Glacier waits 10 minutes.** The window's edge turns Glacier only once a reply you owe has waited 10 minutes, the attention queue's Your turn, instead of the moment any turn finished. Amber for Needs you is unchanged.
+- **A dot on the taskbar button.** While a session needs you, the taskbar button carries an Amber circle with how many (9+ past nine), drawn in code, and its tooltip says "2 sessions need you". It goes when nothing needs you, and stays in Quiet mode.
+- **One flash per new Needs you.** The taskbar button flashes once when a session newly needs you and the window isn't in front. Never in Quiet mode.
+- **Ctrl+1** opens the session that has waited longest, in the attention queue's order (Needs you first, the longest waiting first, then Stuck, Your turn and silent). With nothing waiting it says "Nothing is waiting on you."
+- **Settings → Window → Keep on top** keeps the window above other windows. Off by default.
+
 ## v0.50.0 (unreleased)
 
 Claude Dashboard: every number says where it came from (observability critique, issue 3).

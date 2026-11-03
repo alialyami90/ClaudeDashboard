@@ -1630,8 +1630,9 @@ namespace ClaudeDashboard
             if (view == null || rolling != null) return;
             DateTime now = DateTime.UtcNow;
             // The one state allowed to shout: the window's frame turns Amber while a session needs you, and Glacier
-            // while one waits for your reply. The frame keeps its thickness, so nothing moves.
-            Edge = view.NeedsYou > 0 ? "Warning" : view.Sessions.Any(s => s.Pit == PitState.Done) ? "Turn" : null;
+            // once a reply you owe has waited 10 minutes (the attention queue's Your turn), so a turn that just ended
+            // doesn't light it (observability critique, issue 5). The frame keeps its thickness, so nothing moves.
+            Edge = view.NeedsYou > 0 ? "Warning" : view.Attention(now).Any(a => a.Kind == ClaudeAttention.Turn) ? "Turn" : null;
             if (Edge != null) card.SetResourceReference(Border.BorderBrushProperty, Edge); else card.BorderBrush = Brushes.Transparent;
             foreach (var fill in fills) fill(now);
             var threads = view.Threads.ToDictionary(t => t.Id);

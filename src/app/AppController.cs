@@ -142,6 +142,8 @@ namespace ClaudeDashboard
         private void KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape && windowConfirm.IsOpen) { windowConfirm.Cancel(); e.Handled = true; }
+            // Ctrl+1 opens the session that has waited longest (observability critique, issue 5).
+            else if ((e.Key == Key.D1 || e.Key == Key.NumPad1) && Keyboard.Modifiers == ModifierKeys.Control) { OpenWaitingLongest(); e.Handled = true; }
         }
 
         // ----- Appearance -----
@@ -156,6 +158,7 @@ namespace ClaudeDashboard
             AutomationProperties.SetName(quiet, settings.QuietMode ? "Quiet mode, on" : "Quiet mode, off");
             claudeCard.Configure(settings.Use24HourClock, ClaudePeriodChosen, settings.ClaudeShowApiValue, settings.ClaudeFacts);
             claudeCard.Plain = settings.ClaudePlain;
+            window.Topmost = settings.KeepOnTop;
             claude.PlanEvery = TimeSpan.FromSeconds(settings.ClaudePlanSeconds);
             UpdateClaudeLive();
             UpdateHeader();
@@ -173,6 +176,7 @@ namespace ClaudeDashboard
             foreach (var name in new[] { "SourceSample", "SourceText0", "SourceText1", "SourceText2", "SourceText3", "SourceGlyph0", "SourceGlyph1", "SourceGlyph2", "SourceGlyph3" })
                 Control<TextBlock>(name).FontSize = Math.Round(12 * textScale, 1);
             claudeCard.Restyle();
+            UpdateTaskbar();
             FitCard();
         }
 
@@ -393,6 +397,7 @@ namespace ClaudeDashboard
             Control<CheckBox>("StartWithWindowsChoice").IsChecked = StartupShortcut.Exists;
             Control<CheckBox>("StartMinimisedChoice").IsChecked = settings.StartMinimised;
             Control<CheckBox>("RememberWindowChoice").IsChecked = !settings.WindowCentred;
+            Control<CheckBox>("KeepOnTopChoice").IsChecked = settings.KeepOnTop;
             Button("SaveSettings", SaveSettings);
             Button("CancelSettings", CancelSettings);
             settingsWindow.PreviewKeyDown += (sender, e) => { if (e.Key == Key.Escape && settingsConfirm != null && settingsConfirm.IsOpen) { settingsConfirm.Cancel(); e.Handled = true; } };
@@ -438,6 +443,7 @@ namespace ClaudeDashboard
             candidate.QuietMode = Control<CheckBox>("QuietChoice").IsChecked == true;
             candidate.StartMinimised = Control<CheckBox>("StartMinimisedChoice").IsChecked == true;
             candidate.WindowCentred = Control<CheckBox>("RememberWindowChoice").IsChecked != true;
+            candidate.KeepOnTop = Control<CheckBox>("KeepOnTopChoice").IsChecked == true;
             bool startup = Control<CheckBox>("StartWithWindowsChoice").IsChecked == true;
             SaveClaudeChoices(candidate);
             try { SaveSettingsFile(candidate); }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -307,6 +308,76 @@ internal static class ShellTests
             var again = AppController.LoadWindow("ShellWindow");
             using (var controller = new AppController(again, path))
                 Assert(ColorOf(again.Resources["Accent"]) == Hex(Palettes.AccentColor("Claude", "Terracotta")), "The next start forgot the palette.");
+        });
+
+        check("Shell alerts: Glacier only after 10 minutes, the taskbar dot and one flash for Needs you, Ctrl+1 and Keep on top", () => {
+            string renders = Renders(directory);
+            string folder = Fresh(directory, "alerts");
+            var window = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(window, SettingsFile(folder, new AppSettings())))
+            {
+                // The fixture's Your-turn thread has waited 12 minutes: Glacier. Turns that ended moments ago don't light it.
+                controller.UseClaudeSample(false);
+                var card = controller.ClaudeCardView;
+                var view = card.View;
+                DateTime now = DateTime.UtcNow;
+                Assert(view.Attention(now).Any(a => a.Kind == ClaudeAttention.Turn) && card.Edge == "Turn", "A reply owed for 12 minutes doesn't turn the edge Glacier: " + card.Edge);
+                foreach (var turn in view.Sessions.Where(x => x.YourTurn)) turn.Since = now.AddMinutes(-3);
+                card.Update(view);
+                Assert(card.Edge == null && ColorOf(((Border)window.FindName("WindowEdge")).BorderBrush) == Colors.Transparent, "A turn that ended 3 minutes ago lights the edge: " + card.Edge);
+                foreach (var size in new[] { new Size(360, 300), new Size(640, 420), new Size(1000, 600), new Size(1600, 900) })
+                    AppController.Render(window, size, 1, Path.Combine(renders, "shell-alerts-" + size.Width + "x" + size.Height + "-recent-turn.png"));
+                foreach (var turn in view.Sessions.Where(x => x.YourTurn)) turn.Since = now.AddMinutes(-(ClaudeAttention.TurnWaits.TotalMinutes + 1));
+                card.Update(view);
+                Assert(card.Edge == "Turn", "The edge didn't turn Glacier at 10 minutes.");
+                // No dot while nothing needs you.
+                Assert(window.TaskbarItemInfo == null || window.TaskbarItemInfo.Overlay == null, "The taskbar shows a dot with nothing needing you.");
+                Assert(!controller.FlashForNeeds(new List<ClaudeAlert> { new ClaudeAlert { Kind = "done" } }) && controller.TaskbarFlashes == 0, "A finished turn flashed the taskbar.");
+
+                controller.UseClaudeSample(true, true);
+                view = card.View; now = DateTime.UtcNow;
+                int needing = view.NeedsYou;
+                Assert(needing > 0 && window.TaskbarItemInfo != null && window.TaskbarItemInfo.Overlay is DrawingImage, "The taskbar has no dot while " + needing + " need you.");
+                Assert(window.TaskbarItemInfo.Description == (needing == 1 ? "1 session needs you" : needing + " sessions need you"), "The taskbar's words are wrong: " + window.TaskbarItemInfo.Description);
+                var badge = (DrawingImage)AppController.Badge(12, Colors.Orange, Colors.Black);
+                Assert(badge.IsFrozen && Math.Abs(badge.Width - 16) < 0.5 && Math.Abs(badge.Height - 16) < 0.5, "The dot isn't a 16-unit circle: " + badge.Width + " × " + badge.Height);
+                var dot = new Window { Content = new Border { Background = Brushes.White, Child = new System.Windows.Controls.Image { Source = window.TaskbarItemInfo.Overlay, Width = 64, Height = 64 } } };
+                AppController.Render(dot, new Size(64, 64), 1, Path.Combine(renders, "shell-alerts-taskbar-dot.png"));
+
+                // One flash for each view that brings a new Needs you (the window isn't in front in the checks).
+                var need = new List<ClaudeAlert> { new ClaudeAlert { Kind = "need" }, new ClaudeAlert { Kind = "need" } };
+                Assert(controller.FlashForNeeds(need) && controller.TaskbarFlashes == 1, "A new Needs you didn't flash the taskbar once.");
+
+                // Ctrl+1: the attention queue's first, Needs you waiting longest.
+                var queue = view.Attention(now);
+                var first = controller.WaitingLongest(now);
+                Assert(first != null && first.Kind == ClaudeAttention.Need && first.Thread.Id == queue[0].Thread.Id, "Ctrl+1 doesn't open the queue's first.");
+                var longest = view.Sessions.Where(s => s.Running && s.State == ClaudeState.NeedsYou).OrderBy(s => s.Since).ThenBy(s => s.Id, StringComparer.Ordinal).First();
+                Assert(first.Thread.Id == longest.Id, "Ctrl+1 doesn't open the Needs you that has waited longest: " + first.Thread.Id + ", not " + longest.Id);
+                Assert(controller.OpenWaitingLongest() == first.Thread.Id, "Ctrl+1 opened another session.");
+                foreach (var size in new[] { new Size(360, 300), new Size(640, 420), new Size(1000, 600), new Size(1600, 900) })
+                    AppController.Render(window, size, 1, Path.Combine(renders, "shell-alerts-" + size.Width + "x" + size.Height + "-needs.png"));
+
+                // Keep on top: off by default, kept by Save, and on the window.
+                Assert(!window.Topmost, "The window starts on top.");
+                controller.OpenSettings();
+                var box = (CheckBox)controller.SettingsWindow.FindName("KeepOnTopChoice");
+                Assert(box != null && box.IsChecked == false, "Settings → Window has no Keep on top, or it's ticked.");
+                box.IsChecked = true;
+                controller.SaveSettings();
+                string warning;
+                Assert(SettingsStore.Load(Path.Combine(folder, "settings.xml"), out warning).KeepOnTop && window.Topmost, "Keep on top wasn't saved or didn't put the window on top.");
+            }
+            // Quiet mode: no flash.
+            string quietFolder = Fresh(directory, "alerts-quiet");
+            var quietWindow = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(quietWindow, SettingsFile(quietFolder, new AppSettings { QuietMode = true, KeepOnTop = true })))
+            {
+                controller.UseClaudeSample(true);
+                Assert(!controller.FlashForNeeds(new List<ClaudeAlert> { new ClaudeAlert { Kind = "need" } }) && controller.TaskbarFlashes == 0, "The taskbar flashed in Quiet mode.");
+                Assert(quietWindow.TaskbarItemInfo != null && quietWindow.TaskbarItemInfo.Overlay != null, "Quiet mode took the dot away; it only stops the flash.");
+                Assert(quietWindow.Topmost, "Keep on top didn't apply at start.");
+            }
         });
 
         check("Shell window place: a saved place opens only where a screen can still show its title bar", () => {
