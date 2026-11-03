@@ -72,15 +72,20 @@ internal static class ClaudeBackfillTests
             Assert(day40.Hours[12] == 150 && day40.Hours[14] == 150 && day40.Garages.Count == 1 && day40.Garages[0].Name == "api" && day40.Garages[0].Threads == 2 && day40.Cost > 0 && day40.Needs == 0 && day40.LongestWait == 0, "40 days ago's hours, garage or cost.");
             var day1 = history.Read(d1.Date);
             Assert(day1 != null && day1.Replies == 2 && day1.Tokens == 300 && day1.Unpriced == 1, "Yesterday counted the helper's copy of a reply, or the unpriced one: " + (day1 == null ? "none" : day1.Replies + " replies, " + day1.Unpriced + " unpriced"));
-            Assert(File.ReadAllText(Path.Combine(ClaudeHistory.Folder(bridge), kept.Name + ".json")) == keptText, "A day that had its file was replaced.");
+            // Since v0.60.0 a v1 day with as many replies gets the v2 detail from the logs; its counts, needs and waits stay.
+            var keptNow = history.Read(kept.Date);
+            Assert(keptNow != null && keptNow.Tokens == kept.Tokens && keptNow.Replies == kept.Replies && keptNow.Needs == kept.Needs && keptNow.LongestWait == kept.LongestWait && !keptNow.FromLogs && keptNow.Detail != null && keptText.IndexOf("\"v\"", StringComparison.Ordinal) < 0,
+                "A day that had its file had its counts replaced, or wasn't upgraded to v2.");
             Assert(history.Read(Now.Date) == null && history.Read(old.Date) == null, "Today, or a day past the year kept, was written.");
             var day10 = history.Read(d10.Date);
             Assert(day10 != null && day10.Replies == 2 && day10.Tokens == 300 && day10.CacheRead == 2000 && day10.Threads == 1 && day10.Garages.Count == 1 && day10.Garages[0].Replies == 2
                 && day10.Needs == 3 && day10.LongestWait == 90 && day10.FromLogs, "The partial day wasn't corrected from the logs, keeping its needs: " + (day10 == null ? "none" : day10.Replies + " replies, " + day10.Tokens + " tokens, " + day10.Needs + " needs, " + day10.LongestWait + " s"));
-            Assert(backfill.DaysWritten == 3, "Days written: " + backfill.DaysWritten);
+            Assert(backfill.DaysWritten == 4, "Days written (three built, one v1 day given its detail): " + backfill.DaysWritten);
             foreach (var file in Directory.GetFiles(ClaudeHistory.Folder(bridge)))
             {
                 string text = File.ReadAllText(file);
+                // Since v0.60.0 (decision 031) a model id may appear, but only as a key of the detail's "models" and "effort".
+                text = text.Replace("\"claude-opus-5-5\":", "\"model\":");
                 Assert(text.IndexOf("SECRET", StringComparison.Ordinal) < 0 && text.IndexOf("opus", StringComparison.OrdinalIgnoreCase) < 0 && text.IndexOf("s1", StringComparison.Ordinal) < 0 && text.IndexOf("r1", StringComparison.Ordinal) < 0, "Text, a model, a session or a request id landed in " + Path.GetFileName(file) + ": " + text);
             }
             // Once done it stays done; the live History keeps the day it built marked as from the logs.

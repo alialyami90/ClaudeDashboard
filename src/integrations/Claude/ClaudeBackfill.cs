@@ -41,6 +41,11 @@ namespace ClaudeDashboard
         private Dictionary<string, string> folders = new Dictionary<string, string>();
         private Dictionary<DateTime, Tally> days = new Dictionary<DateTime, Tally>();
         private static readonly ClaudeUsageEntry Counted = new ClaudeUsageEntry();
+        // v0.60.0: each day's detail (models, effort, tools…) from the same pieces of log, and, once the pass is done,
+        // how far each log has been read, so the lines written since are added for today and yesterday (Follow).
+        private ClaudeDetailTally detail;
+        private Dictionary<string, long> ends = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        private bool following;
         private sealed class Tally
         {
             public ClaudeDay Day;
@@ -52,6 +57,7 @@ namespace ClaudeDashboard
         {
             projects = Path.Combine(configFolder, "projects");
             this.history = history;
+            detail = NewTally();
         }
 
         // Settings → Claude → History. Turned on again after being off, the pass starts over (Clear deleted the files).
@@ -74,8 +80,21 @@ namespace ClaudeDashboard
         // v0.59.3: on and not finished, so the heartbeat steps it every second rather than once per log scan.
         public bool Behind { get { lock (gate) return enabled && !Done && history != null; } }
 
+        private ClaudeDetailTally NewTally() { var h = history; return new ClaudeDetailTally(h == null ? (Func<DateTime, DateTime>)(d => d.Date) : h.LocalDate); }
+
+        // v0.60.0: a day's detail as the logs hold it now, once the pass is done (null before, or while a step is
+        // reading: the caller keeps what it has).
+        public ClaudeDayDetail DetailFor(DateTime date)
+        {
+            if (!Done) return null;
+            if (!System.Threading.Monitor.TryEnter(gate)) return null;
+            try { return enabled && detail != null ? detail.For(date) : null; }
+            finally { System.Threading.Monitor.Exit(gate); }
+        }
+
         private void Reset()
         {
+            detail = NewTally(); ends = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
             files = null; index = 0; offset = 0;
             counted = new Dictionary<string, ClaudeUsageEntry>(); folders = new Dictionary<string, string>(); days = new Dictionary<DateTime, Tally>();
             FilesTotal = 0; FilesRead = 0; Done = false; DaysWritten = 0; OldestLog = null; FilesSkipped = 0;
@@ -87,7 +106,8 @@ namespace ClaudeDashboard
         {
             lock (gate)
             {
-                if (!enabled || Done || history == null) return false;
+                if (!enabled || history == null) return false;
+                if (Done) { try { Follow(now); } catch (Exception) { } return false; }
                 try
                 {
                     DateTime today = history.LocalDate(now), oldestKept = today.AddDays(-(ClaudeHistory.KeptDays - 1));
@@ -113,13 +133,14 @@ namespace ClaudeDashboard
                         long read;
                         // One log that can't be read is skipped (and counted); it never holds up the others.
                         try { read = ReadChunk(files[index], today, oldestKept); }
-                        catch (Exception) { FilesSkipped++; read = -1; }
-                        if (read < 0) { index++; offset = 0; FilesRead = index; continue; }
+                        catch (Exception) { FilesSkipped++; read = -1; offset = long.MaxValue; }
+                        if (read < 0) { ends[files[index]] = offset; index++; offset = 0; FilesRead = index; continue; }
                         budget -= Math.Max(1, read);
                     }
                     if (index < files.Count) return false;
                     bool wrote = Write(today, oldestKept);
                     Done = true;
+                    detail.Forget(today.AddDays(-1));
                     counted = new Dictionary<string, ClaudeUsageEntry>(); folders = new Dictionary<string, string>(); days = new Dictionary<DateTime, Tally>();
                     return wrote;
                 }
@@ -131,7 +152,7 @@ namespace ClaudeDashboard
         // gone). The last line of a log counts even without its newline.
         private long ReadChunk(string path, DateTime today, DateTime oldestKept)
         {
-            if (!File.Exists(path)) { if (offset == 0) FilesSkipped++; return -1; }
+            if (!File.Exists(path)) { if (offset == 0 && !following) FilesSkipped++; return -1; }
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
             {
                 long length = stream.Length;
@@ -146,13 +167,46 @@ namespace ClaudeDashboard
                     buffer = Read(stream, offset, want);
                     end = Array.LastIndexOf(buffer, (byte)'\n');
                 }
-                int take = end < 0 ? buffer.Length : end + 1;
+                // Following a log that's being written, a line without its newline yet waits for the next step.
+                int take = end < 0 ? (following ? 0 : buffer.Length) : end + 1;
                 if (take <= 0) return -1;
                 Fold(Encoding.UTF8.GetString(buffer, 0, take), Path.GetFileNameWithoutExtension(path), Helper(path), today, oldestKept);
                 offset += take;
                 return take;
             }
         }
+        // v0.60.0: after the pass, the lines written since (logs changed in the last two days), into the detail tally
+        // only: today's and yesterday's detail for the live writer. Within the step's budget; the rest next time.
+        private void Follow(DateTime now)
+        {
+            DateTime today = history.LocalDate(now), cutoff = now - TimeSpan.FromDays(2);
+            List<string> list;
+            try { list = List(LongPath(projects), cutoff); }
+            catch (Exception) { try { list = List(projects, cutoff); } catch (Exception) { return; } }
+            long budget = StepBudget;
+            following = true;
+            try
+            {
+                foreach (var path in list)
+                {
+                    if (budget <= 0) break;
+                    long end; ends.TryGetValue(path, out end);
+                    if (end == long.MaxValue) continue;
+                    offset = end;
+                    while (budget > 0)
+                    {
+                        long read;
+                        try { read = ReadChunk(path, today, today); } catch (Exception) { read = -1; }
+                        if (read < 0) break;
+                        budget -= Math.Max(1, read);
+                    }
+                    ends[path] = offset;
+                }
+            }
+            finally { following = false; offset = 0; }
+            detail.Forget(today.AddDays(-1));
+        }
+
         private static byte[] Read(FileStream stream, long from, int count)
         {
             stream.Seek(from, SeekOrigin.Begin);
@@ -181,6 +235,8 @@ namespace ClaudeDashboard
         // Adds a piece of a log to its days. The parser's titles and first requests go to throwaway dictionaries.
         private void Fold(string text, string session, bool helper, DateTime today, DateTime oldestKept)
         {
+            detail.Fold(text, session);
+            if (following) return;
             // The oldest day the logs hold, from any line's timestamp (a prompt or a note too, not only replies).
             var first = Earliest(text);
             if (first.HasValue) { var on = history.LocalDate(first.Value); if (!OldestLog.HasValue || on < OldestLog.Value) OldestLog = on; }
@@ -240,6 +296,7 @@ namespace ClaudeDashboard
                 day.Threads = tally.Threads.Count;
                 foreach (var g in day.Garages) { HashSet<string> set; g.Threads = tally.GarageThreads.TryGetValue(g.Folder, out set) ? set.Count : 0; }
                 day.Garages = day.Garages.OrderByDescending(g => g.Tokens).ThenBy(g => g.Name, StringComparer.OrdinalIgnoreCase).ToList();
+                day.Detail = detail.For(day.Date);
                 if (history.Rebuild(day, today)) { DaysWritten++; wrote = true; }
             }
             return wrote;

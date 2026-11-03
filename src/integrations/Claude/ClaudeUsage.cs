@@ -130,7 +130,17 @@ namespace ClaudeDashboard
             var block = (ClaudeJson.List(ClaudeJson.Obj(line, "message"), "content") ?? new List<object>()).OfType<JsonObject>().FirstOrDefault(b => ClaudeJson.Str(b, "type") == "tool_result");
             string id = ClaudeJson.Str(block, "tool_use_id") ?? ClaudeJson.Str(line, "uuid");
             if (String.IsNullOrEmpty(id) || Lines.ContainsKey(id)) return;
-            long added = 0, removed = 0;
+            long added, removed;
+            CountLines(result, out added, out removed);
+            if (added + removed == 0) return;
+            Lines[id] = new ClaudeLinesEntry { At = at.Value, Session = session, Added = added, Removed = removed };
+        }
+
+        // The lines a tool result added and removed (an edit's patch, or a new file's content). v0.60.0: shared with the
+        // Insights tally.
+        public static void CountLines(JsonObject result, out long added, out long removed)
+        {
+            added = 0; removed = 0;
             var patch = ClaudeJson.List(result, "structuredPatch");
             foreach (var hunk in (patch ?? new List<object>()).OfType<JsonObject>())
                 foreach (var text in (ClaudeJson.List(hunk, "lines") ?? new List<object>()).OfType<string>())
@@ -144,8 +154,6 @@ namespace ClaudeDashboard
                 string content = ClaudeJson.Str(result, "content") ?? "";
                 if (content.Length > 0) added = content.Split('\n').Length - (content.EndsWith("\n", StringComparison.Ordinal) ? 1 : 0);
             }
-            if (added + removed == 0) return;
-            Lines[id] = new ClaudeLinesEntry { At = at.Value, Session = session, Added = added, Removed = removed };
         }
 
         public void Prune(DateTime oldest)
