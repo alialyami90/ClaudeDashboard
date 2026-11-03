@@ -67,7 +67,7 @@ namespace ClaudeDashboard
             try
             {
                 Migration.Run(oldFolder, settingsPath, config, BundledHook);
-                moveMessage = "Your Claude setup came over from Widget Screen" + (found.Connected ? ", and Claude Code is connected to Claude Dashboard" : "") + ". Widget Screen can stay installed." + (found.Connected ? " Leave Claude Code connected here: Connect, Update or Disconnect in Widget Screen would take the connection back." : "");
+                moveMessage = "Your Claude setup came over from Widget Screen" + (found.Connected ? ", and Claude Code is connected to Claude Dashboard" : "") + ". Widget Screen can stay installed, and both apps stay live.";
             }
             catch (Exception e)
             {
@@ -90,8 +90,10 @@ namespace ClaudeDashboard
             if (found.Bridge) parts.Add("Claude Code's sessions");
             string list = parts.Count == 0 ? "nothing" : parts.Count == 1 ? parts[0] : String.Join(", ", parts.GetRange(0, parts.Count - 1)) + " and " + parts[parts.Count - 1];
             string text = "Copies " + list + " from " + oldFolder + ".";
-            if (found.Connected) text += " Claude Code is then connected to Claude Dashboard: its hooks and status line run Claude Dashboard's own ClaudeHook.exe, and its settings.json is backed up first.";
-            text += " Widget Screen's folder isn't changed, and Widget Screen can stay installed." + (found.Connected ? " Leave Claude Code connected here: Connect, Update or Disconnect in Widget Screen would take the connection back." : "") + " Start fresh copies nothing";
+            if (found.Connected) text += " Claude Code is then connected to Claude Dashboard: its hooks and status line run Claude Dashboard's own ClaudeHook.exe, which keeps Widget Screen current too, and its settings.json is backed up first.";
+            text += " Widget Screen's folder isn't changed, Widget Screen can stay installed, and both apps stay live.";
+            if (found.Connected) text += " If Widget Screen's Update connection takes the hooks, Reconnect here brings them back; Disconnect in either app removes both apps' hooks.";
+            text += " Start fresh copies nothing";
             text += found.Connected ? ", and you can connect Claude Code here later in Settings → Claude." : ".";
             return text;
         }

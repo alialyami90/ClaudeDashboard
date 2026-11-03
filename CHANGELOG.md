@@ -6,14 +6,23 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
-## v0.47.4 (3 Nov 2026)
+## v0.48.1 (3 Nov 2026)
 
-Claude Dashboard and Widget Screen are independent apps (Ali, 3 Nov 2026). Since v0.46.0 they have their own folders, so nothing asks you to close or remove Widget Screen any more.
+Claude Dashboard and Widget Screen are independent apps (Ali, 3 Nov 2026). Since v0.46.0 they have their own folders, and since v0.48.0 both watch Claude Code, so nothing asks you to close or remove Widget Screen any more.
 
 - **Setup leaves Widget Screen alone.** It no longer warns about Widget Screen's startup shortcut or a running Widget Screen. It still points out another startup shortcut that opens Claude Dashboard itself, so two copies don't open.
 - **Reinstall.** When the installed version is the setup's own, setup says "Reinstall Claude Dashboard" instead of offering to replace a version with the same one.
-- **The first run's question.** It no longer tells you to quit or uninstall Widget Screen. **Bring it over** connects Claude Code to Claude Dashboard, and Widget Screen can stay installed; until the shared feed arrives, the sheet asks you to leave Claude Code connected in Claude Dashboard, since Connect, Update or Disconnect in Widget Screen would take the connection back. README says the same.
-- **Checks.** A setup check that Widget Screen's shortcut isn't pointed out but a second Claude Dashboard shortcut is, and the migration check now covers the new words.
+- **The first run's question.** It no longer tells you to quit or uninstall Widget Screen. **Bring it over** connects Claude Code to Claude Dashboard, Widget Screen can stay installed, and both apps stay live ([decision 028](docs/decisions/028-claude-both-apps-watch.md)). If Widget Screen's Update connection takes the hooks, Reconnect in Claude Dashboard brings them back; Disconnect in either app removes both apps' hooks. README says the same.
+- **Checks.** A setup check that Widget Screen's shortcut isn't pointed out but a second Claude Dashboard shortcut is, and the migration check covers the new words.
+
+## v0.48.0 (unreleased)
+
+Claude Dashboard and Widget Screen both watch Claude Code, so closing either leaves the other working ([decision 028](docs/decisions/028-claude-both-apps-watch.md)).
+
+- **One bridge feeds both apps.** `ClaudeHook.exe` writes each Claude Code event and status-line reading into Claude Dashboard's bridge folder and, when it exists, into Widget Screen's `%LOCALAPPDATA%\WidgetScreen\claude`, in the files Widget Screen 0.41.0 reads. Hooks run without either app open, so whichever app was closed is current the moment it opens.
+- **Telemetry goes to whichever app is open.** Both apps take the telemetry port within about 10 seconds when the other closes. While Widget Screen holds it, the card says "Telemetry goes to Widget Screen while it's open" instead of "Telemetry off", and Settings → Claude no longer offers Update connection for it.
+- **Widget Screen taking the hooks back is shown.** If Widget Screen's Settings → Claude → Update connection points Claude Code's hooks at its own bridge, the card says "Live updates go to Widget Screen: reconnect in Settings → Claude", and Settings → Claude names that bridge and offers Reconnect, which keeps both apps current again.
+- **Checks:** the hook writes to both folders only while Widget Screen's exists, and never twice to one; Settings sees hooks run by another bridge and gets them back on Reconnect. Widget Screen's folder is a throwaway one in the checks (`WIDGETSCREEN_CLAUDE_BRIDGE`).
 
 ## v0.47.3 (unreleased)
 
