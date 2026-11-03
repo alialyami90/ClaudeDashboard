@@ -210,7 +210,13 @@ namespace ClaudeDashboard
             if (used + full + flagWidth <= room) { oneLine = true; shown = fullSummary; }
             else if (width < 1000 && used + brief + flagWidth <= room) { oneLine = true; shown = shortSummary; }
             else if (SecondLineFits(width)) { oneLine = false; shown = full <= room ? fullSummary : shortSummary; if (shown == shortSummary && brief > room) shown = Shortest(summary, room); }
-            else { oneLine = true; shown = Shortest(summary, room - used - flagWidth); }
+            else
+            {
+                oneLine = true; shown = Shortest(summary, room - used - flagWidth);
+                // Still too wide: the plan stamp steps aside before a word is cut (its age is on the source-health line).
+                if (flagWidth > 0 && 16 + Measure(summary, shown) > room - used - flagWidth) { flagWidth = 0; shown = Shortest(summary, room - used); }
+            }
+            flag.Visibility = flagWidth > 0 || flag.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             summary.Text = shown;
             // On one line the summary leaves the flag its room at the right; on two, the flag keeps the first line.
             line.Margin = new Thickness(0, 0, oneLine ? flagWidth : 0, 0);
