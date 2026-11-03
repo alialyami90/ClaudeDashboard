@@ -12,9 +12,9 @@ From 640 wide the window has six views, one tab each ([decision 030](docs/decisi
 
 - **Live: the lap chart.** Every session is a lane on one time axis, from 100 minutes ago to the 5-hour reset, most urgent first. Its car rides the now line with a trail of its states behind it, so you can see how long each has been working, waiting or silent. Above the lanes is the plan's 5-hour curve; where its projection hits 100% before the reset, an Amber wall drops through every lane at "≈ limit 3:21 pm". Below, "What just happened" lists the latest changes, and clicking a lane shows that session: what it asks, its last sign of life, the tool it's in, context, today's numbers and its tool runs.
 - **Limits.** The 5-hour window from start to reset with its "≈ limit" at the last 30 minutes' pace and at today's average, the week as laps by day, the weekly windows and tokens by project.
-- **History.** Eight weeks of days, your hours compared with last week, and the last 7 days.
+- **History.** Eight weeks of days, your hours compared with last week, and the last 7 days. Days from before the dashboard was watching are built from Claude Code's logs and marked "from logs".
 - **Reliability.** Tool failures, API errors in the last hour, asks, compactions and stuck turns with their reasons.
-- **Sources.** Hooks, logs, telemetry, the plan meters and the Claude app's threads: each one's state, how fresh it is, what it gives, and one button to fix it.
+- **Sources.** Hooks, logs, telemetry, the plan meters and the Claude app's threads: each one's state, how fresh it is, what it gives, and one button to fix it. Under them, History from the logs says how long Claude Code keeps its logs (30 days by default) and how many past days were built, with **Keep logs a year**, which sets Claude Code's `cleanupPeriodDays` to 365 with a dated backup, and Undo.
 
 The Garage view, and the whole window below 640 wide:
 
@@ -59,7 +59,7 @@ Widget Screen can stay installed, and both apps stay live ([decision 028](docs/d
 | Settings | `%LOCALAPPDATA%\ClaudeDashboard\settings.xml` |
 | The app's Claude sign-in | `claude-session.dat` beside it, encrypted with DPAPI for your Windows account |
 | The hook's session files | the `claude\` folder beside it |
-| The daily summary | `claude\history\YYYY-MM-DD.json`, one a day, kept 8 weeks: tokens, replies, threads, the API value, needs and the longest wait, by hour and project. No prompts, replies, titles or session ids. Settings → Claude → History → Keep a daily summary turns it off and deletes them. |
+| The daily summary | `claude\history\YYYY-MM-DD.json`, one a day, kept a year: tokens, replies, threads, the API value, needs and the longest wait, by hour and project folder. Past days are built once from Claude Code's logs and marked `fromLogs` (no needs or waits). No prompts, replies, titles, thread names or session ids. Settings → Claude → History → Keep a daily summary turns it off and deletes them. |
 | What it reads, read-only | Claude Code's `sessions\` and `projects\` logs under `%USERPROFILE%\.claude` (or `CLAUDE_CONFIG_DIR`), and the Claude app's thread records |
 
 It never reads Claude Code's credentials, never stores a prompt or reply, and listens only on 127.0.0.1. The first line of a thread's first request may be used as its name when it has no title, and is kept in memory only: Save CSV uses the thread's id label instead. [PRODUCT.md](PRODUCT.md) has the full list of what it reads and never does.
