@@ -34,6 +34,9 @@ namespace ClaudeDashboard
         public const string Pace = "pace", Average = "average";
         public string Basis = Pace;
         public bool Known;
+        // v0.56.1: the newest reading of this window is already at 100%. Then LimitAt is null (never a time in the past)
+        // and everything says "Limit reached", in Amber.
+        public bool Reached;
         public string Why = "";
         public int Readings;
         // Percent an hour at this pace, the time it reaches 100% (null: not before the reset), and the percent at reset.
@@ -279,7 +282,7 @@ namespace ClaudeDashboard
         private static ClaudeLimitProjection Finish(ClaudeLimitProjection p, ClaudePlanReading last, double perHour, ClaudeLimitWindow window)
         {
             p.Known = true; p.PerHour = perHour;
-            if (last.Percent >= 100) { p.LimitAt = last.At; p.AtReset = last.Percent; return p; }
+            if (last.Percent >= 100) { p.Reached = true; p.LimitAt = null; p.AtReset = last.Percent; return p; }
             DateTime? reset = window.ResetsAt;
             if (perHour > 1e-6)
             {

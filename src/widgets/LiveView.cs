@@ -124,9 +124,11 @@ namespace ClaudeDashboard
             var w = snapshot.Limits == null ? null : snapshot.Limits.FiveHour;
             curve.Axis = axis; curve.Readings = snapshot.PlanReadings; curve.Pace = snapshot.LimitAtPace;
             curve.Percent = w == null ? Double.NaN : w.Percent;
+            curve.Reached = snapshot.LimitAtPace.Reached;
             curve.WallLabel = axis.Wall.HasValue ? "≈ limit " + ClaudeText.Clock(axis.Wall.Value, context.Use24Hour) : "";
             curve.Note = snapshot.LimitAtPace.Known ? "" : snapshot.LimitAtPace.Why;
             curveSub.Text = LimitWords(snapshot, now, context.Use24Hour);
+            if (snapshot.LimitAtPace.Reached) curveSub.SetResourceReference(TextBlock.ForegroundProperty, "Warning"); else curveSub.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
             curveSub.ToolTip = AverageTip(snapshot, context.Use24Hour);
             curve.InvalidateVisual();
 
@@ -280,6 +282,7 @@ namespace ClaudeDashboard
             string percent = Math.Round(w.Percent) + "%";
             var pace = view.LimitAtPace;
             if (pace == null || !pace.Known) return percent + " · " + (pace == null ? "no projection" : pace.Why);
+            if (pace.Reached) return percent + " · Limit reached";
             if (pace.BeforeReset) return percent + " · ≈ limit " + ClaudeText.Clock(pace.LimitAt.Value, use24);
             return percent + " · ≈ " + Math.Round(Math.Min(999, pace.AtReset)) + "% at reset";
         }
@@ -289,6 +292,7 @@ namespace ClaudeDashboard
             var a = view.LimitAtAverage;
             string head = "At the last 30 minutes' pace, from the plan readings.";
             if (a == null || !a.Known) return head + "\nAt today's average: " + (a == null || a.Why.Length == 0 ? "not known" : a.Why) + ".";
+            if (a.Reached) return head + "\nLimit reached.";
             string at = a.BeforeReset ? "≈ limit " + ClaudeText.Clock(a.LimitAt.Value, use24) : "≈ " + Math.Round(Math.Min(999, a.AtReset)) + "% at reset";
             return head + "\nAt today's average: " + at + ". Today's tokens an hour, converted to the 5-hour window's percent at this window's tokens per percent so far.";
         }

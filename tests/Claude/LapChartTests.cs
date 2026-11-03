@@ -57,6 +57,9 @@ internal static class LapChartTests
             Assert(LiveView.LimitWords(calm, Now, false).StartsWith("23% · ≈ ") && LiveView.LimitWords(calm, Now, false).EndsWith("% at reset") && !LapAxis.For(calm, Now).Wall.HasValue, "The calm sample's line or wall: " + LiveView.LimitWords(calm, Now, false));
             calm.LimitAtPace = new ClaudeLimitProjection { Why = "Only 2 plan readings so far: ≈ limit needs 3" };
             Assert(LiveView.LimitWords(calm, Now, false) == "23% · Only 2 plan readings so far: ≈ limit needs 3" && !LapAxis.For(calm, Now).Wall.HasValue, "No projection doesn't say why, or still draws a wall.");
+            var full = ClaudeView.Fixture(Now, true, true);
+            full.LimitAtPace = new ClaudeLimitProjection { Known = true, Reached = true, AtReset = 100 };
+            Assert(LiveView.LimitWords(full, Now, false) == "72% · Limit reached" && !LapAxis.For(full, Now).Wall.HasValue, "A reached limit gives a time or a wall: " + LiveView.LimitWords(full, Now, false));
             Assert(LiveView.AverageTip(view, false).Contains("today's average") && LiveView.AverageTip(view, false).Contains("Today's tokens an hour, converted"), "The tip doesn't say today's average is converted from tokens.");
             var line = LiveView.FeedLine(new ClaudeFeedItem { At = Now, Kind = ClaudeFeedItem.ToolFailed, Detail = ClaudeView.SampleLongTool, Title = "Push token refresh" }, true);
             Assert(line.EndsWith("Push token refresh · " + ClaudeText.ToolName(ClaudeView.SampleLongTool) + " failed") && line.Contains("…"), "A feed line: " + line);

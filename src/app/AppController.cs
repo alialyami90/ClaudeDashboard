@@ -390,7 +390,7 @@ namespace ClaudeDashboard
             fullSummary = view == null ? "Reading Claude Code…" : ClaudeText.Summary(view, period, true) + limit;
             shortSummary = view == null ? fullSummary : ClaudeText.ShortSummary(view, period) + limit;
             shorterSummaries = view == null ? new string[0] : new[] { ClaudeText.ShortSummary(view, period, 1, true) + limit, ClaudeText.ShortSummary(view, period, 1, true), ClaudeText.ShortSummary(view, period, 1, false) };
-            summary.SetResourceReference(TextBlock.ForegroundProperty, needs ? "Warning" : "Text");
+            summary.SetResourceReference(TextBlock.ForegroundProperty, needs || LimitReached(view) ? "Warning" : "Text");
             dot.SetResourceReference(Shape.FillProperty, needs ? "Warning" : view != null && view.Working > 0 ? "Accent" : "Muted");
             flag.Text = view == null ? "" : ClaudeText.Flag(view, DateTime.UtcNow, settings.Use24HourClock, true);
             UpdateSources(view);
@@ -410,12 +410,15 @@ namespace ClaudeDashboard
             RefreshView();
         }
         // " · ≈ limit 4:12 pm": when the 5-hour window reaches 100% at the plan readings' pace (v0.54.0's LimitAtPace),
-        // only when that is known (3 readings or more) and before the reset.
+        // only when that is known (3 readings or more) and before the reset. " · Limit reached", with no time, once the
+        // newest reading is already at 100% (v0.56.1's Reached); the summary is Amber then.
         public static string LimitText(ClaudeView view, DateTime now, bool use24)
         {
             var at = view == null ? null : view.LimitAtPace;
+            if (LimitReached(view)) return " · Limit reached";
             return at == null || !at.BeforeReset ? "" : " · ≈ limit " + ClaudeText.Clock(at.LimitAt.Value, use24);
         }
+        public static bool LimitReached(ClaudeView view) { return view != null && view.LimitAtPace != null && view.LimitAtPace.Reached; }
         // The period the header counts threads over: Garage's while it's on screen, else the last 5 hours.
         public ClaudePeriod SummaryPeriod { get { return GarageShown ? claudeCard.Period : ClaudePeriod.FiveHour; } }
         // For the checks: the header summary's forms, longest first.
