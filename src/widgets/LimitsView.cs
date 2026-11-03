@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace ClaudeDashboard
@@ -370,8 +371,6 @@ namespace ClaudeDashboard
         {
             var pace = view.LimitAtPace; var average = view.LimitAtAverage;
             m.Reached = pace != null && pace.Reached;
-            // The engine's newest reading can be newer than the limits the snapshot holds.
-            if (m.Reached && m.Percent < 100) m.Percent = 100;
             // At the limit there's nothing left to project: no pace or average lines, only "Limit reached".
             if (m.LimitReached) return;
             if (pace == null || !pace.Known)
@@ -601,6 +600,14 @@ namespace ClaudeDashboard
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = true, IsTabStop = true };
             AutomationProperties.SetName(scroll, name);
             AutomationProperties.SetHelpText(scroll, "Arrow keys, Page Up, Page Down, Home and End scroll the page.");
+            // WPF's ScrollViewer takes plain Home and End to the left and right ends; on a page that only scrolls down
+            // they go to the top and the bottom, as the help text says.
+            scroll.PreviewKeyDown += (sender, e) =>
+            {
+                if (Keyboard.Modifiers != ModifierKeys.None || e.OriginalSource != scroll) return;
+                if (e.Key == Key.Home) { scroll.ScrollToTop(); e.Handled = true; }
+                else if (e.Key == Key.End) { scroll.ScrollToBottom(); e.Handled = true; }
+            };
             return scroll;
         }
         public static FormattedText Ink(Visual visual, string text, double size, Brush brush, bool semibold)

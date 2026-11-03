@@ -6,6 +6,14 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.57.1 (unreleased)
+
+Follow-ups to the Limits and History tabs.
+
+- **Home and End** on the Limits and History pages go to the top and the bottom, as the page's help text says. WPF's ScrollViewer took plain Home and End to the left and right ends.
+- **At the limit**, Limits shows the meter's own percent instead of raising it to 100%. It still says "Limit reached", in Amber.
+- **Checks:** both pages scroll with Down, Home, Page Down, End and Home; the Reached fixture keeps its 98%.
+
 ## v0.57.0 (unreleased)
 
 The lap chart's package D (decision 030): the Limits and History tabs.
