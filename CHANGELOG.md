@@ -6,6 +6,15 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.57.0 (unreleased)
+
+The lap chart's package D (decision 030): the Limits and History tabs.
+
+- **Limits** shows the 5-hour window from its start to its reset. It has the use curve from the plan readings, the "≈ limit" at the last 30 minutes' pace (dashed, amber with a wall where it hits 100% before the reset) and at today's average from tokens (dotted), and a mark where heavy use began. With fewer than 3 plan readings it shows no projection and says why. Beside it: the week's laps by day (each day's ≈ share from its tokens) with the pace to the reset; the weekly windows (all models, each model's own, extra usage, the spend limit, each saying when it isn't reported); and this window's tokens by project.
+- **History** shows the 8-week calendar of tokens per day, the hour-of-day profile with a tick at the same hour last week, and the last 7 days: tokens, ≈ $ at API prices, threads, times it needed you, and the longest wait (amber from 15 minutes). Below that are this week's projects. It reads ClaudeHistory's day files only when today's tokens or the date change, and at most once a minute. Without the files it says why.
+- Both draw in code with the palette's brushes, say Sample over the fixture at every size, start no timers, and redraw only when the snapshot or the minute changes.
+- **Checks** (`tests/Claude/LimitsHistoryTests.cs`): both tabs at 640 × 420, 1000 × 600 and 1600 × 900, at 100% and 140%; no projection under 3 readings; the engine's projections taken as they are and marked ≈; the onset rule; honest weekly-window rows; the History model; and reading the day files once a minute.
+
 ## v0.53.2 (unreleased)
 
 Docs catch up with the observability wave, v0.48.0 to v0.53.0. Docs only.
