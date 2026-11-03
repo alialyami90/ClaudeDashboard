@@ -15,6 +15,10 @@ Docs catch up with v0.59.0 (Scribe). Docs only.
 - **DESIGN.md.** The views table's History row; History's dot, words and "from logs" cells; Sources' History from the logs tile and its one button.
 - **Decision 030.** The views table's History row: kept a year since v0.59.0, past days from `ClaudeBackfill`.
 
+## v0.59.1 (unreleased)
+
+Docs: CLAUDE.md records v0.59.0 (History from the logs, Ali's options A, B and C), that history day files are kept a year with past days built from Claude Code's logs, and Ali's choice to keep Sign in with Claude as it is.
+
 ## v0.59.0 (unreleased)
 
 Claude Dashboard: History from the logs (Ali: "I've been using claude for more than a month. I want to see the stats for that.").
