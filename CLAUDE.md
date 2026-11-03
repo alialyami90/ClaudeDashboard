@@ -38,7 +38,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\package.ps1 -T
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
 
-- Checks print `PASS`/`FAIL`; add them to `tests/Claude/*.cs` or `tests/SmokeTests.cs` with `Check(name, action)`. They point `CLAUDE_CONFIG_DIR` at a throwaway folder, `WIDGETSCREEN_CLAUDE_MANAGED` at a missing file and `WIDGETSCREEN_CLAUDE_APP_DATA` at an empty one, and turn `ClaudeToast.Enabled` off, so the PC's real Claude Code, Claude app and notifications are never touched.
+- Checks print `PASS`/`FAIL`; add them to `tests/Claude/*.cs` or `tests/SmokeTests.cs` with `Check(name, action)`. They point `CLAUDE_CONFIG_DIR` at a throwaway folder, `WIDGETSCREEN_CLAUDE_MANAGED` at a missing file, `WIDGETSCREEN_CLAUDE_APP_DATA` at an empty one and `WIDGETSCREEN_CLAUDE_BRIDGE` (Widget Screen's bridge folder, which the hook also writes to) at a missing one, and turn `ClaudeToast.Enabled` off, so the PC's real Claude Code, Claude app and notifications are never touched.
 - `--settings <path>` isolates settings and sign-in; `--render <png>` with `--render-size WxH` and `--render-claude-sample` (`--render-claude-needs`) draws the labelled fixture. Never touch the user's real `%LOCALAPPDATA%` settings from automated checks.
 - `tests/Claude/` is the tripwire: if a deletion makes one fail, fix the deletion, not the check.
 

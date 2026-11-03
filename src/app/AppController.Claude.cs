@@ -294,7 +294,7 @@ namespace ClaudeDashboard
             Text("ClaudeConnectionStatus", !claude.Connected ? "Not connected"
                 : elsewhere != null ? "Claude Code's hooks run Widget Screen's bridge (" + elsewhere + "), so live updates reach Widget Screen only. Sessions still show here from Claude Code's own files. Reconnect to bring the hooks back: Claude Dashboard's bridge keeps Widget Screen up to date too."
                 : update ? "Connected by an earlier version. Update the connection to add the latest hooks (API errors, subagents, tasks, model switches, usage-limit waits) and telemetry."
-                : widgetScreenPort ? "Connected. Telemetry goes to Widget Screen while it's open, and comes here within 10 seconds of closing it. Hooks reach both apps."
+                : widgetScreenPort ? "Connected. Telemetry goes to Widget Screen while it's open, and comes here within 10 seconds of closing it. " + (ClaudeBridge.PartnerFolder(claude.BridgeFolder) != null ? "Hooks reach both apps." : "Hooks reach Claude Dashboard only.")
                 : portWarning.Length > 0 ? portWarning + ". Update the connection to send telemetry to a free port." : "Connected. Every Claude Code session on this PC shows on the pit wall.");
             update |= claude.Connected && portWarning.Length > 0 && !widgetScreenPort;
             Text("ClaudeFolderText", "Claude Code folder: " + claude.ConfigFolder);
