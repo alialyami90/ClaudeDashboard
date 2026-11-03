@@ -13,7 +13,7 @@
     <Border x:Name="WindowEdge" BorderThickness="3" BorderBrush="Transparent" AutomationProperties.Name="Claude Dashboard">
       <Grid x:Name="DashboardContent">
         <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <!-- One line when everything fits; otherwise the summary and the flag take a second line under the name and the
+        <!-- One line when everything fits; otherwise the summary takes a second line under the name, the flag and the
              buttons (AppController.FitHeader), so the summary is never cut mid-word. -->
         <Grid x:Name="Header" Margin="24,12,20,0">
           <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="0"/></Grid.RowDefinitions>
@@ -32,8 +32,9 @@
               <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE713;" Style="{DynamicResource Glyph}"/><TextBlock x:Name="SettingsLabel" Text="Settings" Margin="8,0,0,0" FontSize="{DynamicResource SmallSize}" VerticalAlignment="Center"/></StackPanel>
             </Button>
           </StackPanel>
+          <!-- The flag (Sample, the plan's age) stays on the first line; the summary moves under it when it won't fit. -->
+          <TextBlock x:Name="ClaudeFlag" Grid.Column="1" Text="" Style="{DynamicResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,12,0" TextTrimming="WordEllipsis"/>
           <DockPanel x:Name="SummaryLine" Grid.Column="1" VerticalAlignment="Center" LastChildFill="True">
-            <TextBlock x:Name="ClaudeFlag" DockPanel.Dock="Right" Text="" Style="{DynamicResource Caption}" VerticalAlignment="Center" Margin="12,0,12,0"/>
             <DockPanel x:Name="SummaryRow" VerticalAlignment="Center" LastChildFill="True">
               <Ellipse x:Name="ClaudeSummaryDot" DockPanel.Dock="Left" Width="8" Height="8" Fill="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,1,8,0"/>
               <TextBlock x:Name="ClaudeSummary" Text="" FontSize="{DynamicResource BodySize}" VerticalAlignment="Center" TextTrimming="WordEllipsis"/>

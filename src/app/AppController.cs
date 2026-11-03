@@ -181,18 +181,19 @@ namespace WidgetScreen
             var words = width >= 620 ? Visibility.Visible : Visibility.Collapsed;
             Control<TextBlock>("QuietLabel").Visibility = words; Control<TextBlock>("SettingsLabel").Visibility = words;
             Control<StackPanel>("PeriodSwitch").Visibility = width >= 480 ? Visibility.Visible : Visibility.Collapsed;
-            // The summary is never cut mid-word (Lead's review of package 4): in full beside the name and the buttons
-            // when it fits there, else on a line of its own under them, in full or in its short form.
+            // The summary is never cut mid-word (Lead's review of package 4): in full beside the name, the flag and the
+            // buttons when it fits there, else on a line of its own under them, in full or in its short form.
             var summary = Control<TextBlock>("ClaudeSummary"); var flag = Control<TextBlock>("ClaudeFlag");
             var line = Control<DockPanel>("SummaryLine"); var header = Control<Grid>("Header");
             double room = width - 6 - 24 - 20;
             double used = Desired(Control<TextBlock>("AppName")) + Desired(Control<StackPanel>("HeaderActions"));
             double flagWidth = flag.Text.Length == 0 ? 0 : Measure(flag, flag.Text) + 24;
-            double full = 16 + Measure(summary, fullSummary) + flagWidth;
-            bool oneLine = used + full <= room;
+            double full = 16 + Measure(summary, fullSummary);
+            bool oneLine = used + full + flagWidth <= room;
             bool whole = oneLine || full <= room;
             summary.Text = whole ? fullSummary : shortSummary;
-            flag.Margin = new Thickness(12, 0, oneLine ? 12 : 0, 0);
+            // On one line the summary leaves the flag its room at the right; on two, the flag keeps the first line.
+            line.Margin = new Thickness(0, 0, oneLine ? flagWidth : 0, 0);
             Grid.SetRow(line, oneLine ? 0 : 1); Grid.SetColumn(line, oneLine ? 1 : 0); Grid.SetColumnSpan(line, oneLine ? 1 : 3);
             header.RowDefinitions[1].Height = new GridLength(oneLine ? 0 : 28);
             Control<Grid>("DashboardContent").RowDefinitions[0].Height = new GridLength(oneLine ? 56 : 84);
