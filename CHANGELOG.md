@@ -26,6 +26,15 @@ Docs: Insights (Scribe). Docs only.
 - **README.md.** Seven views with Insights and Ctrl+7, an Insights bullet, and decision records 014–031.
 - **DESIGN.md.** The tab row has seven views. The views table gains Ctrl+7, and the keys say Ctrl+1 to Ctrl+7. A new "Insights" section covers the range row, each section, the series colours, where Amber is used, ≈ and the missing states. The page joins Limits and History in the scrolling-page rule.
 
+## v0.61.1 (unreleased)
+
+Insights follow-up, from the Lead's render on Ali's logs.
+
+- **Replies tile:** while today's detail is still being read (first launch), the tile shows the replies the models table covers, with "+N today, still being read" beside it, so the two agree.
+- **Project sessions** are the same on every launch. A project without a folder always counts the day's threads, because the detail counts sessions by folder. A project with a folder counts the day's threads only on days kept without detail, and not today while today's detail is still being read (`ClaudeInsights.Compute`).
+- **The error log** goes beside a `--settings` file instead of the real `%LOCALAPPDATA%\ClaudeDashboard\error.log` (`Program.LogFolder`, `LogBeside`; flagged for Shell: `Program.cs` and `ShellProgram.cs`).
+- **Checks** for all three in `tests/Claude/InsightsViewTests.cs`.
+
 ## v0.61.0 (unreleased)
 
 The Insights tab (decision 031, part B): a detailed view of Claude Code's logs.

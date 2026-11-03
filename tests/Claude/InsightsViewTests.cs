@@ -111,6 +111,57 @@ internal static class InsightsViewTests
             }
         });
 
+        check("Insights' Replies tile leaves out today's replies while they're still being read, and says how many (v0.61.1)", () => {
+            var today = Now.ToLocalTime().Date;
+            var yesterday = new ClaudeDay { Date = today.AddDays(-1), Replies = 5, Tokens = 500, Detail = new ClaudeDayDetail() };
+            yesterday.Detail.Models["claude-opus-5-5"] = new ClaudeModelUse { Replies = 5, Output = 500 };
+            var pending = new ClaudeDay { Date = today, Replies = 10, Tokens = 900 };
+            var ins = ClaudeInsights.Compute(new List<ClaudeDay> { yesterday, pending }, today, 7, ClaudeInsights.Week);
+            Assert(ins.TodayPending, "the fixture isn't pending");
+            var m = InsightsModel.From(ins);
+            var tile = m.TotalTiles().First(f => f.Name == "Replies");
+            Assert(m.TodayReplies == 10 && tile.Value == InsightsModel.Count(5) && tile.Change == "+10 today, still being read", "the tile says " + tile.Value + " (" + tile.Change + ")");
+            Assert(tile.Value == InsightsModel.Count(m.Models.Sum(x => x.Replies)), "the tile and the models table disagree");
+            pending.Detail = new ClaudeDayDetail(); pending.Detail.Models["claude-opus-5-5"] = new ClaudeModelUse { Replies = 10, Output = 900 };
+            var read = InsightsModel.From(ClaudeInsights.Compute(new List<ClaudeDay> { yesterday, pending }, today, 7, ClaudeInsights.Week));
+            Assert(read.TodayReplies == 0 && read.TotalTiles().First(f => f.Name == "Replies").Value == InsightsModel.Count(15), "once read, today's replies don't join the tile");
+        });
+
+        check("A project's sessions are the same on every launch, before and after today's detail is read (v0.61.1)", () => {
+            var today = Now.ToLocalTime().Date;
+            Func<bool, ClaudeDay> day = withDetail => {
+                var d = new ClaudeDay { Date = today, Replies = 4, Tokens = 400, Threads = 2 };
+                d.Garages.Add(new ClaudeDayGarage { Name = "Claude Code", Folder = "", Replies = 3, Tokens = 300, Threads = 1 });
+                d.Garages.Add(new ClaudeDayGarage { Name = "app", Folder = @"C:\code\app", Replies = 1, Tokens = 100, Threads = 1 });
+                if (withDetail) { d.Detail = new ClaudeDayDetail(); d.Detail.Models["claude-opus-5-5"] = new ClaudeModelUse { Replies = 1, Output = 100 }; d.Detail.ProjectSessions[@"C:\code\app"] = 1; }
+                return d;
+            };
+            var before = ClaudeInsights.Compute(new List<ClaudeDay> { day(false) }, today, 7, ClaudeInsights.Week);
+            var after = ClaudeInsights.Compute(new List<ClaudeDay> { day(true) }, today, 7, ClaudeInsights.Week);
+            Func<ClaudeInsights, string, int> sessions = (r, name) => r.Projects.First(p => p.Name == name).Sessions;
+            Assert(sessions(before, "Claude Code") == 1 && sessions(after, "Claude Code") == 1, "a project without a folder: " + sessions(before, "Claude Code") + " then " + sessions(after, "Claude Code"));
+            Assert(sessions(before, "app") == 0 && sessions(after, "app") == 1, "a project with a folder counts threads while today is still being read");
+        });
+
+        check("The error log goes beside a --settings file, never to this PC's settings folder (v0.61.1)", () => {
+            string old = Program.LogFolder;
+            string folder = Path.Combine(Path.GetTempPath(), "claude-dashboard-log-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Program.LogFolder = null;
+                Assert(Program.LogPath == Path.Combine(Path.GetDirectoryName(SettingsStore.DefaultPath), "error.log"), "the default log isn't beside the settings");
+                Program.LogBeside(Path.Combine(folder, "settings.xml"));
+                Assert(Program.LogPath == Path.Combine(folder, "error.log"), "the log isn't beside the --settings file: " + Program.LogPath);
+                Program.Log(new InvalidOperationException("a check's error"));
+                Assert(File.Exists(Path.Combine(folder, "error.log")) && File.ReadAllText(Path.Combine(folder, "error.log")).Contains("a check's error"), "nothing was written beside the --settings file");
+            }
+            finally
+            {
+                Program.LogFolder = old;
+                try { if (Directory.Exists(folder)) Directory.Delete(folder, true); } catch (IOException) { }
+            }
+        });
+
         check("Insights says why when the engine has nothing, and never shows Sample on live numbers", () => {
             var view = ClaudeView.Fixture(Now, false); view.Sample = false; view.Insights = null;
             var insights = new InsightsView();

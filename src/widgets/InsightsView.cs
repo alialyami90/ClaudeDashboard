@@ -628,6 +628,9 @@ namespace ClaudeDashboard
         // The engine's note for the footer (today's detail still pending, and such).
         public string Note = "";
         public bool TodayPending;
+        // Today's replies while today's detail is still being read: the Replies tile leaves them out, so it agrees with
+        // the models table, and says how many are on their way.
+        public long TodayReplies;
         public List<InsightsModelRow> Models = new List<InsightsModelRow>();
         public List<InsightsDay> PerDay = new List<InsightsDay>();
         public List<InsightsEffort> Effort = new List<InsightsEffort>();
@@ -719,7 +722,9 @@ namespace ClaudeDashboard
         {
             return new List<InsightsFigure> {
                 new InsightsFigure { Name = "Tokens", Value = ClaudeUsage.Format(Tokens), Change = Change(Tokens, HasPrevious ? PrevTokens : -1) },
-                new InsightsFigure { Name = "Replies", Value = Count(Replies), Change = Change(Replies, HasPrevious ? PrevReplies : -1) },
+                TodayReplies > 0
+                    ? new InsightsFigure { Name = "Replies", Value = Count(Replies - TodayReplies), Change = "+" + Count(TodayReplies) + " today, still being read" }
+                    : new InsightsFigure { Name = "Replies", Value = Count(Replies), Change = Change(Replies, HasPrevious ? PrevReplies : -1) },
                 new InsightsFigure { Name = "≈ $ at API prices", Value = "≈ " + Cost.ToString("0.00", CultureInfo.InvariantCulture), Change = Change(Cost, HasPrevious ? PrevCost : -1) },
                 new InsightsFigure { Name = "Sessions", Value = Count(Sessions), Change = Change(Sessions, HasPrevious ? PrevSessions : -1) },
                 new InsightsFigure { Name = "Models", Value = Count(Models.Count), Change = Models.Count == 0 ? "" : "most: " + ModelName(Models[0].Name) } };
@@ -794,6 +799,11 @@ namespace ClaudeDashboard
                 Tokens = ins.Tokens, Replies = ins.Replies, Cost = ins.Cost, PrevTokens = ins.PriorTokens, PrevReplies = ins.PriorReplies, PrevCost = ins.PriorCost,
                 Sessions = ins.Sessions, PrevSessions = ins.PriorSessions, PrevActiveDays = ins.PriorActiveDays, ThinkingReplies = d.ThinkingReplies, DetailReplies = d.Replies,
                 Note = ins.Note ?? "", TodayPending = ins.TodayPending };
+            if (ins.TodayPending)
+            {
+                var today = ins.Series.LastOrDefault(day => day.Date.Date == ins.End.Date);
+                if (today != null && today.Detail == null) m.TodayReplies = today.Replies;
+            }
             if (m.Missing.Length > 0) return m;
 
             foreach (var r in ins.Models)

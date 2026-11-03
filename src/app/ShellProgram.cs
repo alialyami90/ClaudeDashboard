@@ -27,6 +27,7 @@ namespace ClaudeDashboard
                 };
                 System.Threading.SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
                 string settingsPath = Argument(args, "--settings") ?? SettingsStore.DefaultPath;
+                if (Argument(args, "--settings") != null) Program.LogBeside(settingsPath);
                 string renderPath = Argument(args, "--render");
                 Program.Rendering = renderPath != null;
                 var window = AppController.LoadWindow("ShellWindow");
