@@ -58,7 +58,7 @@ internal static class InsightsEngineTests
     {
         check("Insights: a day's detail from the logs counts models, effort, thinking, tools, MCP, skills, permissions, health, sessions and lines, once each (v0.60.0)", () => {
             DateTime day = Now.Date.AddDays(-3);
-            var tally = new ClaudeDetailTally(d => d.Date);
+            var tally = new ClaudeDetailTally(at => at.Date);
             string text = String.Join("\n", Day(day, "s1")) + "\n";
             tally.Fold(text, "s1");
             // A helper's copy of the same lines counts nothing twice.
