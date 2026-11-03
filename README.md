@@ -8,7 +8,7 @@ It is native WPF on .NET Framework 4.8, with no WebView, no packages and no serv
 
 ## What it shows
 
-- **Garages and cars.** One garage per project, one car per thread from the last 5 hours, today or the week. The car's class follows its main model (grand tourer for Opus, sports car for Sonnet, hot hatch for Haiku), and its motion says its state: wheels turning while it works, hazards when it needs you, brake lights on your turn, up on the jack while compacting, wheelspin when it's stuck or retrying, a cover when it ends. Tap a garage to roll its cars in or out.
+- **Garages and cars.** One garage per project, one car per thread from the last 5 hours, today or the week. The car's class follows its main model (grand tourer for Opus, sports car for Sonnet, hot hatch for Haiku), and its motion says its state: wheels turning while it works, hazards when it needs you, brake lights on your turn, up on the jack while compacting, wheelspin when it's stuck or retrying, a cover when it ends. Click a garage (or Tab to it and press Enter or Space) to roll its cars in or out.
 - **Your plan.** The 5-hour window as a fuel tank with your pace and where it will end up, the week as seven laps, and tokens a minute on a rev counter.
 - **Pit stop.** The thread that has waited longest on you, what it wants ("Wants to use Bash · waiting 2 min") and **Go to it**, which brings its window forward.
 - **The ledger.** Tokens, cache reads, replies or ≈ $ at API prices, model mix and lines added and removed, per project and per thread.

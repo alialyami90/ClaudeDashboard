@@ -21,6 +21,7 @@
   <SolidColorBrush x:Key="OnWarning" Color="#11170E"/>
   <CornerRadius x:Key="CardRadius">16</CornerRadius>
   <sys:Double x:Key="SmallSize">13</sys:Double>
+  <sys:Double x:Key="CaptionSize">12</sys:Double>
   <sys:Double x:Key="BodySize">15</sys:Double>
   <sys:Double x:Key="TitleSize">20</sys:Double>
 
@@ -38,7 +39,7 @@
     <Setter Property="FontWeight" Value="Normal"/>
   </Style>
   <Style x:Key="Caption" TargetType="TextBlock">
-    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontSize" Value="{DynamicResource CaptionSize}"/>
     <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
   </Style>
   <Style x:Key="Heading" TargetType="TextBlock">
