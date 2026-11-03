@@ -1131,7 +1131,10 @@ namespace ClaudeDashboard
             var middle = Columns(Auto, Star); middle.Margin = new Thickness(0, 2, 0, 4);
             var value = Big("—"); middle.Children.Add(value);
             var notes = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            // Scribe's nit on v0.53.0: the week's pace is fitted again when its room settles, like the tank's.
+            List<string> weekForms = null;
             var pace = Right(Trimmed(Text("", Scaled(13), "Muted"))); var extra = Right(Trimmed(Text("", Scaled(13), "Muted")));
+            notes.SizeChanged += (sender, e) => { if (weekForms != null && Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Fit(pace, e.NewSize.Width, weekForms); };
             notes.Children.Add(pace); notes.Children.Add(extra); middle.Children.Add(At(notes, 0, 1));
             stack.Children.Add(middle);
             var laps = names.Add(new WeekLaps { Height = 16 + Math.Ceiling(Scaled(11) * 1.33), TextScale = textScale }, "ClaudeLaps"); stack.Children.Add(laps);
@@ -1142,7 +1145,8 @@ namespace ClaudeDashboard
                 lap.Text = ClaudeText.Lap(ClaudePace.LapNow(elapsed));
                 resets.Text = w == null ? "" : w.Current(now) ? ClaudeText.WeekReset(w, use24) : "reset";
                 if (w == null) value.Text = "—"; else SetBig(value, pct, ClaudeText.Warns(pct) ? "Warning" : "Text");
-                Fit(pace, notes.ActualWidth > 0 ? notes.ActualWidth : 160, ClaudeText.PaceTimes(projection, Double.NaN, w, ClaudePace.Week, now, use24)); pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
+                weekForms = ClaudeText.PaceTimes(projection, Double.NaN, w, ClaudePace.Week, now, use24);
+                Fit(pace, notes.ActualWidth > 0 ? notes.ActualWidth : 160, weekForms); pace.SetResourceReference(TextBlock.ForegroundProperty, ClaudePace.Warns(projection) ? "Warning" : "Muted");
                 extra.Text = ClaudeText.Extras(view.Limits, now);
                 laps.Percent = pct; laps.Projection = projection; laps.Now = ClaudePace.LapNow(elapsed); laps.Days = ClaudeText.LapDays(w); laps.InvalidateVisual();
             });
@@ -1675,7 +1679,11 @@ namespace ClaudeDashboard
             root.Children.Add(At(tiles, 2));
             var groups = view.Groups(period);
             double rowHeight = CardSizing.ClaudeMediumRow(textScale), room = height - CardSizing.ClaudeMini(textScale) - 6;
-            int fit = Math.Max(1, (int)Math.Floor(room / rowHeight));
+            // The Lead on v0.53.0: at 140% the estimate left a row's room empty. Once the list is laid out, the rows are
+            // counted again from the height it really got, for this size and text scale.
+            string sized = Math.Round(bounds.Width) + "x" + Math.Round(bounds.Height) + "|" + textScale;
+            if (mediumSized == sized && !Double.IsNaN(mediumRoom)) room = mediumRoom;
+            int fit = Math.Max(1, (int)Math.Floor((room + 0.5) / rowHeight));
             var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
             if (groups.Count == 0) list.Children.Add(Empty(width));
             bool money = width >= 400;
@@ -1746,9 +1754,17 @@ namespace ClaudeDashboard
                     AutomationProperties.SetName(moreText, moreText.Text + ". Make the window bigger to see them.");
                 });
             }
+            list.SizeChanged += (sender, e) => {
+                double got = e.NewSize.Height - list.Margin.Top;
+                if (got <= 0 || (mediumSized == sized && Math.Abs(got - mediumRoom) < 1)) return;
+                int could = Math.Max(1, (int)Math.Floor((got + 0.5) / rowHeight));
+                mediumSized = sized; mediumRoom = got;
+                if (could != fit) { built = ""; Rebuild(); }
+            };
             root.Children.Add(At(names.Add(list, "ClaudeGarages"), 3));
             return root;
         }
+        private string mediumSized = ""; private double mediumRoom = Double.NaN;
         // A mini plan tile: the 5-hour or the week's percentage, its reset and pace, over a pace meter.
         // What a mini tile's middle line leaves the pace beside the big reading.
         private static double PaceRoom(FrameworkElement middle, TextBlock value, double tileWidth)

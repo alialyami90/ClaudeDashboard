@@ -83,7 +83,7 @@ internal static class ClaudeLiveTests
 
         check("Claude's 5 h and Today ledger is live and Week keeps its columns; the time words fit at 140% (renders)", () => {
             string renders = Path.GetFullPath(Path.Combine(directory, "..", "renders")); Directory.CreateDirectory(renders);
-            bool liveSeen = false, nowSeen = false;
+            bool liveSeen = false, nowSeen = false, longSeen = false;
             foreach (double scale in new[] { 1.0, 1.4 })
                 foreach (string period in new[] { "Today", "Week" })
                     foreach (var size in new[] { new Size(1000, 600), new Size(1600, 900) })
@@ -118,6 +118,13 @@ internal static class ClaudeLiveTests
                                     // A window drawn off screen is never IsVisible; a part in the tree has a width once laid out.
                                     var nows = Named(window, "ClaudeThreadNow").OfType<TextBlock>().Where(t => t.Parent != null && t.ActualWidth > 0).Select(t => t.Text).ToList();
                                     if (nows.Any(t => t.StartsWith("Bash"))) nowSeen = true;
+                                    // v0.53.1: the crowd's long MCP tool ends in "…" on the row and its tip has the whole name.
+                                    var cut = Named(window, "ClaudeThreadNow").OfType<TextBlock>().FirstOrDefault(t => t.Text.StartsWith(ClaudeView.SampleLongTool.Substring(0, 39)));
+                                    if (cut != null)
+                                    {
+                                        Assert(cut.Text == ClaudeView.SampleLongTool.Substring(0, 39) + "…" && (cut.ToolTip as string ?? "").Contains(ClaudeView.SampleLongTool), "The long tool name isn't cut with … or its tip lost it: " + cut.Text + " / " + cut.ToolTip);
+                                        longSeen = true;
+                                    }
                                     foreach (var f in Named(window, "ClaudeThreadFor").OfType<TextBlock>()) if (f.Parent != null && f.ActualWidth > 0) Whole(f, "For at " + name);
                                 }
                                 // The plan row's time words fit (the Lead's 140% renders cut them at 1000 × 600).
@@ -130,6 +137,41 @@ internal static class ClaudeLiveTests
                         finally { window.Close(); }
                     }
             Assert(liveSeen && nowSeen, "No render showed the live rows with a tool in Now.");
+            Assert(longSeen, "No render showed the crowd's long tool name.");
+        });
+
+        check("Claude Medium fills its height with project rows at 100% and 140% (v0.53.1)", () => {
+            // The Lead on v0.53.0: at 640 × 420 and 140% Medium showed one project and "+2 more" over a row's room left empty.
+            int seen = 0;
+            foreach (double scale in new[] { 1.0, 1.4 })
+                foreach (var size in new[] { new Size(640, 420), new Size(500, 400) })
+                {
+                    string name = "claude-medium-" + (int)(scale * 100) + "-" + size.Width + "x" + size.Height;
+                    string path = Path.Combine(Fresh(directory, name), "settings.xml");
+                    SettingsStore.Save(path, new AppSettings { ClaudePeriod = "Today", TextScale = scale });
+                    var window = AppController.LoadWindow("ShellWindow");
+                    try
+                    {
+                        using (var controller = new AppController(window, path))
+                        {
+                            controller.UseClaudeSample(false, true);
+                            string png = Path.Combine(Path.GetFullPath(Path.Combine(directory, "..", "renders")), name + ".png");
+                            Directory.CreateDirectory(Path.GetDirectoryName(png));
+                            AppController.Render(window, size, 1, png);
+                            AppController.Render(window, size, 1, png);
+                            var list = window.FindName("ClaudeGarages") as StackPanel;
+                            if (list == null) continue;
+                            seen++;
+                            double row = CardSizing.ClaudeMediumRow(scale), used = list.Children.OfType<FrameworkElement>().Sum(r => r.ActualHeight);
+                            double room = list.ActualHeight - list.Margin.Top;
+                            bool more = window.FindName("ClaudeMoreProjects") != null;
+                            Assert(used <= room + 1, "Medium's rows overflow at " + name + ": " + used + " of " + room);
+                            Assert(!more || room - used < row - 0.5, "Medium leaves a row's room empty while projects wait at " + name + ": " + Math.Round(room - used) + " of a " + row + "-unit row.");
+                        }
+                    }
+                    finally { window.Close(); }
+                }
+            Assert(seen >= 2, "Too few renders were Medium: " + seen);
         });
     }
 }

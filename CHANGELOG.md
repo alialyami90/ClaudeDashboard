@@ -6,6 +6,15 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.53.1 (unreleased)
+
+Claude Dashboard: follow-ups to the live status board.
+
+- **Medium fills its height.** At 640 × 420 and 140% it showed one project and "+2 more projects" over a row's room left empty. Once its list is laid out, it counts the rows again from the height it really got.
+- **The week's pace refits** when its room settles, like the tank's.
+- **The crowded sample has a long MCP tool name**, and a check sees it end in "…" on the row with the whole name in its tip.
+- **Checks:** Medium leaves less than a row empty while projects wait, at 100% and 140%.
+
 ## v0.53.0 (unreleased)
 
 Claude Dashboard: in 5 h and Today the window is a live status board, and Week is the ledger (observability critique, issue 2).
