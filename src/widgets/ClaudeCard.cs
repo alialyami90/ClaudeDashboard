@@ -1679,16 +1679,16 @@ namespace ClaudeDashboard
             root.Children.Add(At(tiles, 2));
             var groups = view.Groups(period);
             double rowHeight = CardSizing.ClaudeMediumRow(textScale), room = height - CardSizing.ClaudeMini(textScale) - 6;
-            // The Lead on v0.53.0: at 140% the estimate left a row's room empty. Once the list is laid out, the rows are
-            // counted again from the height it really got, for this size and text scale.
-            string sized = Math.Round(bounds.Width) + "x" + Math.Round(bounds.Height) + "|" + textScale;
-            if (mediumSized == sized && !Double.IsNaN(mediumRoom)) room = mediumRoom;
-            int fit = Math.Max(1, (int)Math.Floor((room + 0.5) / rowHeight));
+            // The Lead on v0.53.1: the room is exact (the body less the tiles and the gap), but at 140% three full rows
+            // missed it by a few units, so one project showed over "+2 more". The "+N more" line is only as tall as its
+            // words, so the project rows get whatever room it leaves.
+            double moreHeight = CardSizing.ClaudeMediumMore(textScale);
+            int all = Math.Max(1, (int)Math.Floor((room + 0.5) / rowHeight));
             var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
             if (groups.Count == 0) list.Children.Add(Empty(width));
             bool money = width >= 400;
             // Issue 1: projects that don't fit are counted on a last row, with what in them is waiting on you.
-            int rows = groups.Count > fit ? Math.Max(0, fit - 1) : groups.Count;
+            int rows = groups.Count <= all ? groups.Count : Math.Max(0, (int)Math.Floor((room - moreHeight + 0.5) / rowHeight));
             for (int i = 0; i < rows; i++)
             {
                 var group = groups[i];
@@ -1741,7 +1741,7 @@ namespace ClaudeDashboard
             }
             if (rows < groups.Count)
             {
-                var moreLine = new Border { Height = rowHeight, BorderThickness = new Thickness(0, 1, 0, 0) }; moreLine.SetResourceReference(Border.BorderBrushProperty, "ControlBorder");
+                var moreLine = new Border { Height = moreHeight, BorderThickness = new Thickness(0, 1, 0, 0) }; moreLine.SetResourceReference(Border.BorderBrushProperty, "ControlBorder");
                 var moreText = names.Add(Trimmed(Text("", Scaled(13), "Muted")), "ClaudeMoreProjects"); moreText.VerticalAlignment = VerticalAlignment.Center; moreText.Margin = new Thickness(6, 0, 0, 0);
                 moreLine.Child = moreText; list.Children.Add(moreLine);
                 int from = rows;
@@ -1754,17 +1754,9 @@ namespace ClaudeDashboard
                     AutomationProperties.SetName(moreText, moreText.Text + ". Make the window bigger to see them.");
                 });
             }
-            list.SizeChanged += (sender, e) => {
-                double got = e.NewSize.Height - list.Margin.Top;
-                if (got <= 0 || (mediumSized == sized && Math.Abs(got - mediumRoom) < 1)) return;
-                int could = Math.Max(1, (int)Math.Floor((got + 0.5) / rowHeight));
-                mediumSized = sized; mediumRoom = got;
-                if (could != fit) { built = ""; Rebuild(); }
-            };
             root.Children.Add(At(names.Add(list, "ClaudeGarages"), 3));
             return root;
         }
-        private string mediumSized = ""; private double mediumRoom = Double.NaN;
         // A mini plan tile: the 5-hour or the week's percentage, its reset and pace, over a pace meter.
         // What a mini tile's middle line leaves the pace beside the big reading.
         private static double PaceRoom(FrameworkElement middle, TextBlock value, double tileWidth)
@@ -2183,6 +2175,8 @@ namespace ClaudeDashboard
         // beside the project's name when they leave it 110 units.
         public const double ClaudeMiniHeight = 84;
         public static double ClaudeMini(double textScale) { return ClaudeMiniHeight + Math.Max(0, Math.Ceiling(1.33 * (Math.Round(12 * textScale) - 12))); }
+        // Medium's "+N more projects" line: its words and a little room, not a whole project row (v0.53.1).
+        public static double ClaudeMediumMore(double textScale) { return Math.Ceiling(Math.Round(13 * textScale) * 1.33) + 8; }
         public static double ClaudeMediumRow(double textScale) { return Math.Max(44, Math.Ceiling(Math.Round(15 * textScale) * 1.33 + Math.Round(12 * textScale) * 1.33 + 8)); }
         public static int ClaudeInlineCars(double nameRoom, int threads)
         {

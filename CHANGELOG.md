@@ -10,10 +10,10 @@ Nothing yet.
 
 Claude Dashboard: follow-ups to the live status board.
 
-- **Medium fills its height.** At 640 × 420 and 140% it showed one project and "+2 more projects" over a row's room left empty. Once its list is laid out, it counts the rows again from the height it really got.
+- **Medium fills its height.** At 640 × 420 and 140% it showed one project and "+2 more projects" over a row's room left empty. The "+N more projects" line is now only as tall as its words, so the project rows get the room it leaves; at 140% that's two projects and the line.
 - **The week's pace refits** when its room settles, like the tank's.
 - **The crowded sample has a long MCP tool name**, and a check sees it end in "…" on the row with the whole name in its tip.
-- **Checks:** Medium leaves less than a row empty while projects wait, at 100% and 140%.
+- **Checks:** Medium leaves less than a row empty while projects wait, measured from the body's bottom, with the needs and crowded samples at 100% and 140%, and shows at least two projects with the needs sample at 640 × 420 and 140%.
 
 ## v0.53.0 (unreleased)
 

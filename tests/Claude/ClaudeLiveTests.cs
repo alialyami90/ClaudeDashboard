@@ -141,12 +141,14 @@ internal static class ClaudeLiveTests
         });
 
         check("Claude Medium fills its height with project rows at 100% and 140% (v0.53.1)", () => {
-            // The Lead on v0.53.0: at 640 × 420 and 140% Medium showed one project and "+2 more" over a row's room left empty.
+            // The Lead on v0.53.0 and v0.53.1: at 640 × 420 and 140% Medium showed one project and "+2 more" over a row's
+            // room left empty. The room is measured from the body's bottom, not from the list, which sizes to its rows.
             int seen = 0;
+            foreach (bool needs in new[] { true, false })
             foreach (double scale in new[] { 1.0, 1.4 })
                 foreach (var size in new[] { new Size(640, 420), new Size(500, 400) })
                 {
-                    string name = "claude-medium-" + (int)(scale * 100) + "-" + size.Width + "x" + size.Height;
+                    string name = "claude-medium-" + (needs ? "needs-" : "crowded-") + (int)(scale * 100) + "-" + size.Width + "x" + size.Height;
                     string path = Path.Combine(Fresh(directory, name), "settings.xml");
                     SettingsStore.Save(path, new AppSettings { ClaudePeriod = "Today", TextScale = scale });
                     var window = AppController.LoadWindow("ShellWindow");
@@ -154,19 +156,23 @@ internal static class ClaudeLiveTests
                     {
                         using (var controller = new AppController(window, path))
                         {
-                            controller.UseClaudeSample(false, true);
+                            controller.UseClaudeSample(needs, !needs);
                             string png = Path.Combine(Path.GetFullPath(Path.Combine(directory, "..", "renders")), name + ".png");
                             Directory.CreateDirectory(Path.GetDirectoryName(png));
                             AppController.Render(window, size, 1, png);
                             AppController.Render(window, size, 1, png);
                             var list = window.FindName("ClaudeGarages") as StackPanel;
-                            if (list == null) continue;
+                            var body = window.FindName("ClaudeBody") as Grid;
+                            if (list == null || body == null) continue;
                             seen++;
                             double row = CardSizing.ClaudeMediumRow(scale), used = list.Children.OfType<FrameworkElement>().Sum(r => r.ActualHeight);
-                            double room = list.ActualHeight - list.Margin.Top;
+                            double room = body.ActualHeight - list.TransformToAncestor(body).Transform(new Point(0, 0)).Y;
                             bool more = window.FindName("ClaudeMoreProjects") != null;
+                            int projects = 0; while (window.FindName("ClaudeProjectRow" + projects) != null) projects++;
                             Assert(used <= room + 1, "Medium's rows overflow at " + name + ": " + used + " of " + room);
                             Assert(!more || room - used < row - 0.5, "Medium leaves a row's room empty while projects wait at " + name + ": " + Math.Round(room - used) + " of a " + row + "-unit row.");
+                            if (needs && scale > 1 && size.Width == 640)
+                                Assert(projects >= 2, "Medium at " + name + " shows " + projects + " project row(s) in " + Math.Round(room) + " units; two and the more line fit.");
                         }
                     }
                     finally { window.Close(); }
