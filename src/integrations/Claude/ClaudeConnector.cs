@@ -340,9 +340,84 @@ namespace ClaudeDashboard
                 catch (Exception) { restored = null; }
                 if (restored != null) root["statusLine"] = restored; else root.Remove("statusLine");
             }
+            // v0.59.0: cleanupPeriodDays only when the dashboard put it there (and it still holds the dashboard's value).
+            bool logs = UndoLogs(root);
             Save(root);
             ForgetPrevious();
+            if (logs) ForgetLogs();
         }
+
+        // ----- Keep Claude Code's logs a year (v0.59.0, Ali's option C) -----
+
+        // Claude Code deletes session logs older than cleanupPeriodDays (30 by default), and the logs are where History's
+        // past days come from. Sources → "Keep logs a year" sets 365, only when pressed, with the same backups and atomic
+        // write as Connect; Undo, and Disconnect, put back what was there before (or take the key out) while it still
+        // holds 365. A record in the bridge folder says the dashboard set it and what was there before.
+        public const string CleanupKey = "cleanupPeriodDays";
+        public const int LogsYear = 365, LogsDefault = 30;
+        public string LogsRecordPath { get { return Path.Combine(BridgeFolder, "logs-kept.json"); } }
+        // cleanupPeriodDays as settings.json has it, or null when it isn't set (Claude Code's 30 days) or can't be read.
+        public int? CleanupDays()
+        {
+            try
+            {
+                if (!File.Exists(SettingsPath)) return null;
+                object parsed; if (!ClaudeJson.TryParse(File.ReadAllText(SettingsPath, Encoding.UTF8), out parsed)) return null;
+                var n = ClaudeJson.Obj(parsed) == null ? null : ClaudeJson.Obj(parsed).Get(CleanupKey) as JsonNumber;
+                return n == null || Double.IsNaN(n.Value) ? (int?)null : (int)Math.Max(Int32.MinValue, Math.Min(Int32.MaxValue, n.Value));
+            }
+            catch (Exception) { return null; }
+        }
+        // Whether the dashboard set the 365 days (its record is there).
+        public bool LogsKeptByUs { get { try { return File.Exists(LogsRecordPath); } catch (Exception) { return false; } } }
+        // What Keep logs a year says when Claude Code already keeps them a year or more: not a failure, so Sources
+        // shows it as the tile's plain line (which says the same), not the Amber error line.
+        public const string AlreadyKeptWords = "Claude Code already keeps its logs ";
+        public static bool AlreadyKept(string said) { return said != null && said.StartsWith(AlreadyKeptWords, StringComparison.Ordinal); }
+        // Sets cleanupPeriodDays to 365. Returns null when it wrote it, or what it found instead ("already kept N days").
+        // Throws InvalidOperationException (settings.json isn't valid JSON, say) with a message for the user.
+        public string KeepLogsAYear()
+        {
+            var root = Load();
+            var current = root.Get(CleanupKey) as JsonNumber;
+            if (current != null && !Double.IsNaN(current.Value) && current.Value >= LogsYear) return AlreadyKeptWords + (long)current.Value + " days.";
+            Backup();
+            var record = new JsonObject();
+            // A second press keeps the first record's earlier value.
+            JsonObject before = null;
+            try { if (File.Exists(LogsRecordPath)) before = ClaudeJson.Obj(ClaudeJson.Parse(File.ReadAllText(LogsRecordPath, Encoding.UTF8))); } catch (Exception) { before = null; }
+            if (before != null) record = before;
+            else if (root.Contains(CleanupKey)) record["previous"] = root.Get(CleanupKey);
+            root[CleanupKey] = new JsonNumber(LogsYear);
+            Save(root);
+            ClaudeBridge.WriteAtomic(LogsRecordPath, ClaudeJson.Write(record));
+            return null;
+        }
+        // Puts back what was there before the dashboard's 365 days. Returns null when done, or why nothing changed.
+        public string UndoKeepLogs()
+        {
+            if (!LogsKeptByUs) return "Claude Dashboard didn't change how long Claude Code keeps its logs.";
+            if (!File.Exists(SettingsPath)) { ForgetLogs(); return null; }
+            var root = Load();
+            Backup();
+            UndoLogs(root);
+            Save(root);
+            ForgetLogs();
+            return null;
+        }
+        // In root, the earlier value back (or no key) while it still holds the dashboard's 365. Returns whether the
+        // dashboard's record was there.
+        private bool UndoLogs(JsonObject root)
+        {
+            if (!LogsKeptByUs) return false;
+            JsonObject record = null;
+            try { record = ClaudeJson.Obj(ClaudeJson.Parse(File.ReadAllText(LogsRecordPath, Encoding.UTF8))); } catch (Exception) { record = null; }
+            var now = root.Get(CleanupKey) as JsonNumber;
+            if (now == null || now.Value != LogsYear) return true;
+            if (record != null && record.Contains("previous")) root[CleanupKey] = record.Get("previous"); else root.Remove(CleanupKey);
+            return true;
+        }
+        private void ForgetLogs() { try { if (File.Exists(LogsRecordPath)) File.Delete(LogsRecordPath); } catch (Exception) { } }
 
         // After an update, Claude Code should run the bridge that came with it. A copy in use stays until next time.
         public void RefreshHook(string hookSource)

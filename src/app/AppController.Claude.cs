@@ -152,7 +152,8 @@ namespace ClaudeDashboard
         private async void ScanClaudeLogs()
         {
             lastClaudeScan = DateTime.UtcNow; claudeLogsWaiting = false;
-            var scan = Task.Run(() => claude.Usage.Scan(DateTime.UtcNow));
+            // v0.59.0: the background scan also steps the past days' backfill (never the UI thread's scan).
+            var scan = Task.Run(() => claude.Usage.Scan(DateTime.UtcNow, true));
             claudeScan = scan;
             try { await scan; } catch (Exception) { }
             if (disposed) return;
@@ -235,6 +236,8 @@ namespace ClaudeDashboard
         private void KeepClaudeHistory(DateTime now)
         {
             if (claudeHistory == null || claudeView == null || claudeView.Sample) return;
+            // v0.59.0: the log backfill follows Settings → Claude → History.
+            claude.Usage.Backfill.Enabled = settings.ClaudeHistory;
             if (!settings.ClaudeHistory)
             {
                 if (!claudeHistoryCleared) { claudeHistory.Clear(); claudeHistoryCleared = true; }

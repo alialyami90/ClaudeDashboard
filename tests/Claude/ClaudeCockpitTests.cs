@@ -51,7 +51,7 @@ internal static class ClaudeCockpitTests
             Assert(!ClaudeJson.Compact(day.ToJson()).Contains("\"session\""), "A day file names a session.");
         });
 
-        check("Claude history keeps 8 weeks, never shrinks a day, and clears when turned off", () => {
+        check("Claude history keeps a year (v0.59.0), never shrinks a day, and clears when turned off", () => {
             string bridge = Fresh(directory, "history-files");
             var history = new ClaudeHistory(bridge, TimeZoneInfo.Utc);
             var big = new List<ClaudeUsageEntry> { new ClaudeUsageEntry { At = Now.AddDays(-1), Session = "a", Folder = "C:/Code/api", Tokens = 900, Priced = true },
@@ -63,11 +63,11 @@ internal static class ClaudeCockpitTests
             Assert(!history.Save(big.Skip(1).ToList(), null, Now.AddMinutes(2), true) && history.Read(Now.Date.AddDays(-1)).Tokens == 1000, "A day shrank as its replies fell out of the scan.");
             // Old and stray files go; the sparkline is 7 days with today's live count.
             string folder = ClaudeHistory.Folder(bridge);
-            File.WriteAllText(Path.Combine(folder, Now.Date.AddDays(-56).ToString("yyyy-MM-dd") + ".json"), "{\"date\":\"" + Now.Date.AddDays(-56).ToString("yyyy-MM-dd") + "\"}");
-            File.WriteAllText(Path.Combine(folder, Now.Date.AddDays(-55).ToString("yyyy-MM-dd") + ".json"), "{\"date\":\"" + Now.Date.AddDays(-55).ToString("yyyy-MM-dd") + "\"}");
+            File.WriteAllText(Path.Combine(folder, Now.Date.AddDays(-ClaudeHistory.KeptDays).ToString("yyyy-MM-dd") + ".json"), "{\"date\":\"" + Now.Date.AddDays(-ClaudeHistory.KeptDays).ToString("yyyy-MM-dd") + "\"}");
+            File.WriteAllText(Path.Combine(folder, Now.Date.AddDays(-(ClaudeHistory.KeptDays - 1)).ToString("yyyy-MM-dd") + ".json"), "{\"date\":\"" + Now.Date.AddDays(-(ClaudeHistory.KeptDays - 1)).ToString("yyyy-MM-dd") + "\"}");
             File.WriteAllText(Path.Combine(folder, "notes.json"), "{}");
             history.Prune(Now);
-            Assert(!File.Exists(Path.Combine(folder, Now.Date.AddDays(-56).ToString("yyyy-MM-dd") + ".json")) && File.Exists(Path.Combine(folder, Now.Date.AddDays(-55).ToString("yyyy-MM-dd") + ".json")) && !File.Exists(Path.Combine(folder, "notes.json")), "Pruning kept the wrong files.");
+            Assert(!File.Exists(Path.Combine(folder, Now.Date.AddDays(-ClaudeHistory.KeptDays).ToString("yyyy-MM-dd") + ".json")) && File.Exists(Path.Combine(folder, Now.Date.AddDays(-(ClaudeHistory.KeptDays - 1)).ToString("yyyy-MM-dd") + ".json")) && !File.Exists(Path.Combine(folder, "notes.json")), "Pruning kept the wrong files.");
             var spark = history.Spark(Now, new ClaudeDay { Date = Now.Date, Tokens = 75 });
             Assert(spark.Length == 7 && spark[5] == 1000 && spark[6] == 75 && spark.Take(5).All(t => t == 0), "The sparkline is wrong: " + String.Join(",", spark));
             Assert(history.SameTimeLastWeek(Now) == null, "A missing day gave a last-week tick.");

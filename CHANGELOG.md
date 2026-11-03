@@ -6,6 +6,40 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.59.0 (unreleased)
+
+Claude Dashboard: History from the logs (Ali: "I've been using claude for more than a month. I want to see the stats for that.").
+
+- **Past days built from Claude Code's logs.** History used to begin the day it was turned on and read back only a week. Pro and Max plans have no history API, and Claude Code keeps its session logs 30 days by default (`cleanupPeriodDays`), so the logs are the only record of the days before. Now each past local day in the logs that has no day file gets one (`ClaudeBackfill`): tokens, cache reads, replies, threads, ≈ $ at API prices (unpriced replies counted apart), tokens by hour and the share per project.
+  - Each reply counts once, by its request id (its message id when there is none), across every log, helpers' logs included.
+  - A day file the live History wrote from a partial scan (fewer replies than the logs hold; the scan reads a week from the logs' tails) is corrected from the logs: tokens, cache reads, replies, threads, cost, hours and projects. Its own needs and longest wait stay, since only the live History sees those. A day file with as many replies as the logs is never replaced, and today is never written.
+  - The oldest day the logs hold comes from any line's timestamp, not only replies.
+  - Logs are listed and read through Windows' long-path prefix (`\\?\`). A Claude app scratch workspace's log sits in a folder whose encoded name alone can be 200 characters, and a path past 260 characters can be refused without the prefix, which is the likely reason Ali's 3 Oct log was left out without a word. `App.config` turns off .NET's legacy path handling (`Switch.System.IO.UseLegacyPathHandling=false`, `BlockLongPaths=false`) so the prefix is taken: under it, the checks' own long path threw PathTooLongException. A log that can't be read is skipped and counted, never holding up the rest, and Sources says "N logs couldn't be read".
+  - Numbers and project folders only (the same keys the live day files use): no prompt, reply, title, model or command, and no thread name from a first request. Only request ids are held in memory while it reads, never the replies.
+  - It runs on the background log scan's thread, 32 MB of log a step, after each scan, with no timer of its own, and writes the days once every log is read. It follows Settings → Claude → History: off, it does nothing; turned on again, it starts over.
+  - Needs and the longest wait can't be rebuilt from the logs. Such a day carries `fromLogs`, and History's "Last 7 days" shows "—" and "from logs" with a one-line note, instead of 0 (a corrected day shows the wait it saw). The live History keeps the mark when it later adds to that day. The calendar puts a small dot on such days and says in words under it which days came from the logs.
+- **Sources' Hooks row** now carries the "Hooks with Widget Screen · Reconnect" warning. It used to show on the Telemetry row too, because the views took the card's one connection line as telemetry's problem.
+- **A year of day files.** `ClaudeHistory.KeptDays` goes from 56 to 365. The History calendar stays at 8 weeks (`HistoryModel.CalendarDays` = 56, decoupled). History's words say a year.
+- **Sources → History from the logs** shows:
+  - how long Claude Code keeps its logs, or "30 days (Claude Code's default)";
+  - the backfill's progress ("reading 12 of 51 logs") or its result ("24 days");
+  - the oldest day the logs hold;
+  - that Claude Code's docs say Claude desktop app sessions are kept past the cleanup (code.claude.com/docs/en/data-usage).
+- **Keep logs a year** (Ali's option C), a button on that tile. It writes only when pressed: it sets `cleanupPeriodDays` to 365 in Claude Code's `settings.json`, using Connect's merge, dated backups and atomic write.
+  - If it's already 365 or more, it writes nothing; the tile says how long the logs are kept, as plain text, not as an error.
+  - **Undo** puts the earlier value back, or takes the key out if there was none.
+  - Disconnect does the same, but only when the dashboard set the key and it still holds 365. A user's own value is left alone. `logs-kept.json` in the bridge folder records what was there before.
+  - The setting is read along with the 10-second connection check (and right after a press), not on a timer of its own.
+- **Checks** (old-dated logs and a `settings.json` in throwaway folders, never the PC's own):
+  - the right days are built, in budgeted steps, and a partial day file is corrected with its needs kept;
+  - a scratch-workspace-shaped log past 260 characters is read (3 Oct at UTC+3), and a skipped log is counted;
+  - existing days and today are skipped, and days past a year are left out;
+  - a duplicate request id counts once, a helper's copy included;
+  - no text, model, session or request id lands in a day file;
+  - the live History keeps `fromLogs`, and off and on starts over;
+  - History and Sources words;
+  - Keep, larger value kept, Undo, backup, no other key changed, Disconnect, and invalid JSON left alone.
+
 ## v0.58.4 (unreleased)
 
 Docs only. Ali confirmed the lap chart's six defaults on 3 Nov 2026.

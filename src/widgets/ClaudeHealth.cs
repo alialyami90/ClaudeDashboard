@@ -33,7 +33,8 @@ namespace ClaudeDashboard
         public bool WidgetScreenHasTelemetry;
         public static ClaudeLinks From(ClaudeView view)
         {
-            return new ClaudeLinks { TelemetrySetUp = view == null || view.Sample, TelemetryProblem = view == null ? "" : view.TelemetryWarning ?? "" };
+            // The hooks' Widget Screen warning belongs on the Hooks row, not Telemetry's (v0.59.0).
+            return new ClaudeLinks { TelemetrySetUp = view == null || view.Sample, TelemetryProblem = view == null ? "" : view.TelemetryProblem ?? view.TelemetryWarning ?? "", HooksElsewhere = view == null ? null : view.HooksElsewhere };
         }
     }
 

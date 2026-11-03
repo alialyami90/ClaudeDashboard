@@ -242,7 +242,7 @@ internal static class ReliabilitySourcesTests
             var view = ClaudeView.Fixture(DateTime.UtcNow, false);
             Host(new SourcesView(), view, new Size(1000, 700), 1, "Midnight", (window, root) => {
                 var buttons = Descendants(root).OfType<Button>().ToList();
-                Assert(buttons.Count == 5 && buttons.All(b => !b.IsEnabled && (b.ToolTip as string) == SourcesView.SampleRefusal), "The sample's buttons should be off with the refusal in their tip.");
+                Assert(buttons.Count == 6 && buttons.All(b => !b.IsEnabled && (b.ToolTip as string) == SourcesView.SampleRefusal), "The sample's buttons should be off with the refusal in their tip.");
             });
         });
 
@@ -253,13 +253,13 @@ internal static class ReliabilitySourcesTests
             var asked = new List<string>();
             Host(sources, view, new Size(1000, 700), 1, "Midnight", (window, root) => {
                 var buttons = Descendants(root).OfType<Button>().ToList();
-                Assert(buttons.Count == 5, "Five buttons expected, got " + buttons.Count + ".");
+                Assert(buttons.Count == 6, "Six buttons (Keep logs a year since v0.59.0) expected, got " + buttons.Count + ".");
                 foreach (var b in buttons)
                     Assert(AutomationProperties.GetName(b).Length > 0 && b.Focusable, "Each button needs a name and the keyboard.");
                 Assert(buttons.All(b => b.IsEnabled), "With Act the buttons should be on.");
                 sources.Act = name => { asked.Add(name); return name == ClaudeSources.CheckPlan ? "Couldn't reach api.anthropic.com" : null; };
                 foreach (var b in buttons) b.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
-                Assert(asked.Count == 5 && asked.Contains(ClaudeSources.OpenLogs) && asked.Contains(ClaudeSources.CheckPlan), "Each button should call Act once with its action: " + String.Join(",", asked));
+                Assert(asked.Count == 6 && asked.Contains(ClaudeSources.KeepLogs) && asked.Contains(ClaudeSources.OpenLogs) && asked.Contains(ClaudeSources.CheckPlan), "Each button should call Act once with its action: " + String.Join(",", asked));
                 // A failed action's words show above the rows, and the next action that works clears them.
                 var plan = buttons.First(b => (b.Tag as string) == ClaudeSources.CheckPlan);
                 plan.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
