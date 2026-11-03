@@ -182,6 +182,7 @@ namespace ClaudeDashboard
             window.Topmost = settings.KeepOnTop;
             claude.PlanEvery = TimeSpan.FromSeconds(settings.ClaudePlanSeconds);
             UpdateClaudeLive();
+            UpdateFrames();
             UpdateHeader();
         }
 
@@ -489,8 +490,57 @@ namespace ClaudeDashboard
             if (!garage) View(CurrentView);
             foreach (var pair in views) pair.Value.Visible = !garage && !minimised && pair.Key == CurrentView;
             UpdateClaudeLive();
+            UpdateFrames();
             UpdateHeader();
         }
+
+        // ----- The views' frame clock (v0.56.1) -----
+
+        // One timer for the view on screen, made the first time a view asks, and run only while the Garage frame
+        // clock's rule allows (FramesAllowed). A request from a view that isn't on screen is ignored.
+        private DispatcherTimer viewFrames;
+        private Action<double> frameStep;
+        private string frameOwner;
+        private DateTime lastFrame;
+        private void AskFrames(string owner, Action<double> step, double fps)
+        {
+            if (disposed) return;
+            if (step == null) { if (owner == frameOwner) { frameStep = null; frameOwner = null; } UpdateFrames(); return; }
+            if (owner != CurrentView) return;
+            frameStep = step; frameOwner = owner;
+            if (viewFrames == null) { viewFrames = new DispatcherTimer(DispatcherPriority.Render, window.Dispatcher); viewFrames.Tick += (sender, e) => FrameTick(); }
+            var interval = TimeSpan.FromMilliseconds(Math.Round(1000 / Math.Max(4, Math.Min(24, Double.IsNaN(fps) ? 4 : fps))));
+            if (viewFrames.Interval != interval) viewFrames.Interval = interval;
+            UpdateFrames();
+        }
+        // The view on screen asked, it's Visible, the window is up, Quiet allows motion and nothing is being rendered.
+        private bool FramesAllowed
+        {
+            get
+            {
+                if (frameStep == null || frameOwner != CurrentView || GarageShown || disposed || Program.Rendering || ClaudeStill || window.WindowState == WindowState.Minimized) return false;
+                var view = View(frameOwner);
+                return view != null && view.Visible;
+            }
+        }
+        // Starts or stops the timer by the rule; a view out of sight loses its request.
+        private void UpdateFrames()
+        {
+            if (frameOwner != null && frameOwner != CurrentView) { frameStep = null; frameOwner = null; }
+            if (viewFrames == null) return;
+            if (!FramesAllowed) { viewFrames.Stop(); return; }
+            if (!viewFrames.IsEnabled) { lastFrame = DateTime.UtcNow; viewFrames.Start(); }
+        }
+        private void FrameTick()
+        {
+            if (!FramesAllowed) { viewFrames.Stop(); return; }
+            DateTime now = DateTime.UtcNow;
+            double seconds = Math.Min(0.25, (now - lastFrame).TotalSeconds); lastFrame = now;
+            frameStep(seconds);
+        }
+        // For the checks: whether the views' frame timer runs, and whether the rule allows it now.
+        public bool ViewFramesRunning { get { return viewFrames != null && viewFrames.IsEnabled; } }
+        public bool ViewFramesAllowed { get { return FramesAllowed; } }
         // Builds the view on screen when it's new or its room or text size changed, then fills it in from the snapshot the
         // card reads. Runs with every fill of the card (the heartbeat and the watchers), never while hidden.
         private void RefreshView()
@@ -501,19 +551,23 @@ namespace ClaudeDashboard
             var host = Control<Border>("ViewHost");
             double width = host.ActualWidth - host.Padding.Left - host.Padding.Right, height = host.ActualHeight - host.Padding.Top - host.Padding.Bottom;
             if (width <= 0 || height <= 0) return;
-            string key = view.Name + "|" + Math.Round(width) + "x" + Math.Round(height) + "|" + appearanceScale + "|" + settings.Use24HourClock + "|" + claudeSample;
+            string key = view.Name + "|" + Math.Round(width) + "x" + Math.Round(height) + "|" + appearanceScale + "|" + settings.Use24HourClock + "|" + claudeSample + "|" + ClaudeStill;
             string built;
             if (!viewBuilt.TryGetValue(view.Name, out built) || built != key || host.Tag as string != view.Name)
             {
                 viewBuilt[view.Name] = key;
+                // A new build asks for frames again from its own Refresh (Quiet may have changed).
+                if (frameOwner == view.Name) { frameStep = null; frameOwner = null; UpdateFrames(); }
                 host.Child = view.Build(ViewContext(), new Size(width, height));
                 host.Tag = view.Name;
             }
             if (claudeCard.View != null) view.Refresh(claudeCard.View, DateTime.UtcNow);
         }
-        private ClaudeViewContext ViewContext()
+        public ClaudeViewContext ViewContext()
         {
-            return new ClaudeViewContext { TextScale = appearanceScale, Use24Hour = settings.Use24HourClock, Sample = claudeSample, Focus = id => FocusClaudeSession(id), Show = ShowView, Act = Act,
+            string owner = CurrentView;
+            return new ClaudeViewContext { TextScale = appearanceScale, Use24Hour = settings.Use24HourClock, Sample = claudeSample, Quiet = ClaudeStill,
+                Frames = (step, fps) => AskFrames(owner, step, fps), Focus = id => FocusClaudeSession(id), Show = ShowView, Act = Act,
                 History = (now, count) => settings.ClaudeHistory && !claudeSample && claudeHistory != null ? claudeHistory.Days(now, count) : null };
         }
 
@@ -708,6 +762,7 @@ namespace ClaudeDashboard
             CloseSettingsWindow();
             disposed = true;
             heartbeat.Stop();
+            if (viewFrames != null) viewFrames.Stop();
             claude.Dispose();
             if (claudeToast != null) claudeToast.Dispose();
         }

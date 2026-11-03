@@ -6,6 +6,12 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.56.1 (unreleased)
+
+Claude Dashboard: lap chart follow-ups (the window's part).
+
+- **A frame clock for the views.** A view asks the window for frames while a car moves (`ClaudeViewContext.Frames`). The window's one timer for it runs only while that view is on screen, the window isn't minimised and Quiet mode isn't keeping the cars still, the same rule as Garage's cars. A view is told Quiet (`ClaudeViewContext.Quiet`).
+
 ## v0.55.0 (unreleased)
 
 Claude Dashboard: the lap chart's tab shell (decision 030, package B).

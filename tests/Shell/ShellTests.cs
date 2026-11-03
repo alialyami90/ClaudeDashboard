@@ -561,6 +561,45 @@ internal static class ShellTests
             }
         });
 
+        check("Shell views' frame clock: runs only for the view on screen, Visible, not minimised and not Quiet (v0.56.1)", () => {
+            string folder = Fresh(directory, "view-frames");
+            var window = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(window, SettingsFile(folder, new AppSettings { ClaudeStillInQuiet = true })))
+            {
+                controller.UseClaudeSample(false);
+                controller.ShowView(ClaudeViews.Limits);
+                AppController.Lay(window, new Size(1000, 600));
+                var limits = controller.ViewContext();
+                Assert(!limits.Quiet && !controller.ViewFramesRunning, "The views' frame clock runs before a view asks.");
+                limits.Frames(seconds => { }, 60);
+                Assert(controller.ViewFramesAllowed && controller.ViewFramesRunning, "The frame clock didn't start for the view on screen.");
+                limits.Frames(null, 0);
+                Assert(!controller.ViewFramesRunning, "The frame clock kept running once the view was still.");
+                // Another tab drops the request; coming back doesn't restart it until the view asks again.
+                limits.Frames(seconds => { }, 12);
+                controller.ShowView(ClaudeViews.Garage);
+                Assert(!controller.ViewFramesRunning, "The frame clock runs behind Garage.");
+                limits.Frames(seconds => { }, 12);
+                Assert(!controller.ViewFramesRunning, "A view out of sight started the frame clock.");
+                controller.ShowView(ClaudeViews.Limits);
+                AppController.Lay(window, new Size(1000, 600));
+                Assert(!controller.ViewFramesRunning, "The frame clock came back without the view asking.");
+                // Below 640 wide there are no views on screen.
+                var again = controller.ViewContext();
+                again.Frames(seconds => { }, 12);
+                Assert(controller.ViewFramesRunning, "The view on screen couldn't ask again.");
+                AppController.Lay(window, new Size(600, 420));
+                Assert(!controller.ViewFramesRunning, "The frame clock runs below 640 wide, where only Garage shows.");
+                // Quiet with the cars kept still: no motion, and the view is told.
+                AppController.Lay(window, new Size(1000, 600));
+                ((Button)window.FindName("QuietButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var quiet = controller.ViewContext();
+                Assert(quiet.Quiet, "The view isn't told Quiet keeps the cars still.");
+                quiet.Frames(seconds => { }, 12);
+                Assert(!controller.ViewFramesAllowed && !controller.ViewFramesRunning, "The frame clock runs in Quiet mode with the cars kept still.");
+            }
+        });
+
         check("Shell window place: a saved place opens only where a screen can still show its title bar", () => {
             var main = new Rect(0, 0, 1920, 1040); var left = new Rect(-1280, 0, 1280, 984);
             Assert(WindowPlacement.Visible(new Rect(100, 100, 1200, 700), new[] { main }), "A window on the main screen was called off-screen.");
