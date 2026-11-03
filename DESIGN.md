@@ -33,7 +33,7 @@ Two plan states sit on top of any car: a fuel lamp that blinks at 90% of the 5-h
 
 ## Window sizes
 
-The window is an ordinary one, at least 360 × 300, with a 56-unit header (the app name, the live summary, 5 h / Today / Week, Quiet and Settings; the words fold away as it narrows). From 640 wide a tab row sits under the header with the six views (see The views); below 640 there are no tabs and the window is the Garage card alone, as before v0.55.0. The summary counts Garage's chosen period while Garage is on screen, and the last 5 hours on the other views. When the whole summary won't fit beside them, it first shortens to the two most urgent parts and the thread count, then takes a line of its own (the header becomes 84 units) unless that would cost the card its design or Small its 5-hour meter; then it shortens to the most urgent part with the thread count, then that part alone, and it never breaks mid-word. Under the card is the source-health line (v0.50.0; see below), which never folds away. The card fills the rest, picks its design from the space it has, and switches live while the window is resized. The thresholds are `CardSizing.Claude` at the bottom of `ClaudeCard.cs`, in device-independent pixels, checked at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900, and at 150% display scaling (`tests/Shell/ShellTests.cs`).
+The window is an ordinary one, at least 360 × 300, with a 56-unit header (the app name, the live summary, 5 h / Today / Week, Quiet and Settings; the words fold away as it narrows). From 640 wide a tab row sits under the header with the seven views (see The views); below 640 there are no tabs and the window is the Garage card alone, as before v0.55.0. The summary counts Garage's chosen period while Garage is on screen, and the last 5 hours on the other views. When the whole summary won't fit beside them, it first shortens to the two most urgent parts and the thread count, then takes a line of its own (the header becomes 84 units) unless that would cost the card its design or Small its 5-hour meter; then it shortens to the most urgent part with the thread count, then that part alone, and it never breaks mid-word. Under the card is the source-health line (v0.50.0; see below), which never folds away. The card fills the rest, picks its design from the space it has, and switches live while the window is resized. The thresholds are `CardSizing.Claude` at the bottom of `ClaudeCard.cs`, in device-independent pixels, checked at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900, and at 150% display scaling (`tests/Shell/ShellTests.cs`).
 
 - **Large** (card from 640 × 420): the plan row (tank, week laps, and from 860 wide the burn tile); the pit stop strip while anything waits on you; the ledger of garages and cars, which scrolls; and from 1000 wide a side panel with the 5-hour lanes and four facts.
 - **Medium:** two mini plan tiles over the top garages, with up to three cars inline, and a last row "+3 more projects · 1 your turn" when they don't all fit. Its Needs-you line says how long ("Needs you 4 min · Fix login").
@@ -63,7 +63,7 @@ Week keeps the ledger: Tokens, Cache reads, Replies (or ≈ $ API value), Models
 
 From 640 wide it sits at the right end of the tab row, so a missing source shows on every view; below 640 it sits under the card. It is one control, moved rather than copied. "Sample" is pinned first on fixtures, then Hooks · Logs · Telemetry · Plan. Each source has a level with its own Segoe MDL2 glyph, so colour is never the only sign: fine (CheckMark), waiting (Sync: "Logs counting…", "Logs: none yet", "Telemetry with Widget Screen"), old (Recent: "Plan 12 min old", Amber), off and why (Cancel: "Hooks off: not connected", "Plan off: not signed in") and failed (Warning: "Logs unreadable", "Telemetry off: port 43832 in use", "Hooks with Widget Screen · Reconnect", Amber). The full reason is in each tooltip and screen-reader name. As the window narrows the line steps down, and never folds or cuts a word: every reason in full; short reasons; the sources that are fine keep only their glyph; the ones with trouble keep only their names; then only the Amber ones keep a name. So on Small healthy sources are glyphs only, and Reconnect and the reasons are in the tooltips. The line is 24 units at 100% text and overlaps the lower 16 units of the card's padding, so its own row is 8.
 
-## The views (v0.55.0–v0.58.0)
+## The views (v0.55.0–v0.61.0)
 
 From 640 wide a real tab list under the header chooses the view; each tab has a spoken name and its key in the tip. The views build from the same snapshot and refresh on the 1 s heartbeat; none starts a timer of its own.
 
@@ -75,6 +75,7 @@ From 640 wide a real tab list under the header chooses the view; each tab has a 
 | Ctrl+4 | **History** | 8 weeks of days (files kept a year, past days from the logs), the hour-of-day profile, the last 7 days and this week's projects |
 | Ctrl+5 | **Reliability** | Tool failures, API errors in the last hour, asks and denials, tools across all sessions, and stuck turns with their reasons |
 | Ctrl+6 | **Sources** | Hooks, Logs, Telemetry, Plan meters and Claude app threads, each with its state, freshness, what it gives and one action |
+| Ctrl+7 | **Insights** | Models, effort and thinking, tools, projects, when and health over 7 days, 30 days or All, against the period before (decision 031, v0.61.0) |
 
 ### Live: the lap chart
 
@@ -91,7 +92,20 @@ From 640 wide a real tab list under the header chooses the view; each tab has a 
 - **History**: an 8-week calendar of tokens per day, the hour-of-day profile with a tick at the same hour last week, and the last 7 days (tokens, ≈ $, threads, times it needed you, the longest wait, Amber from 15 minutes). A day built from Claude Code's logs (v0.59.0) gets a small Text-ink dot in its calendar corner, a line in words under the calendar naming those days, and "—" and "from logs" in the last 7 days where the dashboard saw no needs or waits, with a one-line note; never a 0 it didn't count. While History is off it says so and where to turn it on.
 - **Reliability**: the figures for today, the API error strip for the last hour (a rose mark per failed request with its status), tools across all sessions with runs, typical and longest times, failures and asks, and stuck turns with their reasons in plain words, never the reply. With telemetry off it says so and shows the logs' tool count.
 - **Sources**: five rows, each with a glyph and state, how fresh it is, what it gives and one button (Connect, Reconnect, Open folder, Turn on, Sign in, Check now, Show archived). A button takes the same path as its Settings → Claude button, confirmations and backups included, and what went wrong shows above the rows. Under the rows, a **History from the logs** tile (v0.59.0) says how long Claude Code keeps its logs ("30 days (Claude Code's default)", or "(set by Claude Dashboard)"), the backfill's progress or result and how many logs couldn't be read, with one button: **Keep logs a year** (`cleanupPeriodDays` 365, dated backup) or **Undo**. On the sample nothing changes and it says so.
-- Limits and History each scroll as one page that Tab reaches; the arrow, Page and Home/End keys scroll it, and a redraw keeps its place.
+- Limits, History and Insights each scroll as one page that Tab reaches; the arrow, Page and Home/End keys scroll it, and a redraw keeps its place.
+
+### Insights (v0.61.0)
+
+One scrolling page under a range row ([decision 031](docs/decisions/031-insights.md)). The range row chooses 7 days, 30 days or All and says what it is compared with ("compared with the previous 7 days"); each total under it carries ↑ or ↓ and the change in %. A comparison shows only when the period before had at least 3 active days and 50 replies; otherwise it says "too little before", and All says there is nothing to compare with. Switching range, or the tools' model filter, redraws at once from the last snapshot; the page starts no timer.
+
+- **Models**: a share bar by tokens, a table (replies, tokens, ≈ $, thinking tokens, share of tokens and of replies) and tokens per day stacked by model. Ids read as names ("Opus 5.5"); an unknown id stays as it is.
+- **Effort and thinking**: replies by effort level for each model, one split bar a model with a legend; the share of replies with thinking, the ≈ median and the longest thinking time.
+- **Tools**: the 10 most used and the 5 least used, with calls, errors, error % and ≈ median time; a row of model choices filters them to that model's own calls, errors and ≈ times. MCP servers, and skills and plugins, sit underneath. An MCP tool reads "server · tool" and wraps, its full name in the spoken name.
+- **Projects**: ranked by tokens, with replies, ≈ $, sessions and lines + and −, and the most and least active.
+- **When**: an hour × weekday heat grid of tokens in the accent's shades, and sessions per day.
+- **Health**: API errors, retries and compactions against the period before, how permissions were decided (by rule, by a hook, asked you, denied) and how replies ended (tool use, end of turn, other).
+- Series are the accent, Glacier, then each at half strength and Muted, never Amber. Amber marks only a warning: a tool with 3 errors or more and a fifth of its calls failing, or API errors more than twice the period before.
+- Every estimate says ≈ ($, tool times, medians). A missing figure says why: "— in ≈ median: tool times need both the call and its result in the log", days kept before v0.60.0, today's detail still being read, no effort levels. The footer says how many days came from the logs and how many carry the detail. On the sample the page says it is one.
 
 ## The plain list
 
@@ -100,7 +114,7 @@ Settings → Claude → Show a plain list (v0.47.0) swaps the pit wall for text 
 ## Keyboard and window
 
 - **Tab** moves between thread rows, Medium's cars, garages and Go to it (v0.51.0). A 2-unit outline in the Text colour shows where focus is, only when the keyboard put it there. **Enter** or **Space** brings a running session's window forward or folds a garage, and a focused row scrolls itself into view.
-- **Ctrl+1 to Ctrl+6** choose the views in tab order (v0.55.0); below 640 wide, any view but Garage says how wide the window must be.
+- **Ctrl+1 to Ctrl+7** choose the views in tab order (v0.55.0; Ctrl+7, Insights, since v0.61.0); below 640 wide, any view but Garage says how wide the window must be.
 - **Ctrl+G** opens the first session in the attention queue: the Needs you that has waited longest, then Stuck, Your turn and Silent (v0.52.0; Ctrl+1 until v0.55.0). With nothing waiting it says "Nothing is waiting on you." It never answers anything (decision 027).
 - **Live's lanes** are buttons in tab order, named like "Fix the login timeout, needs you 4 minutes, api-server"; Enter opens the session's panel and Esc closes the drawer.
 - **The header summary** is an assertive live region: a screen reader reads it when a session starts needing you, and says nothing when the count falls.
