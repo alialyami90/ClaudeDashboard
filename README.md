@@ -4,7 +4,7 @@ A Windows desktop app that watches every Claude Code session on your PC. Each pr
 
 It is native WPF on .NET Framework 4.8, with no WebView, no packages and no server. It reads what Claude Code and the Claude app already write on your PC, and nothing about your sessions leaves it. Claude Dashboard is an independent app, not made by Anthropic.
 
-> **Being rebuilt (Nov 2026).** Claude Dashboard grew out of Widget Screen, a touchscreen dashboard with 19 widgets. It is being cut down to the Claude watcher in six releases, v0.42.0 to v0.47.0 ([decision 026](docs/decisions/026-claude-dashboard.md)). Since v0.45.0 the other widgets are gone and the watcher is its own window. Settings stay in `%LOCALAPPDATA%\WidgetScreen` until v0.46.0 moves them, and v0.47.0 adds Watcher package 4.
+> **Formerly Widget Screen.** Claude Dashboard grew out of Widget Screen, a touchscreen dashboard with 19 widgets, and was cut down to the Claude watcher in six releases, v0.42.0 to v0.47.0 ([decision 026](docs/decisions/026-claude-dashboard.md)). Coming from Widget Screen? See [Moving over from Widget Screen](#moving-over-from-widget-screen).
 
 ## What it shows
 
@@ -12,9 +12,12 @@ It is native WPF on .NET Framework 4.8, with no WebView, no packages and no serv
 - **Your plan.** The 5-hour window as a fuel tank with your pace and where it will end up, the week as seven laps, and tokens a minute on a rev counter.
 - **Pit stop.** The thread that has waited longest on you, what it wants ("Wants to use Bash · waiting 2 min") and **Go to it**, which brings its window forward.
 - **The ledger.** Tokens, cache reads, replies or ≈ $ at API prices, model mix and lines added and removed, per project and per thread.
-- **Alerts.** A Windows notification when a session needs you, gets stuck or finishes a long turn, and an optional chime. Quiet mode keeps both silent.
+- **Alerts.** A Windows notification when a session needs you, gets stuck or finishes a long turn, and an optional chime. Quiet mode keeps both silent. A click brings the session's own window forward; the dashboard never answers a permission prompt for you ([decision 027](docs/decisions/027-claude-answer-permission-prompts.md)).
+- **The last 7 days.** Small bars on the rev counter's tile, one a day, with a tick for what last week had used by this time of day.
+- **Export.** Settings → Claude → History → **Copy summary** (the last 7 days as a Markdown table) and **Save CSV…** (one row per day, project and thread).
+- **Plain list.** Settings → Claude → Show a plain list instead of the pit wall: the same projects, threads, states and numbers as rows of text, named for screen readers, with nothing moving.
 
-It's an ordinary window (at least 360 × 300) that remembers where it was and picks a Large, Medium or Small design from its size: the full pit wall, the top garages under two plan tiles, or just the car that needs you over the 5-hour meter. Its edge turns Amber when a session needs you. Settings has three tabs: Theme (Midnight, Slate, Warm or the light Claude palette, accent, text size, clock, Quiet mode), Claude, and Window (start with Windows, start minimised, open where I last closed it).
+It's an ordinary window (at least 360 × 300) that remembers where it was and picks a Large, Medium or Small design from its size: the full pit wall, the top garages under two plan tiles, or just the car that needs you over the 5-hour meter. Its edge turns Amber when a session needs you. Settings has three tabs: Theme (Midnight, Slate, Warm or the light Claude palette, accent, text size, clock, Quiet mode), Claude (connection, sign-in, alerts, the plain list, intervals, History and export, projects), and Window (start with Windows, start minimised, open where I last closed it).
 
 ## Setting it up
 
@@ -26,16 +29,27 @@ It's an ordinary window (at least 360 × 300) that remembers where it was and pi
    Sessions you start afterwards show up. Sessions that were already running show from Claude Code's own session list and logs. **Disconnect** takes out exactly what Connect added. If your organisation's managed settings override hooks, the status line or telemetry, Settings → Claude says so.
 3. **Sign in with Claude** (Settings → Claude) for the plan meters. The app gets its own sign-in that can read only your profile and your plan's usage, never chats and never credits. It is kept encrypted for your Windows account and checks the limits every 5 minutes by default. Without it, the meters come from Claude Code's status line when a session reports them.
 
+### Moving over from Widget Screen
+
+The first time Claude Dashboard starts with nothing in its own folder and something in `%LOCALAPPDATA%\WidgetScreen`, it asks before the dashboard opens:
+
+- **Bring it over** copies the Claude settings, the theme and text size, the Claude sign-in and Claude Code's bridge folder. If Widget Screen had connected Claude Code, it connects again from the new folder on the same telemetry port, after the usual dated backup of `settings.json`.
+- **Start fresh** copies nothing. If Claude Code was connected, it keeps sending to Widget Screen until you connect it in Settings → Claude.
+- Closing the window decides nothing, and the question comes back next time.
+
+Widget Screen's folder is only read. Afterwards, quit Widget Screen, then uninstall it from Installed apps and keep its settings when asked.
+
 ## Where your data lives
 
 | What | Where |
 | --- | --- |
-| Settings | `%LOCALAPPDATA%\WidgetScreen\settings.xml` (moves to `%LOCALAPPDATA%\ClaudeDashboard` in v0.46.0) |
+| Settings | `%LOCALAPPDATA%\ClaudeDashboard\settings.xml` |
 | The app's Claude sign-in | `claude-session.dat` beside it, encrypted with DPAPI for your Windows account |
 | The hook's session files | the `claude\` folder beside it |
+| The daily summary | `claude\history\YYYY-MM-DD.json`, one a day, kept 8 weeks: tokens, replies, threads, the API value, needs and the longest wait, by hour and project. No prompts, replies, titles or session ids. Settings → Claude → History → Keep a daily summary turns it off and deletes them. |
 | What it reads, read-only | Claude Code's `sessions\` and `projects\` logs under `%USERPROFILE%\.claude` (or `CLAUDE_CONFIG_DIR`), and the Claude app's thread records |
 
-It never reads Claude Code's credentials, never stores a prompt or reply, and listens only on 127.0.0.1. The first line of a thread's first request may be used as its name when it has no title, and is kept in memory only. [PRODUCT.md](PRODUCT.md) has the full list of what it reads and never does.
+It never reads Claude Code's credentials, never stores a prompt or reply, and listens only on 127.0.0.1. The first line of a thread's first request may be used as its name when it has no title, and is kept in memory only: Save CSV uses the thread's id label instead. [PRODUCT.md](PRODUCT.md) has the full list of what it reads and never does.
 
 ## Building it
 
@@ -65,11 +79,11 @@ CI on GitHub runs the same checks on every push and pull request. Every change g
 | --- | --- |
 | `src/integrations/Claude/` | The engine: the bridge, Claude Code's session list and logs, the Claude app's threads, sign-in and plan meters, the telemetry receiver, file watchers, alerts |
 | `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs` | The card's three designs, the pixel-art cars and garages, the gauges |
-| `src/app/` | Start-up (`ShellProgram`), the window (`ShellWindow.xaml`), Settings (`SettingsWindow.xaml`), `AppController` and its Claude part, palettes, settings XML, notifications |
+| `src/app/` | Start-up (`ShellProgram`), the window (`ShellWindow.xaml`), Settings (`SettingsWindow.xaml`), `AppController` and its Claude and migration parts, `Migration`, palettes, settings XML, notifications |
 | `hook/` | `ClaudeHook.exe`, which Claude Code's hooks and status line call |
 | `installer/` | The setup exe |
-| `tests/Claude/` | The watcher's checks |
-| `docs/decisions/` | Decision records 014–026: why the watcher works the way it does |
+| `tests/Claude/`, `tests/Migration/` | The watcher's checks and the move from Widget Screen |
+| `docs/decisions/` | Decision records 014–027: why the watcher works the way it does |
 | `docs/design/` | The watcher's design note, the approved pit wall mock and the setup note |
 | `docs/archive/` | Widget Screen's spec, records and notes, kept read-only as history |
 

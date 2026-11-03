@@ -6,6 +6,23 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.47.1 (3 Nov 2026)
+
+Claude Dashboard: the documents catch up with v0.46.0 and v0.47.0, and the transformation plan is done.
+
+- **README.md** drops the "being rebuilt" banner. It gains a "Moving over from Widget Screen" section, the new settings folder, the daily summary files in "Where your data lives", the 7-day bars, export and the plain list.
+- **PRODUCT.md** gains a "What it keeps" section (settings, sign-in, bridge and the daily summary; exports only on request, never a thread name taken from a request). It also says the app never answers a permission dialog (decision 027), the plain list is in Accessibility, and the cloud garage isn't built yet.
+- **DESIGN.md** describes the 7-day bars and the plain list.
+- **Decision 026**'s "As built" covers phases 5 and 6, and the namespace rename moves to v0.47.3.
+- **docs/design/setup.md**: "Also delete my settings…" deletes `%LOCALAPPDATA%\ClaudeDashboard` and never Widget Screen's folder.
+- **CLAUDE.md**:
+  - the plan is finished;
+  - the table lists v0.47.1 (docs), v0.47.2 (Shell's header fix) and v0.47.3 (the namespace rename);
+  - the folder rule now names `%LOCALAPPDATA%\ClaudeDashboard`, with Widget Screen's folder only read by the migration;
+  - the engine includes history and export;
+  - the Claude palette is no longer "from phase 4".
+- No app changes.
+
 ## v0.47.0 (2 Nov 2026)
 
 Claude Dashboard, phase 6 of decision 026: Watcher package 4, the Cockpit.

@@ -1,10 +1,10 @@
 # Claude Dashboard
 
-A Windows desktop app whose whole window is the Claude Code watcher: every Claude Code session on the PC as a pixel-art car in its project's garage, the plan's 5-hour and weekly limits, and tokens, cost and lines per project and thread. It grew out of Widget Screen (19 widgets on a 1920 × 720 touchscreen) and is being cut down to this one widget in phases 1–6 of [decision 026](docs/decisions/026-claude-dashboard.md). [PRODUCT.md](PRODUCT.md) says what it is for, [DESIGN.md](DESIGN.md) how it looks, [README.md](README.md) how to use and build it.
+A Windows desktop app whose whole window is the Claude Code watcher: every Claude Code session on the PC as a pixel-art car in its project's garage, the plan's 5-hour and weekly limits, and tokens, cost and lines per project and thread. It grew out of Widget Screen (19 widgets on a 1920 × 720 touchscreen) and was cut down to this one widget in phases 1–6 of [decision 026](docs/decisions/026-claude-dashboard.md), finished in v0.47.0. [PRODUCT.md](PRODUCT.md) says what it is for, [DESIGN.md](DESIGN.md) how it looks, [README.md](README.md) how to use and build it.
 
 **Stack:** native **WPF on .NET Framework 4.8, x64**, C#, built with the Framework's `csc.exe`. No `.csproj`, no NuGet, no WebView, no browser frontend, no server. The setup exe (`installer/`) is built the same way.
 
-**Windows only** (Ali, 2 Nov 2026). The Android app and the phone link leave the tree in phase 2/3 and stay in history at the `v0.41.0` tag. A Claude-only phone companion is a roadmap item after v0.47.0, started from that tag.
+**Windows only** (Ali, 2 Nov 2026). The Android app and the phone link left the tree in v0.44.0 and stay in history at the `v0.41.0` tag. A Claude-only phone companion is a roadmap item after v0.47.0, started from that tag. Package 4.3, the cloud garage, waits on a look at the Claude app's cloud thread records.
 
 ## The agreed plan (decision 026)
 
@@ -15,13 +15,16 @@ A Windows desktop app whose whole window is the Claude Code watcher: every Claud
 | 4. The dashboard window, Settings window, Claude palette | v0.45.0 | Shell |
 | 5. Move users over to `%LOCALAPPDATA%\ClaudeDashboard` | v0.46.0 | Builder |
 | 6. Watcher package 4 (the Cockpit; answering permission prompts dropped, decision 027) | v0.47.0 | Watcher |
+| Docs catch up with v0.46.0 and v0.47.0 | v0.47.1 | Scribe |
+| Header fix | v0.47.2 | Shell |
+| Namespace `WidgetScreen` → `ClaudeDashboard` | v0.47.3 | Lead |
 
-Until the step that changes them: the C# namespace stays `WidgetScreen` until its own rename PR at v0.47.1, after package 4 (it moved out of phase 4; `make-icon.ps1` loads `WidgetScreen.PitArt` by name), and the settings and bridge folder stays `%LOCALAPPDATA%\WidgetScreen` until phase 5, because Claude Code's hooks point at `...\WidgetScreen\claude\ClaudeHook.exe`. Each member touches only the files the plan gives them; the Lead writes `CHANGELOG.md`, `CLAUDE.md` and `BRANCHES.md` at each merge, and the Scribe reviews every PR.
+The C# namespace stays `WidgetScreen` until its own rename PR at v0.47.3 (it moved out of phase 4; that PR also updates `make-icon.ps1`, which loads `WidgetScreen.PitArt` by name). Since v0.46.0 settings, the sign-in and the bridge live in `%LOCALAPPDATA%\ClaudeDashboard`, and Claude Code's hooks run `...\ClaudeDashboard\claude\ClaudeHook.exe`. `%LOCALAPPDATA%\WidgetScreen` is only read, by the first run's offer to bring it over (`Migration`, `AppController.Migration.cs`); never write to it. Each member touches only the files the plan gives them; the Lead writes `CHANGELOG.md`, `CLAUDE.md` and `BRANCHES.md` at each merge, and the Scribe reviews every PR.
 
-## The engine (don't change it in the cut phases)
+## The engine
 
-- `src/integrations/Claude/`: the bridge folder written by `hook/ClaudeHook.cs` (Claude Code's hooks and status line); Claude Code's `sessions\` and `projects\` logs under `%USERPROFILE%\.claude` or `CLAUDE_CONFIG_DIR`, read-only; the Claude app's thread records, read-only; the widget's own **Sign in with Claude** (PKCE, `user:profile`, DPAPI `claude-session.dat`, usage meters from `api.anthropic.com` every 5 minutes); OpenTelemetry to a loopback receiver on **127.0.0.1:43832** (next free up to 43839); `ClaudeWatch` file watchers with a 30 s fallback; alerts and `ClaudeToast`.
-- The card: `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs`. Small, Medium and Large by the `CardSizing.Claude` members, which live at the bottom of `ClaudeCard.cs` since v0.45.0. The window is at least 360 × 300.
+- `src/integrations/Claude/`: the bridge folder written by `hook/ClaudeHook.cs` (Claude Code's hooks and status line); Claude Code's `sessions\` and `projects\` logs under `%USERPROFILE%\.claude` or `CLAUDE_CONFIG_DIR`, read-only; the Claude app's thread records, read-only; the widget's own **Sign in with Claude** (PKCE, `user:profile`, DPAPI `claude-session.dat`, usage meters from `api.anthropic.com` every 5 minutes); OpenTelemetry to a loopback receiver on **127.0.0.1:43832** (next free up to 43839); `ClaudeWatch` file watchers with a 30 s fallback; alerts and `ClaudeToast`; since v0.47.0 the daily summary files (`ClaudeHistory`, `claude\history\`, kept 8 weeks, numbers only) and Copy summary and Save CSV (`ClaudeExport`, which never writes a thread name taken from its first request).
+- The card: `src/widgets/ClaudeCard.cs`, `PitArt.cs`, `PitGraphics.cs`. Small, Medium and Large by the `CardSizing.Claude` members, which live at the bottom of `ClaudeCard.cs` since v0.45.0. The window is at least 360 × 300. Settings → Claude → Show a plain list swaps the pit wall for text rows (`BuildPlain`).
 - Settings → Claude → Connect merges into Claude Code's `settings.json` with five dated backups and never overwrites the user's `OTEL_*`; Disconnect takes out exactly that. `ClaudeHook.exe` and the `.widgetscreen-backup` suffix keep their names so Disconnect finds its own entries.
 - Decisions 014, 015, 016 (projects and threads), 017–020, 022 (review fixes), 023–027 are current. Everything else is in `docs/archive/`, read-only history.
 
@@ -45,7 +48,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1
 - One 1 s heartbeat; nothing polls while hidden or minimised; the frame clock runs only while a visible car moves.
 - Honest states: loading, unavailable, disconnected and working look different; a missing reading says why; fixtures say they are samples; estimates say "≈".
 - Settings are local XML written atomically. Never commit `.dat` files, keys or build output.
-- Segoe UI and Segoe MDL2 only; cars and garages drawn in code; no images or emoji as icons; no shadows, blurs or effects. Midnight, Slate, Warm (and Claude from phase 4); Amber for warnings and Needs you.
+- Segoe UI and Segoe MDL2 only; cars and garages drawn in code; no images or emoji as icons; no shadows, blurs or effects. Midnight, Slate, Warm and Claude; Amber for warnings and Needs you.
 - Don't invoke Impeccable unless Ali authorizes it again.
 
 ## Branches, CI and releases
