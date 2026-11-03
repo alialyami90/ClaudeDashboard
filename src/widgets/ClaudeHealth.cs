@@ -83,6 +83,8 @@ namespace ClaudeDashboard
         {
             if (view.LogsFailed)
                 return Item(Logs, ClaudeHealthLevel.Failed, "Logs unreadable", "Logs unreadable", ClaudeText.NoLogs + " Tokens, replies and lines show — until they can be read.");
+            if (view.LogsEmpty)
+                return Item(Logs, ClaudeHealthLevel.Waiting, "Logs: none yet", Logs, "Claude Code hasn't written a session log on this PC yet. Tokens, replies and lines start counting with its first session.");
             if (!view.LogsRead)
                 return Item(Logs, ClaudeHealthLevel.Waiting, "Logs counting…", "Logs counting", "Claude Code's logs are still being read, so numbers marked ≈ will grow.");
             return Item(Logs, ClaudeHealthLevel.Ok, Logs, Logs, "Tokens, replies, tool calls and lines come from Claude Code's logs.");

@@ -58,6 +58,19 @@ internal static class ShellTests
         probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
         return probe.DesiredSize.Width > block.ActualWidth + 1;
     }
+    private static List<TextBlock> Texts(DependencyObject root)
+    {
+        var found = new List<TextBlock>();
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            var text = child as TextBlock;
+            if (text != null) found.Add(text);
+            found.AddRange(Texts(child));
+        }
+        return found;
+    }
     private static void Click(Window window, string name) { ((Button)window.FindName(name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
 
     public static void Run(string directory, Action<string, Action> check)
@@ -201,7 +214,7 @@ internal static class ShellTests
             Assert(ClaudeText.Fact(ClaudeFactKinds.Tokens, counting, ClaudePeriod.Today, false, false)[0].StartsWith("≈"), "Tokens being counted don't say ≈.");
             var failed = ClaudeView.Fixture(now, false); failed.LogsFailed = true;
             var tokens = ClaudeText.Fact(ClaudeFactKinds.Tokens, failed, ClaudePeriod.Today, false, false);
-            Assert(tokens[0] == "—" && tokens[1].EndsWith("LOGS UNREADABLE") && tokens[2] == ClaudeText.NoLogs, "Unreadable logs look like a count in progress: " + String.Join(" / ", tokens));
+            Assert(tokens[0] == "—" && tokens[1].EndsWith(" · NO LOGS") && tokens[2] == ClaudeText.NoLogs, "Unreadable logs look like a count in progress: " + String.Join(" / ", tokens));
             // One meaning for "running": the header counts working sessions as working.
             Assert(!ClaudeText.Summary(ClaudeView.Fixture(now, false), ClaudePeriod.Today, true).Contains("running"), "The header still says running for working sessions.");
 
@@ -385,7 +398,39 @@ internal static class ShellTests
             }
         });
 
-        check("Shell window place: a saved place opens only where a screen can still show its title bar", () => {
+        check("Shell logs: no logs yet is calm, not a failure, and an unreadable log's words fit the side panel", () => {
+            // A fresh install: no projects folder, then an empty one. Neither is a failure.
+            string config = Fresh(directory, "logs-none");
+            var usage = new ClaudeUsage(config);
+            usage.Scan(DateTime.UtcNow);
+            Assert(usage.Scanned && !usage.Failed && usage.Empty, "A missing projects folder reads as a failure.");
+            Directory.CreateDirectory(Path.Combine(config, "projects", "C--Code-app"));
+            usage.Scan(DateTime.UtcNow);
+            Assert(!usage.Failed && usage.Empty, "An empty projects folder reads as a failure.");
+            File.WriteAllText(Path.Combine(config, "projects", "C--Code-app", "s1.jsonl"), "");
+            usage.Scan(DateTime.UtcNow);
+            Assert(!usage.Failed && !usage.Empty, "A log doesn't end \"none yet\".");
+            DateTime now = DateTime.UtcNow;
+            var none = ClaudeView.Fixture(now, false); none.Sample = false; none.LogsEmpty = true;
+            var logs = ClaudeHealth.Of(none, now, false, null)[1];
+            Assert(logs.Level == ClaudeHealthLevel.Waiting && !logs.Warns && logs.Long == "Logs: none yet" && logs.Short == "Logs", "No logs yet: " + logs.Level + " " + logs.Long);
+
+            // Unreadable logs at 1280 wide: the side panel's words are whole.
+            string folder = Fresh(directory, "logs-unreadable");
+            var window = AppController.LoadWindow("ShellWindow");
+            using (var controller = new AppController(window, SettingsFile(folder, new AppSettings { ClaudeFacts = new[] { ClaudeFactKinds.Tokens, ClaudeFactKinds.Tools, ClaudeFactKinds.Lines, ClaudeFactKinds.Cache } })))
+            {
+                controller.UseClaudeSample(false);
+                var view = controller.ClaudeCardView.View; view.LogsFailed = true;
+                controller.ClaudeCardView.Update(view);
+                AppController.Render(window, new Size(1280, 760), 1, Path.Combine(Renders(directory), "shell-logs-unreadable-1280x760.png"));
+                var words = Texts(window).Where(t => t.IsVisible && t.Text.Contains("NO LOGS")).ToList();
+                Assert(words.Count >= 2, "The side panel doesn't say NO LOGS for the tokens and tools: " + words.Count);
+                foreach (var t in words) Assert(!Cut(t), "The side panel cuts \"" + t.Text + "\".");
+            }
+        });
+
+
             var main = new Rect(0, 0, 1920, 1040); var left = new Rect(-1280, 0, 1280, 984);
             Assert(WindowPlacement.Visible(new Rect(100, 100, 1200, 700), new[] { main }), "A window on the main screen was called off-screen.");
             Assert(WindowPlacement.Visible(new Rect(-1200, 60, 1000, 600), new[] { main, left }), "A window on the left monitor was called off-screen.");

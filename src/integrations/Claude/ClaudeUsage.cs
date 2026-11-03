@@ -173,6 +173,9 @@ namespace ClaudeDashboard
         private readonly object gate = new object();
         public bool Failed { get; private set; }
         public bool Scanned { get; private set; }
+        // No session logs at all: a fresh install, before Claude Code's first session (or its projects folder isn't
+        // there yet). Not a failure; the source-health line says "Logs: none yet".
+        public bool Empty { get; private set; }
         // Package 2, the first scan in chunks: a log bigger than two chunks is read from its head (its first chunk's
         // folder and first request) and then from its tail backwards, a chunk at a time, until its lines are older than
         // Kept. One scan reads at most ScanBudget bytes and the next carries on, so a week of large logs never holds a
@@ -221,13 +224,15 @@ namespace ClaudeDashboard
             {
                 try
                 {
-                    if (!Directory.Exists(projects)) { Failed = true; Publish(); Scanned = true; return; }
+                    if (!Directory.Exists(projects)) { Failed = false; Empty = true; Publish(); Scanned = true; return; }
                     DateTime oldest = now - Kept;
                     long budget = ScanBudget;
                     // Whether a log still has bytes this scan didn't reach (the budget ran out).
                     bool left = false;
                     // Newest first, so the sessions running now are read before older ones when the budget runs out.
-                    var files = new DirectoryInfo(projects).EnumerateFiles("*.jsonl", SearchOption.AllDirectories).Where(f => f.LastWriteTimeUtc >= oldest).OrderByDescending(f => f.LastWriteTimeUtc).ToList();
+                    var all = new DirectoryInfo(projects).EnumerateFiles("*.jsonl", SearchOption.AllDirectories).ToList();
+                    Empty = all.Count == 0;
+                    var files = all.Where(f => f.LastWriteTimeUtc >= oldest).OrderByDescending(f => f.LastWriteTimeUtc).ToList();
                     foreach (var file in files)
                     {
                         string session = Path.GetFileNameWithoutExtension(file.Name);
