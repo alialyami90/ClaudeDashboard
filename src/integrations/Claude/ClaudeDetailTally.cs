@@ -26,8 +26,21 @@ namespace ClaudeDashboard
         private readonly Func<DateTime, DateTime> localDate;
         private readonly Dictionary<DateTime, ClaudeDayDetail> days = new Dictionary<DateTime, ClaudeDayDetail>();
         // Seen once: replies (by request id), tool calls and results (by tool id), other lines (by uuid).
-        private readonly HashSet<string> replies = new HashSet<string>(StringComparer.Ordinal), stops = new HashSet<string>(StringComparer.Ordinal),
-            thinking = new HashSet<string>(StringComparer.Ordinal), thought = new HashSet<string>(StringComparer.Ordinal), results = new HashSet<string>(StringComparer.Ordinal), lines = new HashSet<string>(StringComparer.Ordinal);
+        private readonly Seen replies = new Seen(), stops = new Seen(), thinking = new Seen(), thought = new Seen(), results = new Seen(), lines = new Seen();
+        // Ids already counted, each with the day it was counted on, so Forget can drop old ones.
+        private sealed class Seen
+        {
+            private readonly Dictionary<string, DateTime> ids = new Dictionary<string, DateTime>(StringComparer.Ordinal);
+            public bool Add(string id, DateTime date)
+            {
+                if (ids.ContainsKey(id)) return false;
+                ids[id] = date; return true;
+            }
+            public void Forget(DateTime before)
+            {
+                foreach (var id in ids.Where(p => p.Value < before).Select(p => p.Key).ToList()) ids.Remove(id);
+            }
+        }
         // Tool calls waiting for their result: name, model, when, and the day they count on.
         private sealed class Call { public string Name, Model; public DateTime At; public DateTime Day; }
         private readonly Dictionary<string, Call> calls = new Dictionary<string, Call>(StringComparer.Ordinal);
@@ -130,20 +143,20 @@ namespace ClaudeDashboard
             if (key.Length == 0) return;
             // The stop reason and thinking can come on a later line of the same reply: each once per reply.
             string stop = ClaudeJson.Str(message, "stop_reason");
-            if (!String.IsNullOrEmpty(stop) && stops.Add(key)) ClaudeDayDetail.Count(day.Stops, stop == "tool_use" || stop == "end_turn" ? stop : "other");
+            if (!String.IsNullOrEmpty(stop) && stops.Add(key, date)) ClaudeDayDetail.Count(day.Stops, stop == "tool_use" || stop == "end_turn" ? stop : "other");
             double ms = ClaudeJson.Num(o, "thinkingDurationMs");
             if (Double.IsNaN(ms)) ms = ClaudeJson.Num(message, "thinkingDurationMs");
             var usage = ClaudeJson.Obj(message, "usage");
             long thinkingTokens = Count(ClaudeJson.Obj(usage, "output_tokens_details"), "thinking_tokens");
             bool timed = !Double.IsNaN(ms) && ms > 0;
             // A reply that thought counts once; its thinking time once, from whichever line carries it.
-            if ((timed || thinkingTokens > 0) && thinking.Add(key)) day.ThinkingReplies++;
-            if (timed && thought.Add(key))
+            if ((timed || thinkingTokens > 0) && thinking.Add(key, date)) day.ThinkingReplies++;
+            if (timed && thought.Add(key, date))
             {
                 long t = (long)ms;
                 day.ThinkingMs += t; day.LongestThinkingMs = Math.Max(day.LongestThinkingMs, t); day.ThinkingBuckets[ClaudeDayDetail.Bucket(t)]++;
             }
-            if (usage == null || !replies.Add(key)) return;
+            if (usage == null || !replies.Add(key, date)) return;
             if (ClaudeJson.Bool(o, "isApiErrorMessage")) day.ApiErrors++;
             ClaudeDayDetail.Count(day.Skills, Name(ClaudeJson.Str(o, "attributionSkill")));
             ClaudeDayDetail.Count(day.Plugins, Name(ClaudeJson.Str(o, "attributionPlugin")));
@@ -182,7 +195,7 @@ namespace ClaudeDashboard
             {
                 if (ClaudeJson.Str(block, "type") != "tool_result") continue;
                 string callId = ClaudeJson.Str(block, "tool_use_id");
-                if (String.IsNullOrEmpty(callId) || !results.Add(callId)) continue;
+                if (String.IsNullOrEmpty(callId) || !results.Add(callId, date)) continue;
                 bool failed = ClaudeJson.Bool(block, "is_error");
                 Call call;
                 if (calls.TryGetValue(callId, out call)) Close(call, at, failed);
@@ -191,7 +204,7 @@ namespace ClaudeDashboard
             // The lines it added and removed, on the result's day, for the session's project.
             var toolResult = ClaudeJson.Obj(o, "toolUseResult");
             string uuid = ClaudeJson.Str(o, "uuid") ?? "";
-            if (toolResult != null && (uuid.Length == 0 || lines.Add("l" + uuid)))
+            if (toolResult != null && (uuid.Length == 0 || lines.Add("l" + uuid, date)))
             {
                 long added, removed;
                 ClaudeLogActivity.CountLines(toolResult, out added, out removed);
@@ -223,7 +236,7 @@ namespace ClaudeDashboard
         private void Permission(JsonObject o, DateTime date)
         {
             string uuid = ClaudeJson.Str(o, "uuid") ?? "";
-            if (uuid.Length > 0 && !lines.Add("p" + uuid)) return;
+            if (uuid.Length > 0 && !lines.Add("p" + uuid, date)) return;
             var p = ClaudeJson.Obj(o, "permissionDecision");
             string decision = (ClaudeJson.Str(p, "decision") ?? ClaudeJson.Str(p, "behavior") ?? "").ToLowerInvariant();
             string source = (ClaudeJson.Str(p, "source") ?? ClaudeJson.Str(p, "decisionReason") ?? "").ToLowerInvariant();
@@ -242,7 +255,7 @@ namespace ClaudeDashboard
         private void SystemLine(JsonObject o, DateTime date)
         {
             string uuid = ClaudeJson.Str(o, "uuid") ?? "";
-            if (uuid.Length > 0 && !lines.Add("s" + uuid)) return;
+            if (uuid.Length > 0 && !lines.Add("s" + uuid, date)) return;
             string subtype = ClaudeJson.Str(o, "subtype") ?? "";
             if (subtype == "compact_boundary") Day(date).Compactions++;
             else if (subtype == "api_error") Day(date).Retries++;
@@ -271,6 +284,8 @@ namespace ClaudeDashboard
             string edge = before.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
             foreach (var key in spans.Keys.Where(k => String.CompareOrdinal(k.Substring(0, 8), edge) < 0).ToList()) spans.Remove(key);
             foreach (var key in calls.Where(p => p.Value.Day < before).Select(p => p.Key).ToList()) calls.Remove(key);
+            foreach (var key in early.Where(p => p.Value.Item1.Date < before.AddDays(-1)).Select(p => p.Key).ToList()) early.Remove(key);
+            foreach (var set in new[] { replies, stops, thinking, thought, results, lines }) set.Forget(before);
         }
     }
 }
