@@ -30,6 +30,14 @@ internal static class ShellTests
     }
     private static Color ColorOf(object brush) { var solid = brush as SolidColorBrush; return solid == null ? Colors.Transparent : solid.Color; }
     private static Color Hex(string hex) { return (Color)ColorConverter.ConvertFromString(hex); }
+    // Whether a TextBlock's words are wider than the room it got (cut off with an ellipsis, or clipped).
+    private static bool Cut(TextBlock block)
+    {
+        if (String.IsNullOrEmpty(block.Text)) return false;
+        var probe = new TextBlock { Text = block.Text, FontFamily = block.FontFamily, FontSize = block.FontSize, FontWeight = block.FontWeight, FontStyle = block.FontStyle, FontStretch = block.FontStretch };
+        probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
+        return probe.DesiredSize.Width > block.ActualWidth + 1;
+    }
     private static void Click(Window window, string name) { ((Button)window.FindName(name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
 
     public static void Run(string directory, Action<string, Action> check)
@@ -85,6 +93,12 @@ internal static class ShellTests
                         var summary = (TextBlock)window.FindName("ClaudeSummary");
                         Assert(summary.Text.Length > 0 && summary.Text != "Reading Claude Code…", size.Name + ": the header has no summary.");
                         Assert(((TextBlock)window.FindName("ClaudeFlag")).Text.Contains("SAMPLE"), size.Name + ": the fixture doesn't say it's a sample.");
+                        // The summary is never cut mid-word, and from 1000 units wide it's the whole summary (on the
+                        // header's line, or on its own line under it).
+                        Assert(!Cut(summary), size.Name + ": the header's summary is cut: \"" + summary.Text + "\" in " + Math.Round(summary.ActualWidth));
+                        if (Math.Round(size.W / size.Scale) >= 1000) Assert(summary.Text == ClaudeText.Summary(card.View, card.Period, true), size.Name + ": the header doesn't show the whole summary: " + summary.Text);
+                        var content = (Grid)window.FindName("DashboardContent");
+                        Assert(content.RowDefinitions[0].Height.Value == (controller.HeaderTwoLines ? 84 : 56), size.Name + ": the header's height doesn't match its lines.");
                         var edge = (Border)window.FindName("WindowEdge");
                         if (needs)
                         {
@@ -96,6 +110,29 @@ internal static class ShellTests
                 }
             // The side panel (5-hour lanes and facts) from 1000 units of card body: a 1600 × 900 window has it, 1000 × 600 doesn't.
             Assert(CardSizing.ClaudeSide(1600 - 6 - 48) && !CardSizing.ClaudeSide(1000 - 6 - 48) && CardSizing.ClaudeSide(Math.Round(1600 / 1.5) - 6 - 48), "The side panel's threshold moved.");
+        });
+
+        check("Shell header at the smallest window: Small keeps its 5-hour meter, and the summary stays whole words", () => {
+            // A 360 × 300 window (its outer size, the minimum) has a client area of about 360 × 261 on Windows 10 and 11.
+            string renders = Renders(directory);
+            foreach (double scale in new[] { 1.0, 1.4 })
+                foreach (bool needs in new[] { false, true })
+                {
+                    string name = "shell-360x261-" + Math.Round(scale * 100) + (needs ? "-needs" : "");
+                    string folder = Fresh(directory, name);
+                    var window = AppController.LoadWindow("ShellWindow");
+                    using (var controller = new AppController(window, SettingsFile(folder, new AppSettings { ClaudePeriod = "Week", TextScale = scale })))
+                    {
+                        controller.UseClaudeSample(needs);
+                        AppController.Render(window, new Size(360, 261), 1, Path.Combine(renders, name + ".png"));
+                        var card = controller.ClaudeCardView;
+                        Assert(card.Current == CardSizing.Design.Small, name + " isn't Small.");
+                        Assert(window.FindName("ClaudeSmallMeter") != null, name + ": Small lost its 5-hour meter (header " + (controller.HeaderTwoLines ? 84 : 56) + ").");
+                        var summary = (TextBlock)window.FindName("ClaudeSummary");
+                        Assert(summary.Text == ClaudeText.Summary(card.View, card.Period, true) || summary.Text == ClaudeText.ShortSummary(card.View, card.Period), name + ": the summary isn't the whole or the short one: " + summary.Text);
+                        Assert(summary.TextTrimming == TextTrimming.WordEllipsis, name + ": the summary could be cut mid-word.");
+                    }
+                }
         });
 
         check("Shell header: the period switch chooses and keeps the period, Quiet toggles, and narrow windows fold the words away", () => {

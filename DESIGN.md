@@ -31,7 +31,7 @@ Two plan states sit on top of any car: a fuel lamp that blinks at 90% of the 5-h
 
 ## Window sizes
 
-The window is an ordinary one, at least 360 × 300, with a 56-unit header (the app name, the live summary, 5 h / Today / Week, Quiet and Settings; the words fold away as it narrows). The card fills the rest, picks its design from the space it has, and switches live while the window is resized. The thresholds are `CardSizing.Claude` at the bottom of `ClaudeCard.cs`, in device-independent pixels, checked at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900, and at 150% display scaling (`tests/Shell/ShellTests.cs`).
+The window is an ordinary one, at least 360 × 300, with a 56-unit header (the app name, the live summary, 5 h / Today / Week, Quiet and Settings; the words fold away as it narrows). When the whole summary won't fit beside them, it first shortens to the two most urgent parts and the thread count, then takes a line of its own (the header becomes 84 units) unless that would cost the card its design or Small its 5-hour meter, and it never breaks mid-word. The card fills the rest, picks its design from the space it has, and switches live while the window is resized. The thresholds are `CardSizing.Claude` at the bottom of `ClaudeCard.cs`, in device-independent pixels, checked at 360 × 300, 640 × 420, 1000 × 600 and 1600 × 900, and at 150% display scaling (`tests/Shell/ShellTests.cs`).
 
 - **Large** (card from 640 × 420): the plan row (tank, week laps, and the rev counter from 860 wide); the pit stop strip while a thread needs you; the ledger of garages and cars, which scrolls; and from 1000 wide a side panel with the 5-hour lanes and four facts.
 - **Medium:** two mini plan tiles over the top garages, with up to three cars inline.
