@@ -233,9 +233,9 @@ internal static class ShellTests
                 using (var controller = new AppController(window, SettingsFile(Fresh(directory, name), new AppSettings { ClaudePeriod = "Today", TextScale = 1.4 })))
                 {
                     controller.UseClaudeSample(false);
-                    var off = controller.ClaudeCardView.View;
-                    off.Connected = false; off.LogsRead = false; off.Limits = null; off.Plan = ClaudePlanState.SignedOut;
-                    controller.ClaudeCardView.Update(off);
+                    var troubled = controller.ClaudeCardView.View;
+                    troubled.Connected = false; troubled.LogsRead = false; troubled.Limits = null; troubled.Plan = ClaudePlanState.SignedOut;
+                    controller.ClaudeCardView.Update(troubled);
                     AppController.Render(window, new Size(360, 300), 1, Path.Combine(renders, name + ".png"));
                     Assert(controller.Sources.Count(x => x.Level != ClaudeHealthLevel.Ok) == 4, name + ": the view isn't all trouble: " + String.Join(", ", controller.Sources.Select(x => x.Long)));
                     SourcesWhole(window, controller, name);
