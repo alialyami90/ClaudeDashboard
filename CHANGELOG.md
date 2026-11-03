@@ -6,6 +6,13 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.58.1 (unreleased)
+
+Docs for the lap chart (decision 030). Docs only. It lands after v0.58.0.
+
+- **Decision 030:** the lap chart. It covers the six views and their keys (Ctrl+1 to Ctrl+6, and Ctrl+G for the session waiting longest), the lanes and how each state is drawn, rose for Retrying, the sizes, the in-memory engine, and the six defaults that hold until Ali changes them.
+- DESIGN.md, PRODUCT.md and README follow once packages A to E have merged.
+
 ## v0.53.2 (unreleased)
 
 Docs catch up with the observability wave, v0.48.0 to v0.53.0. Docs only.
