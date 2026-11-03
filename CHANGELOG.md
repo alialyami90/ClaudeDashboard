@@ -6,6 +6,10 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.61.3 (unreleased)
+
+Docs: CLAUDE.md records the Insights tab (decision 031, v0.60.0 to v0.61.2) and Ali's approval to copy his logs for reviews. The v0.60.0 section above loses a repeated tools line and notes that v0.60.1 replaced "allowed without asking".
+
 ## v0.61.2 (unreleased)
 
 Docs: Insights (Scribe). Docs only.
@@ -59,9 +63,8 @@ Claude Dashboard: the Insights engine (decision 031, part A). Ali asked: "show m
   - models: replies, input, output, cache read and write, thinking tokens and ≈ $ for each;
   - effort level per model;
   - tools: calls, errors, ≈ time, and calls, errors and ≈ time by model for each;
-  - tools: calls, errors, ≈ time and calls by model for each;
   - MCP servers, skills and plugins;
-  - permissions: allowed without asking, allowed by a rule, asked, denied;
+  - permissions: allowed by a rule, asked, denied (v0.60.1 replaced "allowed without asking" with "allowed by a hook");
   - health: API errors, retries, compactions and stop reasons;
   - each session's length;
   - lines added and removed, overall and per project.
