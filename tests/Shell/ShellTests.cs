@@ -508,7 +508,14 @@ internal static class ShellTests
                 CheckViews(controller, window, renders, "", 1.0);
                 // The header is always live and says when the 5-hour limit comes at this pace; an Assertive live region.
                 var sample = controller.ClaudeCardView.View;
-                Assert(!Double.IsNaN(sample.LimitEtaMinutes) && controller.SummaryForms[0].Contains(" · ≈ limit ") && controller.SummaryForms[0].Contains("in 5 h"), "The header doesn't say ≈ limit: " + controller.SummaryForms[0]);
+                Assert(controller.SummaryForms[0].Contains("in 5 h") && controller.SummaryForms[0].Contains(" · ≈ limit ") == sample.LimitAtPace.BeforeReset, "The header's ≈ limit doesn't follow the plan readings' pace: " + controller.SummaryForms[0] + " (" + sample.LimitAtPace.Why + ")");
+                DateTime soon = DateTime.UtcNow.AddMinutes(50);
+                var paced = new ClaudeView { LimitAtPace = new ClaudeLimitProjection { Known = true, Readings = 4, LimitAt = soon } };
+                Assert(AppController.LimitText(paced, DateTime.UtcNow, false) == " · ≈ limit " + ClaudeText.Clock(soon, false), "≈ limit doesn't say when: " + AppController.LimitText(paced, DateTime.UtcNow, false));
+                // Fewer than 3 readings, or a window that lasts to its reset: no ≈ limit.
+                var few = new ClaudeView { LimitAtPace = new ClaudeLimitProjection { Known = false, Readings = 2, LimitAt = soon, Why = "Only 2 plan readings so far: ≈ limit needs 3" } };
+                var lasts = new ClaudeView { LimitAtPace = new ClaudeLimitProjection { Known = true, Readings = 5, LimitAt = null } };
+                Assert(AppController.LimitText(few, DateTime.UtcNow, false) == "" && AppController.LimitText(lasts, DateTime.UtcNow, false) == "", "≈ limit shows from 2 readings, or when the window lasts to its reset.");
                 Assert(controller.HeaderAnnounces, "The header summary isn't an Assertive live region.");
                 Assert(AppController.LimitText(new ClaudeView(), DateTime.UtcNow, false) == "", "≈ limit shows with no pace to go by.");
 

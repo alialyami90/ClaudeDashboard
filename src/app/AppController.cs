@@ -406,10 +406,12 @@ namespace ClaudeDashboard
             Announce(summary, needs ? view.NeedsYou : 0);
             RefreshView();
         }
-        // " · ≈ limit 4:12 PM": when the 5-hour window fills at the last half hour's pace, if that's before its reset.
+        // " · ≈ limit 4:12 pm": when the 5-hour window reaches 100% at the plan readings' pace (v0.54.0's LimitAtPace),
+        // only when that is known (3 readings or more) and before the reset.
         public static string LimitText(ClaudeView view, DateTime now, bool use24)
         {
-            return view == null || Double.IsNaN(view.LimitEtaMinutes) ? "" : " · ≈ limit " + ClaudeText.Clock(now.AddMinutes(view.LimitEtaMinutes), use24);
+            var at = view == null ? null : view.LimitAtPace;
+            return at == null || !at.BeforeReset ? "" : " · ≈ limit " + ClaudeText.Clock(at.LimitAt.Value, use24);
         }
         // For the checks: the header summary's forms, longest first.
         public string[] SummaryForms { get { var forms = new List<string> { fullSummary, shortSummary }; forms.AddRange(shorterSummaries); return forms.ToArray(); } }
