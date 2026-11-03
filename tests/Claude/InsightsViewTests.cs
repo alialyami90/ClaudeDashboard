@@ -70,19 +70,23 @@ internal static class InsightsViewTests
                 Assert(m.Models.Count == ins.Models.Count && (m.Models.Count == 0 || m.Models[0].Name == ins.Models[0].Name), label + ": models");
                 Assert(m.Tools.Count == ins.Tools.Count && m.Projects.Count == ins.Projects.Count, label + ": tools and projects");
                 Assert(m.PerDay.Count == ins.Series.Count, label + ": per day");
+                Assert(m.Sessions == ins.Sessions && m.PrevSessions == ins.PriorSessions && m.PrevActiveDays == ins.PriorActiveDays, label + ": sessions and active days before");
+                if (m.Missing.Length == 0) Assert(m.Permissions.Any(p => p.Key == "allowed by a hook") && !m.Permissions.Any(p => p.Key == "auto-allowed"), label + ": permissions split");
+                var noted = InsightsModel.From(ins); noted.Note = "Today's models are added at the next scan.";
+                Assert(noted.FootLine().StartsWith(noted.Note), label + ": the engine's note isn't in the footer");
                 Assert(m.HasPrevious == (label != ClaudeInsights.All), label + ": comparison");
                 if (label == ClaudeInsights.All) Assert(m.Change(5, -1).Contains("everything kept") && m.ComparedLine().Contains("nothing to compare"), "All compares with something");
             }
             var week = InsightsModel.From(set.Week);
-            long sampleBefore = week.PrevReplies; week.PrevReplies = 100;
+            long sampleBefore = week.PrevReplies; int sampleDays = week.PrevActiveDays; week.PrevReplies = 100; week.PrevActiveDays = 7;
             Assert(week.Change(120, 100) == "↑ 20% on before" && week.Change(80, 100) == "↓ 20% on before" && week.Change(5, 0) == "new this period", "change words");
-            week.PrevReplies = 3;
+            week.PrevReplies = 3; week.PrevActiveDays = 7;
             Assert(week.Change(5000, 3) == "too little before" && week.ComparedLine().Contains("too little before") && (week.ThinkingFigures()[0].Change.Length == 0 || week.ThinkingFigures()[0].Change == "too little before"), "a nearly empty period before still compares");
             week.PrevReplies = 50; week.PrevActiveDays = 2;
             Assert(week.Change(120, 100) == "too little before", "2 active days before still compare");
             week.PrevActiveDays = 3;
             Assert(week.Change(120, 100) == "↑ 20% on before", "3 active days and 50 replies don't compare");
-            week.PrevReplies = sampleBefore; week.PrevActiveDays = -1;
+            week.PrevReplies = sampleBefore; week.PrevActiveDays = sampleDays;
             Assert(InsightsModel.ModelName("claude-opus-5-5") == "Opus 5.5" && InsightsModel.ModelName("claude-fable-5-1") == "Fable 5.1" && InsightsModel.ModelName("claude-haiku-4-5-20251001") == "Haiku 4.5"
                 && InsightsModel.ModelName("claude-3-5-sonnet-20241022") == "Sonnet 3.5" && InsightsModel.ModelName("gpt-x") == "gpt-x" && InsightsModel.ModelName("claude-opus-5-5[1m]") == "Opus 5.5" && InsightsModel.ModelName("claude-haiku-5-5") == "Haiku 5.5"
                 && InsightsModel.ModelName("claude-nova-7-0") == "Nova 7.0" && InsightsModel.ModelName("claude-code") == "claude-code", "model names");

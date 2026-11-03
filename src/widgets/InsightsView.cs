@@ -185,7 +185,7 @@ namespace ClaudeDashboard
 
             var table = InsightsParts.Table(new[] { "Model", "Replies", "Tokens", "≈ $", "Thinking", "Share of tokens", "Share of replies" }, m.Models.Select((x, i) => new[] {
                 InsightsModel.ModelName(x.Name), InsightsModel.Count(x.Replies), ClaudeUsage.Format(x.Tokens), InsightsModel.Money(x.Cost, x.Unpriced), x.ThinkingTokens > 0 ? ClaudeUsage.Format(x.ThinkingTokens) : "—", InsightsModel.Percent(x.Share),
-                m.Replies > 0 ? InsightsModel.Percent((double)x.Replies / m.Replies) : "—" }).ToList(), S(13), 0);
+                m.DetailReplies > 0 ? InsightsModel.Percent((double)x.Replies / m.DetailReplies) : "—" }).ToList(), S(13), 0);
             table.Margin = new Thickness(0, 10, 0, 0);
             stack.Children.Add(table);
 
@@ -623,6 +623,11 @@ namespace ClaudeDashboard
         public int PrevActiveDays = -1;
         public double Cost, PrevCost;
         public int Sessions, PrevSessions;
+        // Replies in the days with detail: ratios over the detail (thinking, share of replies) divide by this.
+        public long DetailReplies;
+        // The engine's note for the footer (today's detail still pending, and such).
+        public string Note = "";
+        public bool TodayPending;
         public List<InsightsModelRow> Models = new List<InsightsModelRow>();
         public List<InsightsDay> PerDay = new List<InsightsDay>();
         public List<InsightsEffort> Effort = new List<InsightsEffort>();
@@ -707,8 +712,8 @@ namespace ClaudeDashboard
         public string FootLine()
         {
             string logs = FromLogs > 0 ? FromLogs + " day" + (FromLogs == 1 ? "" : "s") + " rebuilt from Claude Code's logs. " : "";
-            string detail = DaysWithDetail < DaysWithFiles ? "Models, tools and effort cover " + DaysWithDetail + " of " + DaysWithFiles + " days: older day files don't have them until the backfill rebuilds them. " : "";
-            return logs + detail + "≈ $ at API prices; ≈ tool times from the gap between a call and its result. Numbers and names only.";
+            string note = Note.Length > 0 ? Note.TrimEnd() + (Note.TrimEnd().EndsWith(".") ? " " : ". ") : "";
+            return note + logs + "≈ $ at API prices; ≈ tool times from the gap between a call and its result. Numbers and names only.";
         }
         public List<InsightsFigure> TotalTiles()
         {
@@ -727,7 +732,7 @@ namespace ClaudeDashboard
         }
         public List<InsightsFigure> ThinkingFigures()
         {
-            double share = Replies > 0 ? (double)ThinkingReplies / Replies : Double.NaN;
+            double share = DetailReplies > 0 ? (double)ThinkingReplies / DetailReplies : Double.NaN;
             return new List<InsightsFigure> {
                 new InsightsFigure { Name = "Replies with thinking", Value = Percent(share), Change = Double.IsNaN(PrevThinkingShare) || !HasPrevious ? "" : !EnoughBefore ? "too little before" : "was " + Percent(PrevThinkingShare) },
                 new InsightsFigure { Name = "Thinking, ≈ median", Value = Double.IsNaN(ThinkingMedianMs) ? "—" : "≈ " + Duration(ThinkingMedianMs), Change = Double.IsNaN(ThinkingMedianMs) ? "no thinking times logged" : "" },
@@ -787,7 +792,8 @@ namespace ClaudeDashboard
             var m = new InsightsModel { Sample = ins.Sample, Missing = ins.Missing ?? "", Range = ins.Label, Start = ins.Start, End = ins.End, HasPrevious = ins.PriorStart.HasValue,
                 FromLogs = ins.DaysFromLogs, DaysWithFiles = ins.DaysWithFiles, DaysWithDetail = ins.DaysWithDetail,
                 Tokens = ins.Tokens, Replies = ins.Replies, Cost = ins.Cost, PrevTokens = ins.PriorTokens, PrevReplies = ins.PriorReplies, PrevCost = ins.PriorCost,
-                Sessions = d.Sessions, PrevSessions = prior.Sessions, ThinkingReplies = d.ThinkingReplies };
+                Sessions = ins.Sessions, PrevSessions = ins.PriorSessions, PrevActiveDays = ins.PriorActiveDays, ThinkingReplies = d.ThinkingReplies, DetailReplies = d.Replies,
+                Note = ins.Note ?? "", TodayPending = ins.TodayPending };
             if (m.Missing.Length > 0) return m;
 
             foreach (var r in ins.Models)
@@ -828,7 +834,7 @@ namespace ClaudeDashboard
             m.ApiErrors = d.ApiErrors; m.Retries = d.Retries; m.Compactions = d.Compactions;
             if (m.HasPrevious) { m.PrevApiErrors = prior.ApiErrors; m.PrevRetries = prior.Retries; m.PrevCompactions = prior.Compactions; }
             m.Permissions = new List<KeyValuePair<string, long>> {
-                new KeyValuePair<string, long>("auto-allowed", d.PermAuto), new KeyValuePair<string, long>("allowed by rule", d.PermRule),
+                new KeyValuePair<string, long>("allowed by rule", d.PermRule), new KeyValuePair<string, long>("allowed by a hook", d.PermHook),
                 new KeyValuePair<string, long>("asked you", d.PermAsked), new KeyValuePair<string, long>("denied", d.PermDenied) };
             int toolUse, endTurn; d.Stops.TryGetValue("tool_use", out toolUse); d.Stops.TryGetValue("end_turn", out endTurn);
             int other = d.Stops.Where(p => p.Key != "tool_use" && p.Key != "end_turn").Sum(p => p.Value);
