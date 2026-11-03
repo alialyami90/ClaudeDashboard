@@ -16,7 +16,7 @@ Built by and for Ali Alyami first, and meant to work for anyone with Claude Code
 
 ## Product Purpose
 
-Claude Dashboard is one window that watches every Claude Code session on the PC. Each project is a pit garage and each thread a pixel-art race car whose motion says its state: working, needs you, your turn, compacting, stuck, idle or ended. Above them sit the plan's 5-hour and weekly limits, with the pace said as a time ("≈ empty 3:21 am"). In the last 5 hours and today the window is a live status board: what waits on you first, and for each thread how long it has been in its state, its last sign of life, the tool it's in and how full its context is. The week is the ledger: tokens, cache reads, replies or ≈ $, model mix and lines changed per project and per thread ([decision 029](docs/decisions/029-claude-live-status-board.md)).
+Claude Dashboard is one window that watches every Claude Code session on the PC. Each project is a pit garage and each thread a pixel-art race car whose motion says its state: working, needs you, your turn, compacting, stuck, idle or ended. Above them sit the plan's 5-hour and weekly limits, with the pace said as a time ("≈ limit 3:21 am"). In the last 5 hours and today the window is a live status board: what waits on you first, and for each thread how long it has been in its state, its last sign of life, the tool it's in and how full its context is. The week is the ledger: tokens, cache reads, replies or ≈ $, model mix and lines changed per project and per thread ([decision 029](docs/decisions/029-claude-live-status-board.md)). From 640 wide the home view is Live, a lap chart: every session is a lane on one time axis from the last 100 minutes to the 5-hour reset, its car on the now line with a trail of its states, and an Amber wall across every lane where the plan's limit will be reached. Garage, Limits, History, Reliability and Sources are tabs beside it ([decision 030](docs/decisions/030-claude-lap-chart.md)).
 
 Success means the user stops tabbing through terminals to find the session that is waiting on them, never hits a limit by surprise, and trusts every number on the screen.
 
@@ -37,6 +37,7 @@ A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud s
 
 - Its settings, its own sign-in and the bridge folder, in `%LOCALAPPDATA%\ClaudeDashboard`.
 - A daily summary per day (on by default, kept 8 weeks) in `claude\history\`: tokens, cache reads, replies, threads, the API value, how often a session needed you and the longest wait (counted while the window is open), by hour and by project. Numbers and project names only: no prompts, replies, titles or session ids. Turning it off deletes the files.
+- In memory only, for the lap chart (decision 030): each session's state changes over the last 5 hours, the plan readings of the 5-hour window, tool run times and the last 50 lines of "What just happened". Names, states and times only, gone when the app closes.
 - Nothing else. Copy summary and Save CSV write only when the user asks, and only what the ledger shows: dates, projects, thread names the user, Claude Code or the Claude app gave (otherwise an id label), models, counts and costs.
 
 ## What it never does
@@ -53,9 +54,10 @@ A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud s
 - Costs come from Claude Code's own telemetry first, then the published price table, and say "≈ $ at API prices". Replies from a model the table doesn't know show "~" with a tip naming the model, never a guess.
 - Every reply is counted once, by its request id, however many sources report it.
 - A missing reading says why ("Telemetry off: port 43832 in use", "Sign in for plan limits"). Loading, unavailable, disconnected and working always look different: "≈" while the logs are counted, "—" with the reason when they can't be read, "Logs: none yet" before Claude Code's first session.
-- The source-health line under the card names where every number comes from (Hooks · Logs · Telemetry · Plan) and whether each source is fine, waiting, old, off or failed, at every window size. The plan stamp says when ("PLAN · 2:17 AM"), never "LIVE".
+- The source-health line (beside the tabs from 640 wide, under the card below) names where every number comes from (Hooks · Logs · Telemetry · Plan) and whether each source is fine, waiting, old, off or failed, at every window size. The plan stamp says when ("PLAN · 2:17 AM"), never "LIVE".
 - Sample data is always labelled, pinned on the source-health line at every size. `--render-claude-sample` draws a fixture that says it is one.
-- Every estimate says "≈", the pace included.
+- Every estimate says "≈", the pace included. There is one "≈ limit" for the 5-hour window, from the last 30 minutes of plan readings: it needs 3 readings, says why when it has fewer, and says "Limit reached" rather than a time that has passed. Today's average is worked out from tokens, and says so.
+- The lap chart starts where the app began watching, at a labelled edge. Nothing earlier is filled in.
 
 ## Capabilities and Constraints
 
@@ -82,7 +84,7 @@ A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud s
 
 ## Product Principles
 
-1. **See who needs you.** A session waiting on the user is the loudest thing on screen, and one click (or Ctrl+1) brings its window forward. Nothing that waits on the user hides below the fold without a line saying so.
+1. **See who needs you.** A session waiting on the user is the loudest thing on screen, and one click (or Ctrl+G) brings its window forward. Nothing that waits on the user hides below the fold without a line saying so.
 2. **Trust the sources.** Show what Claude Code and the Claude app say, in their order of authority, and say plainly when a source is missing.
 3. **Honest numbers.** Never a guess shown as a fact; every estimate says it is one.
 4. **Cheap to watch.** It runs all day beside work and games, so idle means idle.
@@ -92,7 +94,7 @@ A native Windows app (WPF, .NET Framework 4.8) with no WebView, browser, cloud s
 
 - State is never colour alone: each car state has its own motion and a still frame, and every chip names its state in words.
 - Quiet mode stops the loops and keeps the state swaps. Text size goes from 100% to 140%, and every word on the card follows it.
-- The keyboard reaches every thread row, car and garage: Tab moves between them, Enter or Space brings a session forward or folds a garage, and each says its state, ended ones included. Ctrl+1 opens the session that has waited longest. When a session starts needing you, a screen reader announces the header's summary at once.
+- The keyboard reaches every thread row, car and garage: Tab moves between them, Enter or Space brings a session forward or folds a garage, and each says its state, ended ones included. Live's lanes are buttons named like "Fix the login timeout, needs you 4 minutes, api-server". Ctrl+1 to Ctrl+6 choose the views, and Ctrl+G opens the session that has waited longest. When a session starts needing you, a screen reader announces the header's summary at once.
 - Ended and parked threads step back by colour, not by fading, so their words keep 4.5:1 contrast on every palette.
 - The plain list (Settings → Claude) shows the same projects, threads, states and numbers as text rows, each named for screen readers, with nothing moving. Click a row to bring its session forward.
 - Windows notifications for Needs you, Stuck and long turns reach the user when the window is behind others; they are on by default and silent in Quiet mode.

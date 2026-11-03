@@ -25,7 +25,7 @@ The prototype is the bottom artboard of "Claude Dashboard app layouts". Its numb
 | Ctrl+5 | **Reliability** | Tool failure rate, API errors in the last hour, asks and denials, compactions, edits accepted and rejected; the API error strip; tools across all sessions; and stuck turns today with their reasons | Telemetry tool runs and API errors, the logs' tool entries, and the bridge's error fields |
 | Ctrl+6 | **Sources** | Hooks, Logs, Telemetry, Plan meters and Claude app threads: each with its state, freshness, what it gives, and one action | Connector, watcher, telemetry and sign-in states |
 
-- **The header** always carries the live summary, including "≈ limit 3:21 am". It is an assertive live region.
+- **The header** always carries the live summary, including "≈ limit 3:21 am", or "Limit reached" in Amber once the window is full. It is an assertive live region. It counts Garage's chosen period while Garage is on screen (and below 640 wide), and the last 5 hours on the other views.
 - **The source-health line** from decision 029 sits at the right end of the tab row from 640 wide, showing the four source ages, so a missing source can be seen from every view. It is one control, moved there rather than copied, and belongs to no single view. Below 640, where there are no tabs, it stays under the card. "Sample" stays first in both places.
 - **Ctrl+G** opens the session that has waited longest, in the attention queue's order. It was Ctrl+1 in v0.52.0 and moves to make room for the views.
 
@@ -39,10 +39,11 @@ The prototype is the bottom artboard of "Claude Dashboard app layouts". Its numb
   | --- | --- |
   | Working | Solid project colour (Lime, Glacier or Lavender by project hash) |
   | Needs you | Amber block |
+  | Stuck | Hollow, with an Amber outline |
   | Your turn | Hollow, with a 1.5-unit Glacier outline |
   | Idle and Silent | 4-unit grey line, `#5B6474` |
   | Compacting | Stripes in the project colour |
-  | API error | 2-unit rose mark, `#F09A9A` |
+  | API error | 2-unit rose mark, `#F09A9A` (`#A93B35` on the light palettes, for 4.5:1) |
 
 - **Lane labels.** Silent and Retrying say their names in the lane label, Silent in Amber and Retrying in rose.
 - **The now line, the future and the wall.** The car rides the now line. After now, the Input colour fills the background behind the lanes, so past and future read differently without a label. The wall is a 2-unit Amber line at the projected limit, labelled once at the top. It shows only while a projection exists and only if the limit falls before the reset.
@@ -56,7 +57,7 @@ The prototype is the bottom artboard of "Claude Dashboard app layouts". Its numb
   - its tool runs.
 
   From 1000 wide it is a 360-unit panel. From 640 to 1000 it is a drawer that opens when a lane is clicked, and lane labels narrow to 200.
-- **Motion.** Working cars keep the 1-pixel jitter and turning wheels, and a Needs-you car blinks its hazards. Everything else is still, and Quiet stops it all.
+- **Motion.** Working cars keep the 1-pixel jitter and turning wheels, and a Needs-you car blinks its hazards (v0.56.2). Everything else is still, and Quiet with "keep the cars still" stops it all, as on the Garage. The view asks the window's one frame clock for frames (`ClaudeViewContext.Frames`) only while a car moves; it runs only while that view is on screen and the window isn't minimised.
 
 ### Under 640 wide (Small)
 
@@ -67,7 +68,7 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
 - **State timeline:** each session's state changes, with their times, for the last 5 hours.
 - **Last sign of life:** the latest of the bridge's events, the last log line and the last telemetry event. Hook events are counted by the `heard` time from v0.49.0, so the status line's refresh can't make a hung turn look alive. **Silent** means Working with no sign of life for 5 minutes. It is a display state, not a new hook state.
 - **Retrying:** an API error with retries still pending.
-- **Plan reading ring:** the last 5 hours of plan readings (percent and time). "≈ limit" comes from the last 30 minutes' pace, and from today's average. Today's average is turned from tokens an hour into percent an hour at this window's percent per token, so its tip says it is worked out from tokens. **There is one "≈ limit" in the app: `LimitAtPace`.** The header, Live's wall and Limits use it from the start. The Garage tank and Small's meter line used v0.53.0's token-based ETA, and move to it in v0.56.1, so no screen shows two different limit times or shows one without 3 readings. With fewer than 3 readings there is no projection, and the chart says why.
+- **Plan reading ring:** the last 5 hours of plan readings (percent and time). "≈ limit" comes from the last 30 minutes' pace, and from today's average. Today's average is turned from tokens an hour into percent an hour at this window's percent per token, so its tip says it is worked out from tokens. **There is one "≈ limit" in the app: `LimitAtPace`.** The header, Live's wall and Limits use it from the start. The Garage tank, Medium's tile and Small's meter line used v0.53.0's token-based ETA, and moved to it in v0.56.2, so no screen shows two different limit times or shows one without 3 readings. With fewer than 3 readings there is no projection, and the chart says why. **Limit reached** (v0.56.1): once the newest reading is at 100%, `LimitAtPace.Reached` is set and `LimitAt` is null, and every place that would show "≈ limit" says "Limit reached" in Amber instead, never a time that has passed. "≈ limit" is the one word for it everywhere; v0.53.0's "≈ empty" is gone.
 - **Typical tool time:** the median of telemetry's tool run times, per tool, per session and across all sessions. With telemetry off, the table says so and shows only the log counts.
 - **Event feed:** the last 50 state changes, tool failures, API errors and compactions. It holds names and times only.
 
@@ -82,8 +83,9 @@ The window is unchanged: the car that needs you over the 5-hour meter, plus the 
    - v0.56.0: Live (Watcher);
    - v0.57.0: Limits and History (Builder);
    - v0.58.0: Reliability and Sources (Demolition);
-   - v0.56.1: one "≈ limit" everywhere (the Garage tank and Small move to `LimitAtPace`), and the moving Live cars (Watcher);
-- v0.58.1: these docs (Scribe).
+   - v0.56.1: "Limit reached" from the engine (Watcher), and the views' frame clock and the header's "Limit reached" (Shell);
+   - v0.56.2: one "≈ limit" everywhere (the Garage tank, Medium and Small move to `LimitAtPace`), the moving Live cars, and archived lanes (Watcher);
+   - v0.58.1: these docs (Scribe).
 5. **The garage pit wall stays** as its own Garage tab, keeping 5 h / Today / Week. Ali can drop it after he has seen Live.
 6. **Keys:** Ctrl+1 to Ctrl+6 switch views in tab order, and "open the session that waited longest" moves from Ctrl+1 to Ctrl+G. The brief says Ctrl+1 to Ctrl+5 because it has no Garage tab.
 
