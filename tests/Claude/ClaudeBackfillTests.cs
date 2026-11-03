@@ -95,6 +95,51 @@ internal static class ClaudeBackfillTests
             Assert(history.Read(d40.Date) != null && history.Read(d40.Date).Replies == 2, "The backfill didn't rebuild the days after History came back.");
         });
 
+        check("Claude history from the logs: a Claude app scratch workspace's log past 260 characters is read, and a log that can't be read is counted (v0.59.0)", () => {
+            string config = Fresh(directory, "config-long"), bridge = Fresh(directory, "bridge-long");
+            // Shaped like the log Ali's PC dropped: a Claude app scratch workspace, its encoded folder name long enough
+            // that the whole path passes 260 characters, a head with no cwd, three replies each streamed over three
+            // lines (one request id each), late on 2 Oct UTC, which is 3 Oct at UTC+3.
+            string name = "C--Users-PCD-AppData-Roaming-Claude-scratch-workspaces-8b5be831-0f6e-4c43-9d1a-6b2f3e4a5c7d-scratch-2026-10-02-1141a1";
+            while (name.Length < 200) name += "-workspace";
+            string folder = Path.Combine(config, "projects", name);
+            string log = Path.Combine(folder, "f256e218-45c9-4519-9cfb-c4a43317cd1a.jsonl");
+            if (log.Length <= 260) log = Path.Combine(folder, new string('f', 270 - folder.Length) + ".jsonl");
+            Assert(log.Length > 260, "The test path isn't long: " + log.Length);
+            Directory.CreateDirectory(ClaudeBackfill.LongPath(folder));
+            DateTime at = new DateTime(2026, 10, 2, 22, 27, 0, DateTimeKind.Utc);
+            var lines = new List<string> {
+                "{\"type\":\"queue-operation\",\"operation\":\"enqueue\",\"timestamp\":\"" + Stamp(at.AddSeconds(-30)) + "\",\"sessionId\":\"f256\"}",
+                "{\"type\":\"custom-title\",\"customTitle\":\"SECRET TITLE\",\"sessionId\":\"f256\"}",
+                "{\"type\":\"agent-name\",\"agentName\":\"SECRET AGENT\",\"sessionId\":\"f256\"}",
+                "{\"type\":\"user\",\"isSidechain\":false,\"sessionId\":\"f256\",\"timestamp\":\"" + Stamp(at.AddSeconds(-10)) + "\",\"message\":{\"role\":\"user\",\"content\":\"SECRET PROMPT WORDS\"}}" };
+            for (int r = 0; r < 3; r++)
+                for (int part = 0; part < 3; part++)
+                    lines.Add("{\"type\":\"assistant\",\"isSidechain\":false,\"sessionId\":\"f256\",\"timestamp\":\"" + Stamp(at.AddMinutes(2 * r).AddSeconds(part)) + "\",\"requestId\":\"req_" + r + "\",\"message\":{\"id\":\"msg_" + r + "\",\"model\":\"claude-opus-5-5\",\"content\":[{\"type\":\"text\",\"text\":\"SECRET\"}],\"usage\":{\"input_tokens\":100,\"output_tokens\":50,\"cache_read_input_tokens\":1000}}}");
+            lines.Add("{\"type\":\"last-prompt\",\"sessionId\":\"f256\"}");
+            File.WriteAllText(ClaudeBackfill.LongPath(folder) + "\\" + Path.GetFileName(log), String.Join("\n", lines) + "\n", new UTF8Encoding(false));
+            File.SetLastWriteTimeUtc(ClaudeBackfill.LongPath(folder) + "\\" + Path.GetFileName(log), new DateTime(2026, 10, 11, 9, 0, 0, DateTimeKind.Utc));
+            // And an ordinary log next to it, in a short folder.
+            Log(Path.Combine(config, "projects", "C--Code-api", "s1.jsonl"), new[] { Reply("s1", Now.AddDays(-20), "r1") });
+
+            var history = new ClaudeHistory(bridge, TimeZoneInfo.CreateCustomTimeZone("UTC+3", TimeSpan.FromHours(3), "UTC+3", "UTC+3"));
+            var backfill = new ClaudeBackfill(config, history) { Enabled = true };
+            for (int i = 0; i < 100 && !backfill.Done; i++) backfill.Step(Now);
+            DateTime oct3 = new DateTime(2026, 10, 3);
+            Assert(backfill.Done && backfill.FilesTotal == 2 && backfill.FilesSkipped == 0, "The long log wasn't listed or read: " + backfill.FilesRead + " of " + backfill.FilesTotal + ", " + backfill.FilesSkipped + " skipped");
+            Assert(backfill.OldestLog == oct3, "The oldest day: " + backfill.OldestLog);
+            var day = history.Read(oct3);
+            Assert(day != null && day.Replies == 3 && day.Tokens == 450 && day.Threads == 1 && day.FromLogs && day.Hours[1] == 450, "3 Oct from the scratch workspace's log: " + (day == null ? "none" : day.Replies + " replies, " + day.Tokens + " tokens"));
+            string text = File.ReadAllText(Path.Combine(ClaudeHistory.Folder(bridge), "2026-10-03.json"));
+            Assert(text.IndexOf("SECRET", StringComparison.Ordinal) < 0 && text.IndexOf("f256", StringComparison.Ordinal) < 0, "Words or the session id landed in the day file: " + text);
+
+            // A log that can't be read is skipped and counted; Sources says so.
+            var view = new ClaudeView { BackfillOn = true, BackfillDone = true, BackfillDays = 2, BackfillSkipped = 1, OldestLog = oct3 };
+            Assert(ClaudeSources.Backfill(view) == "Past days built from the logs: 2 days · logs from 3 Oct 2026 · 1 log couldn't be read", "Skipped: " + ClaudeSources.Backfill(view));
+            // The long folder goes through the prefix too, so the next run starts clean.
+            Directory.Delete(ClaudeBackfill.LongPath(Path.Combine(config, "projects")), true);
+        });
+
         check("Claude history from the logs: History and Sources say so, and the calendar stays 8 weeks while the files keep a year (v0.59.0)", () => {
             Assert(ClaudeHistory.KeptDays == 365 && HistoryModel.CalendarDays == 56, "Kept " + ClaudeHistory.KeptDays + " days, calendar " + HistoryModel.CalendarDays);
             var local = Now.ToLocalTime().Date;

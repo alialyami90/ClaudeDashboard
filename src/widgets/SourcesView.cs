@@ -132,9 +132,10 @@ namespace ClaudeDashboard
             var c = System.Globalization.CultureInfo.InvariantCulture;
             string oldest = view.OldestLog.HasValue ? " · logs from " + view.OldestLog.Value.ToString("d MMM yyyy", c) : "";
             if (!view.BackfillOn) return "History is off, so no past days are built from the logs.";
-            if (view.BackfillDone) return "Past days built from the logs: " + view.BackfillDays + (view.BackfillDays == 1 ? " day" : " days") + oldest;
+            string skipped = view.BackfillSkipped > 0 ? " · " + view.BackfillSkipped + (view.BackfillSkipped == 1 ? " log" : " logs") + " couldn't be read" : "";
+            if (view.BackfillDone) return "Past days built from the logs: " + view.BackfillDays + (view.BackfillDays == 1 ? " day" : " days") + oldest + skipped;
             if (view.BackfillTotal == 0) return "Past days from the logs: waiting for the next log scan";
-            return "Past days from the logs: reading " + view.BackfillRead + " of " + view.BackfillTotal + (view.BackfillTotal == 1 ? " log" : " logs") + oldest;
+            return "Past days from the logs: reading " + view.BackfillRead + " of " + view.BackfillTotal + (view.BackfillTotal == 1 ? " log" : " logs") + oldest + skipped;
         }
         // The button: Keep logs a year, or Undo while the dashboard's 365 days are set; none when a year is already kept.
         public static string[] LogsButton(ClaudeView view)

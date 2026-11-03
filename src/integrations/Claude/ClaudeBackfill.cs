@@ -66,6 +66,9 @@ namespace ClaudeDashboard
         public int FilesRead { get; private set; }
         public bool Done { get; private set; }
         public int DaysWritten { get; private set; }
+        // Logs that couldn't be opened or read (gone, locked, or a path Windows refused): skipped, and counted so
+        // Sources can say so instead of leaving their days out silently.
+        public int FilesSkipped { get; private set; }
         public DateTime? OldestLog { get; private set; }
         public bool Started { get { return files != null; } }
 
@@ -73,7 +76,7 @@ namespace ClaudeDashboard
         {
             files = null; index = 0; offset = 0;
             counted = new Dictionary<string, ClaudeUsageEntry>(); folders = new Dictionary<string, string>(); days = new Dictionary<DateTime, Tally>();
-            FilesTotal = 0; FilesRead = 0; Done = false; DaysWritten = 0; OldestLog = null;
+            FilesTotal = 0; FilesRead = 0; Done = false; DaysWritten = 0; OldestLog = null; FilesSkipped = 0;
         }
 
         // One budgeted step: reads up to StepBudget bytes of the logs, and writes the days once all are read. Returns
@@ -90,14 +93,19 @@ namespace ClaudeDashboard
                     {
                         if (!Directory.Exists(projects)) { files = new List<string>(); FilesTotal = 0; Done = true; return false; }
                         DateTime cutoff = now - TimeSpan.FromDays(ClaudeHistory.KeptDays + 1);
-                        files = new DirectoryInfo(projects).EnumerateFiles("*.jsonl", SearchOption.AllDirectories).Where(f => f.LastWriteTimeUtc >= cutoff)
+                        // Through the long-path prefix: a Claude app scratch workspace's log sits in a folder whose
+                        // encoded name alone can be 200 characters, past Windows' 260 for the whole path.
+                        files = new DirectoryInfo(LongPath(projects)).EnumerateFiles("*.jsonl", SearchOption.AllDirectories).Where(f => f.LastWriteTimeUtc >= cutoff)
                             .Select(f => f.FullName).OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
                         FilesTotal = files.Count; FilesRead = 0; index = 0; offset = 0;
                     }
                     long budget = StepBudget;
                     while (budget > 0 && index < files.Count)
                     {
-                        long read = ReadChunk(files[index], today, oldestKept);
+                        long read;
+                        // One log that can't be read is skipped (and counted); it never holds up the others.
+                        try { read = ReadChunk(files[index], today, oldestKept); }
+                        catch (Exception) { FilesSkipped++; read = -1; }
                         if (read < 0) { index++; offset = 0; FilesRead = index; continue; }
                         budget -= Math.Max(1, read);
                     }
@@ -115,7 +123,7 @@ namespace ClaudeDashboard
         // gone). The last line of a log counts even without its newline.
         private long ReadChunk(string path, DateTime today, DateTime oldestKept)
         {
-            if (!File.Exists(path)) return -1;
+            if (!File.Exists(path)) { if (offset == 0) FilesSkipped++; return -1; }
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
             {
                 long length = stream.Length;
@@ -144,6 +152,13 @@ namespace ClaudeDashboard
             int read = 0; while (read < buffer.Length) { int n = stream.Read(buffer, read, buffer.Length - read); if (n <= 0) break; read += n; }
             if (read < buffer.Length) Array.Resize(ref buffer, read);
             return buffer;
+        }
+        // A local folder as a \\?\ path, which Windows reads past 260 characters; a UNC share or a path that has the
+        // prefix already is left as it is.
+        public static string LongPath(string folder)
+        {
+            if (String.IsNullOrEmpty(folder) || Path.DirectorySeparatorChar != '\\' || folder.StartsWith(@"\\", StringComparison.Ordinal)) return folder;
+            try { string full = Path.GetFullPath(folder); return full.Length >= 2 && full[1] == ':' ? @"\\?\" + full : folder; } catch (Exception) { return folder; }
         }
         private static bool Helper(string path)
         {

@@ -224,7 +224,7 @@ namespace ClaudeDashboard
         // local day the logs still hold, and how long Claude Code keeps its logs (cleanupPeriodDays; null: its 30-day
         // default) and whether the dashboard set that.
         public bool BackfillOn, BackfillDone;
-        public int BackfillRead, BackfillTotal, BackfillDays;
+        public int BackfillRead, BackfillTotal, BackfillDays, BackfillSkipped;
         public DateTime? OldestLog;
         public int? LogsKeptDays;
         public bool LogsKeptByUs;
@@ -1053,7 +1053,7 @@ namespace ClaudeDashboard
             if (backfill != null)
             {
                 view.BackfillOn = backfill.Enabled; view.BackfillDone = backfill.Done; view.BackfillRead = backfill.FilesRead; view.BackfillTotal = backfill.FilesTotal;
-                view.BackfillDays = backfill.DaysWritten; view.OldestLog = backfill.OldestLog;
+                view.BackfillDays = backfill.DaysWritten; view.OldestLog = backfill.OldestLog; view.BackfillSkipped = backfill.FilesSkipped;
             }
             // settings.json's cleanupPeriodDays, read with the connection every 10 s (CheckConnected) and at once after
             // Keep logs a year or its Undo; no read of its own here.

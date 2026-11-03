@@ -14,6 +14,7 @@ Claude Dashboard: History from the logs (Ali: "I've been using claude for more t
   - Each reply counts once, by its request id (its message id when there is none), across every log, helpers' logs included.
   - A day file the live History wrote from a partial scan (fewer replies than the logs hold; the scan reads a week from the logs' tails) is corrected from the logs: tokens, cache reads, replies, threads, cost, hours and projects. Its own needs and longest wait stay, since only the live History sees those. A day file with as many replies as the logs is never replaced, and today is never written.
   - The oldest day the logs hold comes from any line's timestamp, not only replies.
+  - Logs are listed and read through Windows' long-path prefix (`\\?\`). A Claude app scratch workspace's log sits in a folder whose encoded name alone can be 200 characters, and past 260 for the whole path it used to be left out without a word (Ali's 3 Oct). A log that can't be read is skipped and counted, never holding up the rest, and Sources says "N logs couldn't be read".
   - Numbers and project folders only (the same keys the live day files use): no prompt, reply, title, model or command, and no thread name from a first request. Only request ids are held in memory while it reads, never the replies.
   - It runs on the background log scan's thread, 32 MB of log a step, after each scan, with no timer of its own, and writes the days once every log is read. It follows Settings → Claude → History: off, it does nothing; turned on again, it starts over.
   - Needs and the longest wait can't be rebuilt from the logs. Such a day carries `fromLogs`, and History's "Last 7 days" shows "—" and "from logs" with a one-line note, instead of 0 (a corrected day shows the wait it saw). The live History keeps the mark when it later adds to that day. The calendar puts a small dot on such days and says in words under it which days came from the logs.
@@ -31,6 +32,7 @@ Claude Dashboard: History from the logs (Ali: "I've been using claude for more t
   - The setting is read along with the 10-second connection check (and right after a press), not on a timer of its own.
 - **Checks** (old-dated logs and a `settings.json` in throwaway folders, never the PC's own):
   - the right days are built, in budgeted steps, and a partial day file is corrected with its needs kept;
+  - a scratch-workspace-shaped log past 260 characters is read (3 Oct at UTC+3), and a skipped log is counted;
   - existing days and today are skipped, and days past a year are left out;
   - a duplicate request id counts once, a helper's copy included;
   - no text, model, session or request id lands in a day file;
