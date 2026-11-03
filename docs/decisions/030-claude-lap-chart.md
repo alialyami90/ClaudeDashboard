@@ -31,7 +31,8 @@ The prototype is the bottom artboard of "Claude Dashboard app layouts". Its numb
 
 ### The lap chart (Live)
 
-- **Lanes in urgency order:** Needs you, Retrying, Silent, Your turn, Compacting, Working, then Idle. Nothing that needs you sits below the fold.
+- **Lanes in urgency order:** Needs you, Stuck, Retrying, Silent, Your turn, Compacting, Working, Idle, then Ended. Nothing that needs you sits below the fold.
+- **Which sessions get a lane:** every running session, and each ended one whose trail is still on the axis. Live follows Settings → Claude's archived choice, so while archived threads are hidden they get no lane and no feed line (v0.56.1). It doesn't apply hide-idle, because Idle is its own lane. Hidden projects get neither.
 - **Lane encodings:**
 
   | State | How the lane draws it |
