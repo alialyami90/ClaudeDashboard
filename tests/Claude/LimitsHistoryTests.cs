@@ -170,19 +170,16 @@ internal static class LimitsHistoryTests
         });
 
         check("Lap chart: History says why without day files, and reads them at most once a minute", () => {
-            var saved = HistoryView.Source;
-            try
             {
                 var view = ClaudeView.Fixture(Now, false); view.Sample = false;
                 if (view.Days == null) view.Days = new long[7];
-                HistoryView.Source = null;
                 var history = new HistoryView();
                 var host = Show(history, view, 1000, 600, 1, false);
                 Assert(history.Shown.Missing.Length > 0 && Texts(host).Any(t => t.Contains("day files")), "no reason without the files");
 
                 int reads = 0;
-                HistoryView.Source = (now, count) => { reads++; return HistoryModel.SampleDays(now).Skip(HistoryModel.CalendarDays - count).ToList(); };
                 history = new HistoryView();
+                history.Source = (now, count) => { reads++; return HistoryModel.SampleDays(now).Skip(HistoryModel.CalendarDays - count).ToList(); };
                 history.Build(new ClaudeViewContext(), new Size(1000, 600)); history.Visible = true;
                 history.Refresh(view, Now); history.Refresh(view, Now.AddSeconds(1)); history.Refresh(view, Now.AddSeconds(30));
                 Assert(reads == 1, "read " + reads + " times in 30 s");
@@ -194,12 +191,11 @@ internal static class LimitsHistoryTests
                 history.Refresh(view, Now.AddSeconds(200));
                 Assert(reads == 2, "read again with nothing changed");
 
-                HistoryView.Source = (now, count) => new List<ClaudeDay>();
                 history = new HistoryView();
+                history.Source = (now, count) => new List<ClaudeDay>();
                 host = Show(history, view, 1000, 600, 1, false);
                 Assert(history.Shown.Empty && Texts(host).Any(t => t.Contains("No day files yet")), "empty history doesn't say so");
             }
-            finally { HistoryView.Source = saved; }
         });
     }
 

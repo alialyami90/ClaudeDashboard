@@ -74,6 +74,13 @@ namespace ClaudeDashboard
         // The newest sign the session is alive: a hook event, a reply in its log or its state changing (the attention
         // queue's "silent" and the live rows).
         public DateTime LastSign;
+        // v0.54.0, the lap chart's engine: an API error telemetry saw on a working session with no request through since
+        // (Claude Code is retrying; StopFailure would have made it Stuck), the lane state and since when, and this
+        // session's tool times from telemetry (empty with telemetry off).
+        public bool Retrying;
+        public ClaudeLaneState Lane = ClaudeLaneState.Idle;
+        public DateTime LaneSince;
+        public List<ClaudeToolTime> ToolTimes = new List<ClaudeToolTime>();
         // Your turn as the header counts it (a running thread whose car is parked done), so the footer and the queue agree.
         public bool YourTurn { get { return Running && Pit == PitState.Done; } }
         public string Shown { get { return String.IsNullOrWhiteSpace(Title) ? ProjectName : Title; } }
@@ -185,6 +192,32 @@ namespace ClaudeDashboard
         public double LimitEtaMinutes = Double.NaN;
         public double ClaudeCodeCost = Double.NaN, EstimateCost = Double.NaN;
         public DateTime MadeAt = DateTime.UtcNow;
+        // v0.54.0, the lap chart's engine (ClaudeTimeline; in memory only, names, states and times):
+        // - WatchStart: when the app began watching; no trail starts before it. Trails: each session's state changes for
+        //   the last five hours (by id, oldest first).
+        // - PlanReadings: the 5-hour readings of the last five hours; LimitAtPace and LimitAtAverage: "≈ limit" at the
+        //   last 30 minutes' pace and at today's average (Known false with fewer than 3 readings, Why says so).
+        // - ToolTimes: each tool's runs, failures, median and longest across all sessions (ToolTimesKnown: telemetry
+        //   named tool runs); ToolRunsToday and ApiErrors (the last 24 hours) for Reliability; Compactions today.
+        // - Feed: "What just happened", the last 50 lines, newest first.
+        // - Freshness for Sources: the logs' last scan, telemetry's last export and port, the Claude app's records' last
+        //   read and count, and the plan's next check (null when not signed in).
+        public DateTime WatchStart;
+        public Dictionary<string, List<ClaudeStateMark>> Trails = new Dictionary<string, List<ClaudeStateMark>>(StringComparer.Ordinal);
+        public List<ClaudePlanReading> PlanReadings = new List<ClaudePlanReading>();
+        public ClaudeLimitProjection LimitAtPace = new ClaudeLimitProjection { Basis = ClaudeLimitProjection.Pace, Why = "No 5-hour reading" };
+        public ClaudeLimitProjection LimitAtAverage = new ClaudeLimitProjection { Basis = ClaudeLimitProjection.Average, Why = "No 5-hour reading" };
+        public List<ClaudeToolTime> ToolTimes = new List<ClaudeToolTime>();
+        public bool ToolTimesKnown;
+        public List<ClaudeToolRun> ToolRunsToday = new List<ClaudeToolRun>();
+        public List<ClaudeApiError> ApiErrors = new List<ClaudeApiError>();
+        public List<ClaudeCompaction> Compactions = new List<ClaudeCompaction>();
+        // Today's permission prompts per tool (tool name → times it asked you), from telemetry's tool decisions.
+        public Dictionary<string, int> AskedToday = new Dictionary<string, int>(StringComparer.Ordinal);
+        public List<ClaudeFeedItem> Feed = new List<ClaudeFeedItem>();
+        public DateTime LogsReadAt, TelemetryAt, AppThreadsReadAt;
+        public int TelemetryPort, AppThreadCount;
+        public DateTime? PlanNextCheck;
         // "Telemetry off: port 43832 in use" when the receiver couldn't listen where settings.json sends it (decision 023).
         public string TelemetryWarning = "";
         public int Stuck { get { return Sessions.Count(s => s.State == ClaudeState.Stuck); } }
@@ -370,6 +403,8 @@ namespace ClaudeDashboard
                 { "photo-manager", new[] { 5, 6, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 1, 0, 2 } } };
             foreach (var pair in profiles) view.Lanes.Add(new ClaudeLane { Folder = "C:\\Code\\" + pair.Key, Name = pair.Key, Bins = pair.Value.Select(v => v * 61000.0).ToArray() });
             view.Facts = new ClaudeFacts { Tokens = 4676800, Cost = 11.4, Replies = 519, Prompt = 4400000, CacheRead = 4004000, Tools = 312, Asked = 41, Denied = 7, Added = 2100, Removed = 460, LinesThreads = 4, Telemetry = true };
+            // v0.54.0: the lap chart's sample trails, plan readings, "≈ limit", feed, tool times and sources' freshness.
+            ClaudeTimeline.Sample(view, now, needsYou, crowded);
             return view;
         }
         private static ClaudeProjectUsage P(string name, long tokens, double cost) { return new ClaudeProjectUsage { Folder = name == "Other" ? "" : "C:\\Code\\" + name, Name = name, Tokens = tokens, Cost = cost }; }
@@ -406,10 +441,16 @@ namespace ClaudeDashboard
         // The plan check's interval (Settings → Claude) and, after Anthropic turned a check away, the longer wait.
         private TimeSpan onlineEvery = TimeSpan.FromSeconds(ClaudeIntervals.PlanDefault), backoff = TimeSpan.Zero;
         private sealed class Cached { public DateTime Written; public long Length; public ClaudeSessionFile Session; }
+        // v0.54.0: the lap chart's timeline, plan readings and feed, in memory from when the service started watching.
+        // The checks start it again at a time of their own with WatchFrom.
+        public ClaudeTimeline Timeline { get; private set; }
+        public void WatchFrom(DateTime start) { Timeline = new ClaudeTimeline(start); }
+        private DateTime appThreadsRead;
 
         public ClaudeService(string bridgeFolder, string configFolder, string signInPath = null, int telemetryPort = ClaudeTelemetry.DefaultPort, ClaudeAccount account = null, ClaudeAppThreads appThreads = null)
         {
             AppThreads = appThreads ?? new ClaudeAppThreads();
+            Timeline = new ClaudeTimeline(DateTime.UtcNow);
             bridge = bridgeFolder;
             Connector = new ClaudeConnector(configFolder, bridgeFolder, telemetryPort);
             Usage = new ClaudeUsage(configFolder);
@@ -503,7 +544,7 @@ namespace ClaudeDashboard
             switch (e.Name)
             {
                 case "tool_decision":
-                    mark(Decided); tools.Add(new ClaudeToolEntry { At = e.At, Session = e.Session, Asked = e.Asked, Denied = e.Denied });
+                    mark(Decided); tools.Add(new ClaudeToolEntry { At = e.At, Session = e.Session, Tool = e.Tool, Asked = e.Asked, Denied = e.Denied });
                     // An allowed call runs until its tool_result (package 2: the car revs once it runs past its usual time).
                     if (!e.Denied && e.ToolUse.Length > 0)
                     {
@@ -512,12 +553,17 @@ namespace ClaudeDashboard
                     }
                     break;
                 case "tool_result":
-                    mark(Finished); tools.Add(new ClaudeToolEntry { At = e.At, Session = e.Session, Result = true });
+                    mark(Finished); tools.Add(new ClaudeToolEntry { At = e.At, Session = e.Session, Tool = e.Tool, Result = true });
                     // A result naming its call makes the session's open calls definite (none open: not revving).
                     if (e.ToolUse.Length > 0) { if (open.TryGetValue(e.Session, out calls)) calls.Remove(e.ToolUse); else open[e.Session] = new Dictionary<string, KeyValuePair<DateTime, string>>(); }
                     runs.Add(new ClaudeToolRun { At = e.At, Session = e.Session, Tool = e.Tool, Ms = e.DurationMs, Failed = e.Failed, ErrorType = e.ErrorType });
+                    // The lap chart's feed (v0.54.0): a failed tool, by name.
+                    if (e.Failed) Timeline.Event(e.At, e.Session, ClaudeFeedItem.ToolFailed, e.Tool);
                     break;
-                case "api_error": mark(Failed); apiErrors.Add(new ClaudeApiError { At = e.At, Session = e.Session, Status = e.Status, Attempt = e.Attempt }); break;
+                case "api_error":
+                    mark(Failed); apiErrors.Add(new ClaudeApiError { At = e.At, Session = e.Session, Status = e.Status, Attempt = e.Attempt });
+                    Timeline.Event(e.At, e.Session, ClaudeFeedItem.ApiError, ClaudeTimeline.ErrorDetail(e.Status, e.Attempt));
+                    break;
                 case "api_request":
                     mark(Requested);
                     // A request after a call was allowed means the call has finished, even if its result never came.
@@ -604,6 +650,7 @@ namespace ClaudeDashboard
             else listed = e => e.Pid > 0 && ClaudeProcesses.Alive(e.Pid, e.Started);
             changed |= Registry.Read(listed, checkAlive);
             changed |= AppThreads.Read(now);
+            appThreadsRead = now;
             return changed;
         }
         // Sessions whose hook file went (SessionEnd, or their process left): their logs no longer make them running.
@@ -655,6 +702,7 @@ namespace ClaudeDashboard
                 DateTime written = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
                 if (written == limitsWrite) return false;
                 limitsWrite = written; fileLimits = written == DateTime.MinValue ? null : ClaudeBridge.ReadLimits(bridge);
+                Remember(fileLimits);
                 return true;
             }
             catch (Exception) { return false; }
@@ -680,7 +728,15 @@ namespace ClaudeDashboard
             return merged;
         }
         // For the checks: the plan check's numbers as if just read.
-        public void UseOnlineLimits(ClaudeLimits limits) { onlineLimits = limits; onlineFailed = false; }
+        public void UseOnlineLimits(ClaudeLimits limits) { onlineLimits = limits; onlineFailed = false; Remember(limits); }
+        // A 5-hour reading for the lap chart's curve and "≈ limit" (v0.54.0), from either source, when it comes.
+        private void Remember(ClaudeLimits limits)
+        {
+            if (limits == null || limits.FiveHour == null) return;
+            DateTime now = DateTime.UtcNow;
+            DateTime at = limits.UpdatedAt > DateTime.MinValue && limits.UpdatedAt <= now ? limits.UpdatedAt : now;
+            Timeline.Reading(at, limits.FiveHour.Percent, limits.FiveHour.ResetsAt, now);
+        }
 
         // ----- The plan check with the widget's own sign-in (decision 015) -----
 
@@ -715,6 +771,7 @@ namespace ClaudeDashboard
                 // No numbers: the sign-in ended or the plan has no meters; the old online numbers no longer stand.
                 if (limits == null) { onlineFailed = false; if (Account.NoMeters) onlineLimits = null; return true; }
                 onlineLimits = limits; onlineFailed = false;
+                Remember(limits);
                 return true;
             }
             catch (Exception e) { Refused(e); return true; }
@@ -894,11 +951,12 @@ namespace ClaudeDashboard
             }
 
             var list = new List<ClaudeSession>();
+            var hidden = new HashSet<string>(StringComparer.Ordinal);
             foreach (var s in sessions.Values)
             {
                 string started; if (folders.TryGetValue(s.Id, out started)) s.Project = started;
                 s.Project = ProjectOf(s.Project);
-                if (shown != null && !shown(s.Project)) continue;
+                if (shown != null && !shown(s.Project)) { hidden.Add(s.Id); continue; }
                 s.ProjectName = ClaudeBridge.ProjectName(s.Project);
                 ClaudeAppThread a; app.TryGetValue(s.Id, out a);
                 // The name (decision 018): one the user typed (a rename in Claude Code's list or its log), else one
@@ -952,7 +1010,27 @@ namespace ClaudeDashboard
             foreach (var pair in starts) view.Starts[pair.Key] = pair.Value;
             if (usage != null) foreach (var pair in starts) view.Usage[pair.Key] = ClaudeUsage.ByProject(usage, pair.Value, 6, folderOf, shown);
             PitWall(view, now, usage, perSession, folderOf, shown);
+            Lap(view, now, usage, hidden);
             return view;
+        }
+
+        // The lap chart (v0.54.0): each shown session's lane now goes on its trail, and one the timeline knows that has
+        // gone (and isn't hidden by Settings) ends; then the snapshot gets the trails, readings, "≈ limit", feed and the
+        // sources' freshness. In memory only.
+        private void Lap(ClaudeView view, DateTime now, List<ClaudeUsageEntry> usage, HashSet<string> hidden)
+        {
+            Timeline.Hide(hidden);
+            var present = new HashSet<string>(view.Threads.Select(t => t.Id), StringComparer.Ordinal);
+            foreach (var t in view.Threads)
+            {
+                var lane = ClaudeTimeline.LaneOf(t, now);
+                Timeline.Note(t.Id, lane.Value, lane.Key, now);
+            }
+            foreach (var id in Timeline.Tracked) if (!present.Contains(id) && !hidden.Contains(id)) Timeline.Note(id, now, ClaudeLaneState.Ended, now);
+            Timeline.Fill(view, now, ClaudeTimeline.AveragePerHour(view, usage, now));
+            view.LogsReadAt = Usage.LastScan; view.TelemetryAt = Telemetry.LastReceived; view.TelemetryPort = Telemetry.Running ? Telemetry.Port : 0;
+            view.AppThreadsReadAt = appThreadsRead; view.AppThreadCount = AppThreads.Threads.Count;
+            view.PlanNextCheck = Account != null && Account.SignedIn ? (DateTime?)(lastOnline == DateTime.MinValue ? now : lastOnline + NextWait) : null;
         }
 
         // Package 2, the cost's sources: Claude Code's own cost (telemetry) wins, then the price table; a session whose
@@ -1033,7 +1111,23 @@ namespace ClaudeDashboard
                     if (last != null) { t.ErrorStatus = last.Status; t.ErrorAttempt = last.Attempt; t.ErrorAt = last.At; }
                 }
                 string mode; if (modeList.TryGetValue(t.Id, out mode)) t.Mode = mode;
+                // v0.54.0: Retrying while the car spins after an API error on a working session (Claude Code retries until
+                // a request goes through, or StopFailure makes it Stuck); telemetry's own events count as signs of life.
+                t.Retrying = t.Running && t.State == ClaudeState.Working && m[Failed] > m[Requested] && now - m[Failed] < ClaudePace.ErrorShows;
+                DateTime heard = m.Max();
+                if (t.Running && heard <= now && heard > t.LastSign) t.LastSign = heard;
             }
+            // The lap chart's tool times (v0.54.0): per tool across all sessions and per session, from telemetry's runs.
+            var shownRuns = runList.Where(r => ids.Contains(r.Session)).ToList();
+            view.ToolTimes = ClaudeTimeline.ToolTimes(shownRuns);
+            view.ToolTimesKnown = shownRuns.Count > 0;
+            var runsBySession = shownRuns.GroupBy(r => r.Session).ToDictionary(g => g.Key, g => g.ToList());
+            foreach (var t in view.Threads) { List<ClaudeToolRun> own; t.ToolTimes = runsBySession.TryGetValue(t.Id, out own) ? ClaudeTimeline.ToolTimes(own) : new List<ClaudeToolTime>(); }
+            DateTime todayFrom; if (!view.Starts.TryGetValue(ClaudePeriod.Today, out todayFrom)) todayFrom = now.Date;
+            view.ToolRunsToday = shownRuns.Where(r => r.At >= todayFrom && r.At <= now).OrderBy(r => r.At).ToList();
+            view.AskedToday = toolList.Where(e => !e.Result && e.Asked && !String.IsNullOrEmpty(e.Tool) && ids.Contains(e.Session) && e.At >= todayFrom && e.At <= now)
+                .GroupBy(e => e.Tool, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+            view.ApiErrors = errorList.Where(a => ids.Contains(a.Session) && a.At > now - TimeSpan.FromHours(24) && a.At <= now).OrderBy(a => a.At).ToList();
             // A lane for every project used in the last five hours (up to six). Ali asked for projects only, no thread
             // lanes under them (1 Nov 2026).
             DateTime fiveHours = now - ClaudePace.FiveHours;

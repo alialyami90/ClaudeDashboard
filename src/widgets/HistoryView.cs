@@ -21,9 +21,9 @@ namespace ClaudeDashboard
         public string Name { get { return ClaudeViews.History; } }
         public bool Visible { get; set; }
 
-        // The day files, oldest first, count days up to today (ClaudeHistory.Days). Wired by the host; until it is, the
-        // tab says the files aren't reaching it.
-        public static Func<DateTime, int, List<ClaudeDay>> Source;
+        // The day files, oldest first, count days up to today (ClaudeHistory.Days); null while History is off. It will
+        // come from the view context (Shell, #21); until it does, the tab says the files aren't reaching it.
+        public Func<DateTime, int, List<ClaudeDay>> Source { get; set; }
         public static readonly TimeSpan ReadEvery = TimeSpan.FromMinutes(1);
 
         private ClaudeViewContext context = new ClaudeViewContext();
