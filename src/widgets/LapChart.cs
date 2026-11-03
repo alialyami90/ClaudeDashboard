@@ -177,7 +177,7 @@ namespace ClaudeDashboard
                 if (x + words.Width > w) x = Math.Max(0, (Axis.Wall != null ? Axis.X(Axis.Wall.Value, w) : Axis.X(Axis.Now, w)) - 4 - words.Width);
                 dc.DrawText(words, new Point(x, 0));
             }
-            // v0.56.2: the percent sits at the curve's end, just left of the now line (Scribe's render note), below the
+            // v0.57.2: the percent sits at the curve's end, just left of the now line (Scribe's render note), below the
             // line when it would meet the label at the top.
             if (!Double.IsNaN(Percent))
             {
@@ -198,7 +198,7 @@ namespace ClaudeDashboard
         }
     }
 
-    // v0.56.2: the time under the curve (Scribe's render note): whole hours, "now" and "reset 2:16 pm", in the Muted
+    // v0.57.2: the time under the curve (Scribe's render note): whole hours, "now" and "reset 2:16 pm", in the Muted
     // colour, each centred on its time; a label that would meet another is left out (now and the reset go first).
     public sealed class LapTicks : LapPart
     {
@@ -254,7 +254,7 @@ namespace ClaudeDashboard
         }
     }
 
-    // v0.56.2: the trails' key on one line (Scribe's render note): a swatch drawn as the trail draws it, then its word.
+    // v0.57.2: the trails' key on one line (Scribe's render note): a swatch drawn as the trail draws it, then its word.
     // What doesn't fit at the end is left out; the full key is the element's name for screen readers.
     public sealed class LapKey : LapPart
     {

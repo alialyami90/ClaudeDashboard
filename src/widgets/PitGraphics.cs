@@ -73,7 +73,7 @@ namespace ClaudeDashboard
             }
             if (Value > 0.002) dc.DrawGeometry(null, Line(Warn ? B("Warning") : B("Accent"), 10), Arc(0, Value, r));
             var tick = Line(B("Muted"), 1.5, false);
-            // v0.56.2: the end labels are placed first, and a tick that would cross one is left out (at 140% the "100"
+            // v0.57.2: the end labels are placed first, and a tick that would cross one is left out (at 140% the "100"
             // read "T00" under the last tick since v0.51.0). The label marks that end of the scale itself.
             var low = Words(Low, Math.Round(10 * TextScale), B("Muted"));
             var high = Words(High, Math.Round(10 * TextScale), B("Muted"));

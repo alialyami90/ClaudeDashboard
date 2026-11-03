@@ -1678,9 +1678,9 @@ namespace ClaudeDashboard
             if (view.Lanes.Count == 0) { var none = Text("Nothing in the last 5 hours.", Scaled(12), "Muted"); none.Margin = new Thickness(0, 6, 0, 0); lanes.Children.Add(none); }
             var axis = Columns(new GridLength(Scaled(104)), Star); axis.Margin = new Thickness(0, 4, 0, 0);
             var times = new Grid { Margin = new Thickness(8, 0, 0, 0) };
-            var start = Text("", Scaled(11), "Muted"); var middle = Text("", Scaled(11), "Muted"); middle.HorizontalAlignment = HorizontalAlignment.Center; var end = Text("now", Scaled(11), "Muted"); end.HorizontalAlignment = HorizontalAlignment.Right;
+            var start = Text("", Scaled(11), "Muted"); start.HorizontalAlignment = HorizontalAlignment.Left; var middle = Text("", Scaled(11), "Muted"); middle.HorizontalAlignment = HorizontalAlignment.Center; var end = Text("now", Scaled(11), "Muted"); end.HorizontalAlignment = HorizontalAlignment.Right;
             times.Children.Add(start); times.Children.Add(middle); times.Children.Add(end);
-            // v0.56.2: at 140% the three times met at 1600 × 900; one that would meet another is left out (middle first).
+            // v0.57.2: at 140% the three times met at 1600 × 900; one that would meet another is left out (middle first).
             times.SizeChanged += (sender, e) => FitTimes(times, start, middle, end);
             names.Add(start, "ClaudeLanesStart"); names.Add(middle, "ClaudeLanesMiddle"); names.Add(end, "ClaudeLanesNow");
             axis.Children.Add(At(times, 0, 1));

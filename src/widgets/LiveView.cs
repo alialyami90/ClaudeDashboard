@@ -62,7 +62,7 @@ namespace ClaudeDashboard
         public FrameworkElement Build(ClaudeViewContext viewContext, Size viewRoom)
         {
             context = viewContext ?? new ClaudeViewContext(); room = viewRoom;
-            // v0.56.2: Quiet (keep the cars still) is read here only; the window builds the view again when it changes.
+            // v0.57.2: Quiet (keep the cars still) is read here only; the window builds the view again when it changes.
             quiet = context.Quiet; framesAsked = false;
             side = room.Width >= SideRoom;
             labelWidth = side ? WideLabel : NarrowLabel;
@@ -91,7 +91,7 @@ namespace ClaudeDashboard
             Grid.SetColumn(curve, 1); head.Children.Add(curve);
             AutomationProperties.SetName(head, "5-hour limit");
             main.Children.Add(head);
-            // v0.56.2: the time under the curve, on the same axis: whole hours, now and the reset.
+            // v0.57.2: the time under the curve, on the same axis: whole hours, now and the reset.
             var tickRow = new Grid { Height = Math.Ceiling(S(11) * 1.33) + 4, Margin = new Thickness(0, 0, 0, 4) };
             tickRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(labelWidth) });
             tickRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -108,7 +108,7 @@ namespace ClaudeDashboard
             feedRoom = Math.Max(2, Math.Min(8, (int)Math.Floor((room.Height * 0.25 - line - 8) / line)));
             var feed = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
             var feedHead = CardParts.Text("What just happened", S(13), "Text"); feedHead.FontWeight = FontWeights.SemiBold;
-            // v0.56.2: the trails' key on the feed's heading line, as much as fits after the heading.
+            // v0.57.2: the trails' key on the feed's heading line, as much as fits after the heading.
             var feedTop = new DockPanel { LastChildFill = true };
             DockPanel.SetDock(feedHead, Dock.Left); feedTop.Children.Add(feedHead);
             trailKey = new LapKey { TextScale = context.TextScale, Height = Math.Ceiling(S(11) * 1.33) + 4, Margin = new Thickness(24, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -124,7 +124,7 @@ namespace ClaudeDashboard
             panelBody = new StackPanel();
             panelScroll = new ScrollViewer { Content = panelBody, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
             panel = new Border { Padding = new Thickness(16), CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), Child = panelScroll, VerticalAlignment = VerticalAlignment.Top };
-            // v0.56.2: when the panel's words don't all fit, it ends after the last whole one (no line half cut at the
+            // v0.57.2: when the panel's words don't all fit, it ends after the last whole one (no line half cut at the
             // scroll edge); the rest scrolls.
             root.SizeChanged += (sender, e) => Snap();
             panelBody.SizeChanged += (sender, e) => Snap();
@@ -224,11 +224,11 @@ namespace ClaudeDashboard
                 .OrderBy(t => (int)t.Lane).ThenBy(t => t.LaneSince).ThenBy(t => t.Id, StringComparer.Ordinal).ToList();
         }
 
-        // v0.56.2: Live follows Settings → Claude's archived choice (archived and resolved threads, as the Garage hides
+        // v0.57.2: Live follows Settings → Claude's archived choice (archived and resolved threads, as the Garage hides
         // them); hide-idle isn't applied here, since an idle lane is still on the track.
         public static bool ArchivedHidden(ClaudeView view, ClaudeSession t) { return ClaudePace.Hidden(t.Pit, view.ShowArchived, false); }
 
-        // v0.56.2, moving cars: a car's frames step by its state, as on the Garage, through the window's one frame
+        // v0.57.2, moving cars: a car's frames step by its state, as on the Garage, through the window's one frame
         // clock. The view asks for frames while a car moves and lets go when every car is still; it never starts a
         // timer of its own, and in Quiet nothing moves.
         private void Motion()
@@ -377,7 +377,7 @@ namespace ClaudeDashboard
 
         // ----- The feed -----
 
-        // v0.56.2: the feed's lines, less an archived thread's when Settings → Claude hides archived threads (it has
+        // v0.57.2: the feed's lines, less an archived thread's when Settings → Claude hides archived threads (it has
         // no lane either).
         public static List<ClaudeFeedItem> FeedShown(ClaudeView view)
         {
@@ -488,7 +488,7 @@ namespace ClaudeDashboard
         private void Fact(string label, string value)
         {
             var name = CardParts.Text(label, S(12), "Muted"); name.Margin = new Thickness(0, 10, 0, 0);
-            // v0.56.2: a number is never cut at 140%: the reading wraps.
+            // v0.57.2: a number is never cut at 140%: the reading wraps.
             var reading = Wrap(CardParts.Text(value, S(14), "Text"));
             panelBody.Children.Add(name); panelBody.Children.Add(reading);
         }

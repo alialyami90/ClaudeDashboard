@@ -65,7 +65,7 @@ internal static class LapChartTests
             Assert(line.EndsWith("Push token refresh · " + ClaudeText.ToolName(ClaudeView.SampleLongTool) + " failed") && line.Contains("…"), "A feed line: " + line);
         });
 
-        check("Claude one ≈ limit: the tank, Medium and Small say the engine's ≈ limit, Limit reached at 100% (v0.56.2)", () => {
+        check("Claude one ≈ limit: the tank, Medium and Small say the engine's ≈ limit, Limit reached at 100% (v0.57.2)", () => {
             var crowded = ClaudeView.Fixture(Now, true, true);
             var w = crowded.Limits.FiveHour;
             double pct = ClaudeText.Percent(w, Now), projection = ClaudePace.Projection(pct, ClaudePace.Elapsed(w, ClaudePace.FiveHours, Now));
@@ -98,7 +98,7 @@ internal static class LapChartTests
             Assert(ClaudeText.FiveHourPace(stale, 90, 120, Now, false).SequenceEqual(new[] { "≈ limit now" }), "A ≈ limit in the past shows a time.");
         });
 
-        check("Claude Live: archived lanes and feed lines follow Settings → Claude, cars move only through Frames, never in Quiet (v0.56.2)", () => {
+        check("Claude Live: archived lanes and feed lines follow Settings → Claude, cars move only through Frames, never in Quiet (v0.57.2)", () => {
             var view = ClaudeView.Fixture(Now, true, true);
             var axis = LapAxis.For(view, Now);
             var lanes = LiveView.Lanes(view, axis);
@@ -131,7 +131,7 @@ internal static class LapChartTests
             }
         });
 
-        check("Claude gauge and Garage lanes: no tick through an end label, no times meeting (v0.56.2)", () => {
+        check("Claude gauge and Garage lanes: no tick through an end label, no times meeting (v0.57.2)", () => {
             // At 140% "100" is about 24 units wide in the gauge's 140 × 84 box: the last tick is left out, the rest stay.
             var boxes = PitGauge.LabelBoxes(11, 19, 15, 24, 19, 15);
             Assert(PitGauge.TickHidden(PitGauge.Tick(10)[0], PitGauge.Tick(10)[1], boxes), "The last tick still crosses \"100\".");
@@ -183,7 +183,7 @@ internal static class LapChartTests
                             Assert(texts.Contains("What just happened") && texts.Contains("5-hour limit") && texts.Contains("Sample"), name + ": the feed, the 5-hour line or Sample is missing.");
                             Assert(texts.Any(t => t.StartsWith("72% · ≈ limit ")), name + ": the 5-hour line doesn't say ≈ limit.");
                             Assert(live.SidePanel == (size.Width >= LiveView.SideFrom), name + ": the panel's place is wrong.");
-                            // v0.56.2: the times under the curve, the key, the moving cars' frames.
+                            // v0.57.2: the times under the curve, the key, the moving cars' frames.
                             var placed = live.Ticks.Placed();
                             Assert(placed.Count > 0 && placed[0].Item1 == "now", name + ": the times under the curve are missing.");
                             for (int i = 0; i < placed.Count; i++) for (int j = i + 1; j < placed.Count; j++)
@@ -198,7 +198,7 @@ internal static class LapChartTests
                                 AppController.Render(window, size, 1, png.Replace(".png", "-drawer.png"));
                                 Assert(live.PanelOpen && live.Selected == "sample-1" && Texts(host).Any(t => t.Text == "Go to it"), name + ": a lane's click doesn't open the drawer.");
                             }
-                            // v0.56.2: no number in the panel is cut, and its scroll area ends on a whole line.
+                            // v0.57.2: no number in the panel is cut, and its scroll area ends on a whole line.
                             var panelTexts = Texts(live.PanelScroll);
                             Assert(panelTexts.Where(t => t.Text.Contains("typical") || t.Text.Contains(" tokens · ")).All(t => t.TextWrapping == TextWrapping.Wrap && t.TextTrimming == TextTrimming.None), name + ": a panel number can be cut.");
                             var scroll = live.PanelScroll;
@@ -208,7 +208,7 @@ internal static class LapChartTests
                                 bool whole = body is Panel && ((Panel)body).Children.OfType<FrameworkElement>().Any(c => Math.Abs(c.TranslatePoint(new Point(0, c.ActualHeight + c.Margin.Bottom), body).Y - scroll.ViewportHeight) <= 1.5);
                                 Assert(whole, name + ": the panel's last line is cut at the scroll edge (" + scroll.ViewportHeight + " of " + scroll.ExtentHeight + ").");
                             }
-                            // v0.56.2: the Garage's lanes axis, where its side panel shows: the times never meet.
+                            // v0.57.2: the Garage's lanes axis, where its side panel shows: the times never meet.
                             if (size.Width >= 1600)
                             {
                                 controller.ShowView(ClaudeViews.Garage);
