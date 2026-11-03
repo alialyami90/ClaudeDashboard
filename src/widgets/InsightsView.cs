@@ -179,12 +179,13 @@ namespace ClaudeDashboard
             var share = new LapChart { Height = Math.Round(S(14)) };
             var parts = m.Models.Select(x => x.Share).ToList();
             share.Paint = (dc, size, c) => InsightsParts.PaintSplit(dc, size, c, parts);
-            AutomationProperties.SetName(share, "Share of tokens by model: " + String.Join(", ", m.Models.Select(x => x.Name + " " + InsightsModel.Percent(x.Share))));
+            AutomationProperties.SetName(share, "Share of tokens by model: " + String.Join(", ", m.Models.Select(x => InsightsModel.ModelName(x.Name) + " " + InsightsModel.Percent(x.Share))));
             stack.Children.Add(share);
-            stack.Children.Add(InsightsParts.Legend(m.Models.Select(x => x.Name + " " + InsightsModel.Percent(x.Share)).ToList(), S(12)));
+            stack.Children.Add(InsightsParts.Legend(m.Models.Select(x => InsightsModel.ModelName(x.Name) + " " + InsightsModel.Percent(x.Share)).ToList(), S(12)));
 
-            var table = InsightsParts.Table(new[] { "Model", "Replies", "Tokens", "≈ $", "Thinking", "Share" }, m.Models.Select((x, i) => new[] {
-                x.Name, InsightsModel.Count(x.Replies), ClaudeUsage.Format(x.Tokens), InsightsModel.Money(x.Cost, x.Unpriced), x.ThinkingTokens > 0 ? ClaudeUsage.Format(x.ThinkingTokens) : "—", InsightsModel.Percent(x.Share) }).ToList(), S(13), 0);
+            var table = InsightsParts.Table(new[] { "Model", "Replies", "Tokens", "≈ $", "Thinking", "Share of tokens", "Share of replies" }, m.Models.Select((x, i) => new[] {
+                InsightsModel.ModelName(x.Name), InsightsModel.Count(x.Replies), ClaudeUsage.Format(x.Tokens), InsightsModel.Money(x.Cost, x.Unpriced), x.ThinkingTokens > 0 ? ClaudeUsage.Format(x.ThinkingTokens) : "—", InsightsModel.Percent(x.Share),
+                m.Replies > 0 ? InsightsModel.Percent((double)x.Replies / m.Replies) : "—" }).ToList(), S(13), 0);
             table.Margin = new Thickness(0, 10, 0, 0);
             stack.Children.Add(table);
 
@@ -208,7 +209,7 @@ namespace ClaudeDashboard
                 foreach (var e in m.Effort)
                 {
                     var row = CardParts.Columns(new GridLength(S(110)), CardParts.Star, CardParts.Auto); row.Margin = new Thickness(0, 3, 0, 3);
-                    var name = CardParts.Text(e.Model, S(13), "Text"); name.TextTrimming = TextTrimming.CharacterEllipsis;
+                    var name = CardParts.Text(InsightsModel.ModelName(e.Model), S(13), "Text"); name.ToolTip = e.Model; name.TextTrimming = TextTrimming.CharacterEllipsis;
                     row.Children.Add(CardParts.At(name, 0, 0));
                     int total = e.Levels.Values.Sum();
                     var split = levels.Select(l => { int n; return e.Levels.TryGetValue(l, out n) && total > 0 ? (double)n / total : 0.0; }).ToList();
@@ -217,7 +218,7 @@ namespace ClaudeDashboard
                     row.Children.Add(CardParts.At(bar, 0, 1));
                     var count = CardParts.Text(InsightsModel.Count(total), S(13), "Muted"); count.Margin = new Thickness(10, 0, 0, 0);
                     row.Children.Add(CardParts.At(count, 0, 2));
-                    AutomationProperties.SetName(row, e.Model + ": " + String.Join(", ", levels.Select((l, i) => l + " " + InsightsModel.Percent(split[i]))));
+                    AutomationProperties.SetName(row, InsightsModel.ModelName(e.Model) + ": " + String.Join(", ", levels.Select((l, i) => l + " " + InsightsModel.Percent(split[i]))));
                     stack.Children.Add(row);
                 }
                 stack.Children.Add(InsightsParts.Legend(levels, S(12)));
@@ -248,15 +249,16 @@ namespace ClaudeDashboard
                 foreach (var name in new[] { "" }.Concat(m.Models.Select(x => x.Name)))
                 {
                     string which = name;
-                    var button = InsightsParts.Choice(name.Length == 0 ? "All" : name, name == toolModel, S(12));
-                    AutomationProperties.SetName(button, "Tools for " + (name.Length == 0 ? "all models" : name) + (name == toolModel ? ", shown" : ""));
+                    string shown = InsightsModel.ModelName(name);
+                    var button = InsightsParts.Choice(name.Length == 0 ? "All" : shown, name == toolModel, S(12));
+                    AutomationProperties.SetName(button, "Tools for " + (name.Length == 0 ? "all models" : shown) + (name == toolModel ? ", shown" : ""));
                     button.Click += (sender, e) => FilterTools(which);
                     filter.Children.Add(button);
                 }
                 stack.Children.Add(filter);
             }
             var tools = m.ToolsFor(toolModel);
-            if (tools.Count == 0) { stack.Children.Add(LapParts.Words("No tool calls in this range" + (toolModel.Length > 0 ? " for " + toolModel : "") + ".", S(13), "Muted")); return stack; }
+            if (tools.Count == 0) { stack.Children.Add(LapParts.Words("No tool calls in this range" + (toolModel.Length > 0 ? " for " + InsightsModel.ModelName(toolModel) : "") + ".", S(13), "Muted")); return stack; }
             var top = tools.Take(10).ToList();
             stack.Children.Add(LapParts.Caption("Most used", S(11)));
             stack.Children.Add(ToolTable(top, tools[0].Calls));
@@ -282,7 +284,7 @@ namespace ClaudeDashboard
 
         private FrameworkElement ToolTable(IList<InsightsTool> tools, long most)
         {
-            var grid = CardParts.Columns(new GridLength(S(120)), CardParts.Star, CardParts.Auto, CardParts.Auto, CardParts.Auto);
+            var grid = CardParts.Columns(new GridLength(S(170)), CardParts.Star, CardParts.Auto, CardParts.Auto, CardParts.Auto);
             grid.Margin = new Thickness(0, 4, 0, 0);
             string[] heads = { "", "Calls", "Errors", "Error %", "≈ median" };
             grid.RowDefinitions.Add(new RowDefinition { Height = CardParts.Auto });
@@ -296,7 +298,7 @@ namespace ClaudeDashboard
             {
                 var t = tools[r];
                 grid.RowDefinitions.Add(new RowDefinition { Height = CardParts.Auto });
-                var name = CardParts.Text(t.Name, S(13), "Text"); name.TextTrimming = TextTrimming.CharacterEllipsis; name.ToolTip = t.Name; name.Margin = new Thickness(0, 3, 0, 3);
+                var name = CardParts.Text(InsightsModel.ToolName(t.Name), S(13), "Text"); name.TextWrapping = TextWrapping.Wrap; name.ToolTip = t.Name; name.Margin = new Thickness(0, 3, 0, 3);
                 grid.Children.Add(CardParts.At(name, r + 1, 0));
                 var bar = CardParts.Columns(CardParts.Star, CardParts.Auto); bar.Margin = new Thickness(10, 0, 0, 0);
                 bar.Children.Add(CardParts.At(LapParts.Bar(most > 0 ? (double)t.Calls / most : 0, 8, false), 0, 0));
@@ -324,7 +326,8 @@ namespace ClaudeDashboard
             foreach (var p in list.Take(6))
             {
                 var row = CardParts.Columns(CardParts.Star, CardParts.Auto); row.Margin = new Thickness(0, 2, 0, 2);
-                var name = CardParts.Text(p.Key, S(13), "Text"); name.TextTrimming = TextTrimming.CharacterEllipsis; name.ToolTip = p.Key;
+                var name = CardParts.Text(InsightsModel.ServerName(p.Key), S(13), "Text"); name.TextTrimming = TextTrimming.CharacterEllipsis; name.ToolTip = p.Key;
+                AutomationProperties.SetName(name, p.Key);
                 var value = CardParts.Text(InsightsModel.Count(p.Value) + " " + unit, S(13), "Muted"); value.Margin = new Thickness(8, 0, 0, 0);
                 row.Children.Add(CardParts.At(name, 0, 0)); row.Children.Add(CardParts.At(value, 0, 1));
                 stack.Children.Add(row);
@@ -616,6 +619,8 @@ namespace ClaudeDashboard
         public int FromLogs;
         public bool HasPrevious;
         public long Tokens, Replies, ThinkingReplies, PrevTokens, PrevReplies;
+        // Days in the period before with any replies (-1: the engine doesn't say yet, so only the replies count).
+        public int PrevActiveDays = -1;
         public double Cost, PrevCost;
         public int Sessions, PrevSessions;
         public List<InsightsModelRow> Models = new List<InsightsModelRow>();
@@ -637,6 +642,40 @@ namespace ClaudeDashboard
         public static string Count(long n) { return n.ToString("#,0", CultureInfo.InvariantCulture); }
         public static string Percent(double share) { double p = share * 100; return Double.IsNaN(p) ? "—" : p > 0 && p < 1 ? "<1%" : Math.Round(p).ToString(CultureInfo.InvariantCulture) + "%"; }
         public static string Money(double cost, long unpriced) { return cost <= 0 ? (unpriced > 0 ? "unpriced" : "—") : (unpriced > 0 ? "≥ " : "") + cost.ToString("0.00", CultureInfo.InvariantCulture); }
+        // "claude-opus-5-5" → "Opus 5.5", "claude-3-5-sonnet-20241022" → "Sonnet 3.5"; anything else as it is.
+        public static string ModelName(string id)
+        {
+            if (String.IsNullOrEmpty(id)) return id ?? "";
+            string[] families = { "opus", "sonnet", "haiku", "fable" };
+            var parts = id.ToLowerInvariant().Split('-').ToList();
+            if (parts.Count < 3 || parts[0] != "claude") return id;
+            parts.RemoveAt(0);
+            if (parts.Count > 0 && parts[parts.Count - 1].Length == 8 && parts[parts.Count - 1].All(Char.IsDigit)) parts.RemoveAt(parts.Count - 1);
+            int f = parts.FindIndex(x => families.Contains(x));
+            if (f < 0) return id;
+            var numbers = parts.Where((x, i) => i != f).ToList();
+            if (numbers.Count == 0 || numbers.Count > 2 || !numbers.All(x => x.Length > 0 && x.Length <= 2 && x.All(Char.IsDigit))) return id;
+            string family = parts[f];
+            return Char.ToUpperInvariant(family[0]) + family.Substring(1) + " " + String.Join(".", numbers);
+        }
+        // An MCP server's name; a bare id (a connector's uuid) reads "Connector 1a59c9".
+        public static string ServerName(string server)
+        {
+            if (String.IsNullOrEmpty(server)) return server ?? "";
+            string s = server;
+            int dash = s.IndexOf('-');
+            bool id = s.Length >= 32 && dash == 8 && s.Replace("-", "").All(c => Uri.IsHexDigit(c));
+            return id ? "Connector " + s.Substring(0, 6) : s;
+        }
+        // "mcp__server__tool" → "server · tool"; other tools as they are.
+        public static string ToolName(string name)
+        {
+            if (String.IsNullOrEmpty(name) || !name.StartsWith("mcp__", StringComparison.Ordinal)) return name ?? "";
+            string rest = name.Substring(5);
+            int cut = rest.IndexOf("__", StringComparison.Ordinal);
+            if (cut <= 0 || cut + 2 >= rest.Length) return name;
+            return ServerName(rest.Substring(0, cut)) + " · " + rest.Substring(cut + 2);
+        }
         public static string Duration(double ms)
         {
             if (Double.IsNaN(ms)) return "—";
@@ -648,16 +687,20 @@ namespace ClaudeDashboard
         public string Change(double now, double before)
         {
             if (!HasPrevious || before < 0) return Range == All ? "everything kept" : "no earlier days to compare";
+            if (!EnoughBefore) return "too little before";
             if (before == 0) return now > 0 ? "new this period" : "none before either";
             double change = (now - before) / before;
             if (Math.Abs(change) < 0.005) return "same as before";
             return (change > 0 ? "↑ " : "↓ ") + Percent(Math.Abs(change)) + " on before";
         }
+        // A change is shown only when the period before has enough to compare with: 3 active days and 50 replies.
+        public const int EnoughDays = 3, EnoughReplies = 50;
+        public bool EnoughBefore { get { return HasPrevious && PrevReplies >= EnoughReplies && (PrevActiveDays < 0 || PrevActiveDays >= EnoughDays); } }
         public string ComparedLine()
         {
             string span = Start.ToString("d MMM", CultureInfo.InvariantCulture) + " to " + End.ToString("d MMM", CultureInfo.InvariantCulture);
             if (Range == All) return span + " · everything kept, so nothing to compare with";
-            return span + " · compared with the previous " + (Range == Week ? "7" : "30") + " days" + (HasPrevious ? "" : " (none kept)");
+            return span + " · compared with the previous " + (Range == Week ? "7" : "30") + " days" + (!HasPrevious ? " (none kept)" : EnoughBefore ? "" : " (too little before to compare: " + (PrevActiveDays >= 0 ? PrevActiveDays + " active day" + (PrevActiveDays == 1 ? "" : "s") + ", " : "") + Count(PrevReplies) + " replies)");
         }
         public string FootLine()
         {
@@ -672,7 +715,7 @@ namespace ClaudeDashboard
                 new InsightsFigure { Name = "Replies", Value = Count(Replies), Change = Change(Replies, HasPrevious ? PrevReplies : -1) },
                 new InsightsFigure { Name = "≈ $ at API prices", Value = "≈ " + Cost.ToString("0.00", CultureInfo.InvariantCulture), Change = Change(Cost, HasPrevious ? PrevCost : -1) },
                 new InsightsFigure { Name = "Sessions", Value = Count(Sessions), Change = Change(Sessions, HasPrevious ? PrevSessions : -1) },
-                new InsightsFigure { Name = "Models", Value = Count(Models.Count), Change = Models.Count == 0 ? "" : "most: " + Models[0].Name } };
+                new InsightsFigure { Name = "Models", Value = Count(Models.Count), Change = Models.Count == 0 ? "" : "most: " + ModelName(Models[0].Name) } };
         }
         public List<string> EffortLevels()
         {
@@ -684,14 +727,14 @@ namespace ClaudeDashboard
         {
             double share = Replies > 0 ? (double)ThinkingReplies / Replies : Double.NaN;
             return new List<InsightsFigure> {
-                new InsightsFigure { Name = "Replies with thinking", Value = Percent(share), Change = Double.IsNaN(PrevThinkingShare) || !HasPrevious ? "" : "was " + Percent(PrevThinkingShare) },
+                new InsightsFigure { Name = "Replies with thinking", Value = Percent(share), Change = Double.IsNaN(PrevThinkingShare) || !HasPrevious ? "" : !EnoughBefore ? "too little before" : "was " + Percent(PrevThinkingShare) },
                 new InsightsFigure { Name = "Thinking, ≈ median", Value = Double.IsNaN(ThinkingMedianMs) ? "—" : "≈ " + Duration(ThinkingMedianMs), Change = Double.IsNaN(ThinkingMedianMs) ? "no thinking times logged" : "" },
                 new InsightsFigure { Name = "Thinking, longest", Value = Double.IsNaN(ThinkingLongestMs) ? "—" : Duration(ThinkingLongestMs) } };
         }
         public List<InsightsFigure> HealthFigures()
         {
             return new List<InsightsFigure> {
-                new InsightsFigure { Name = "API errors", Value = Count(ApiErrors), Change = Change(ApiErrors, HasPrevious ? PrevApiErrors : -1), Warns = ApiErrors > 0 && PrevApiErrors >= 0 && ApiErrors > 2 * Math.Max(1, PrevApiErrors) },
+                new InsightsFigure { Name = "API errors", Value = Count(ApiErrors), Change = Change(ApiErrors, HasPrevious ? PrevApiErrors : -1), Warns = EnoughBefore && ApiErrors > 0 && PrevApiErrors >= 0 && ApiErrors > 2 * Math.Max(1, PrevApiErrors) },
                 new InsightsFigure { Name = "Retries", Value = Count(Retries), Change = Change(Retries, HasPrevious ? PrevRetries : -1) },
                 new InsightsFigure { Name = "Compactions", Value = Count(Compactions), Change = Change(Compactions, HasPrevious ? PrevCompactions : -1) } };
         }

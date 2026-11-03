@@ -74,7 +74,19 @@ internal static class InsightsViewTests
                 if (label == ClaudeInsights.All) Assert(m.Change(5, -1).Contains("everything kept") && m.ComparedLine().Contains("nothing to compare"), "All compares with something");
             }
             var week = InsightsModel.From(set.Week);
+            long sampleBefore = week.PrevReplies; week.PrevReplies = 100;
             Assert(week.Change(120, 100) == "↑ 20% on before" && week.Change(80, 100) == "↓ 20% on before" && week.Change(5, 0) == "new this period", "change words");
+            week.PrevReplies = 3;
+            Assert(week.Change(5000, 3) == "too little before" && week.ComparedLine().Contains("too little before") && (week.ThinkingFigures()[0].Change.Length == 0 || week.ThinkingFigures()[0].Change == "too little before"), "a nearly empty period before still compares");
+            week.PrevReplies = 50; week.PrevActiveDays = 2;
+            Assert(week.Change(120, 100) == "too little before", "2 active days before still compare");
+            week.PrevActiveDays = 3;
+            Assert(week.Change(120, 100) == "↑ 20% on before", "3 active days and 50 replies don't compare");
+            week.PrevReplies = sampleBefore; week.PrevActiveDays = -1;
+            Assert(InsightsModel.ModelName("claude-opus-5-5") == "Opus 5.5" && InsightsModel.ModelName("claude-fable-5-1") == "Fable 5.1" && InsightsModel.ModelName("claude-haiku-4-5-20251001") == "Haiku 4.5"
+                && InsightsModel.ModelName("claude-3-5-sonnet-20241022") == "Sonnet 3.5" && InsightsModel.ModelName("gpt-x") == "gpt-x" && InsightsModel.ModelName("claude-opus-5-5[1m]") == "claude-opus-5-5[1m]", "model names");
+            Assert(InsightsModel.ToolName("mcp__hearthbot__post_message") == "hearthbot · post_message" && InsightsModel.ToolName("Bash") == "Bash"
+                && InsightsModel.ServerName("1a59c906-1234-4abc-9def-0123456789ab") == "Connector 1a59c9" && InsightsModel.ToolName("mcp__1a59c906-1234-4abc-9def-0123456789ab__search") == "Connector 1a59c9 · search", "tool and server names");
             Assert(week.ThinkingFigures().Where(f => f.Name.Contains("median")).All(f => f.Name.Contains("≈") && (f.Value == "—" || f.Value.StartsWith("≈ "))), "the thinking median from buckets has no ≈");
             var tools = week.ToolsFor("");
             for (int i = 1; i < tools.Count; i++) Assert(tools[i - 1].Calls > tools[i].Calls || (tools[i - 1].Calls == tools[i].Calls && String.Compare(tools[i - 1].Name, tools[i].Name, StringComparison.OrdinalIgnoreCase) <= 0), "tools aren't most used first, ties by name");
@@ -123,7 +135,7 @@ internal static class InsightsViewTests
                 AppController.Lay(window, new Size(1100, 700));
                 if (insights.Shown.Models.Count > 1)
                 {
-                    string model = insights.Shown.Models[1].Name;
+                    string model = InsightsModel.ModelName(insights.Shown.Models[1].Name);
                     var filter = Descendants(insights.Page).OfType<Button>().FirstOrDefault(b => System.Windows.Automation.AutomationProperties.GetName(b) == "Tools for " + model);
                     Assert(filter != null, "no filter button for " + model);
                     filter.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
