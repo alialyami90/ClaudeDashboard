@@ -115,6 +115,21 @@ namespace WidgetScreen
         public static bool Warns(double percent) { return percent >= 80; }
         public static double Percent(ClaudeLimitWindow window, DateTime now) { return window == null || !window.Current(now) ? 0 : window.Percent; }
         // The heading's live summary: "1 needs you · 2 running · 6 threads today".
+        // The window header's summary when its line is narrow: the two most urgent parts, then the thread count without
+        // the period's words ("1 needs you · 2 running · 8 threads"), so it stays whole words.
+        public static string ShortSummary(ClaudeView view, ClaudePeriod period)
+        {
+            if (!view.Connected && view.Threads.Count == 0) return "Not connected";
+            var parts = new List<string>();
+            if (view.NeedsYou > 0) parts.Add(view.NeedsYou + " needs you");
+            if (view.Stuck > 0) parts.Add(view.Stuck + " stuck");
+            int turn = view.Sessions.Count(s => s.Pit == PitState.Done);
+            if (turn > 0) parts.Add(turn + " your turn");
+            if (view.Working > 0) parts.Add(view.Working + " running");
+            parts = parts.Take(2).ToList();
+            parts.Add(Threads(view.Groups(period).Sum(g => g.Threads.Count)));
+            return String.Join(" · ", parts);
+        }
         public static string Summary(ClaudeView view, ClaudePeriod period, bool threads)
         {
             if (!view.Connected && view.Threads.Count == 0) return "Not connected";

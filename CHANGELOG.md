@@ -6,6 +6,12 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.47.1 (unreleased)
+
+Claude Dashboard: the header's summary.
+
+- **The summary is never cut.** The header's live summary ("1 needs you · 2 running · 8 threads this week") showed as "8 th…" when the period buttons took its room, even at 1000 × 600. Now it stays beside the name and the buttons only when it fits there whole; otherwise it moves, with the Sample flag, to a line of its own under them, and the card gives up those 28 units. On a narrow window it shortens to the two most urgent parts and the thread count ("1 needs you · 2 running · 8 threads"), and if even that doesn't fit it stops at a whole word.
+
 ## v0.46.0 (2 Nov 2026)
 
 Claude Dashboard, phase 5 of decision 026: its own settings folder.

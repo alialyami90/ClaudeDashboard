@@ -29,7 +29,8 @@ namespace WidgetScreen
         private ConfirmSheet settingsConfirm;
         private bool openingSettings, savingSettings, closing, disposed;
         private int ticks, statusClearsAt = int.MaxValue;
-        private string pendingMessage, shownTitle;
+        private string pendingMessage, shownTitle, fullSummary = "", shortSummary = "";
+        private double headerWidth;
         // The text size the card is laid out for: the saved one, or the one Settings previews.
         private double appearanceScale = 1;
         private static readonly ClaudePeriod[] HeaderPeriods = { ClaudePeriod.FiveHour, ClaudePeriod.Today, ClaudePeriod.Week };
@@ -173,11 +174,45 @@ namespace WidgetScreen
         // flag, then the buttons' words (their glyphs and tooltips stay), then the period switch.
         private void FitHeader(double width)
         {
+            if (width > 0) headerWidth = width;
+            width = headerWidth;
+            if (width <= 0) return;
             Control<TextBlock>("AppName").Visibility = width >= 900 ? Visibility.Visible : Visibility.Collapsed;
-            Control<TextBlock>("ClaudeFlag").Visibility = width >= 720 ? Visibility.Visible : Visibility.Collapsed;
             var words = width >= 620 ? Visibility.Visible : Visibility.Collapsed;
             Control<TextBlock>("QuietLabel").Visibility = words; Control<TextBlock>("SettingsLabel").Visibility = words;
             Control<StackPanel>("PeriodSwitch").Visibility = width >= 480 ? Visibility.Visible : Visibility.Collapsed;
+            // The summary is never cut mid-word (Lead's review of package 4): in full beside the name and the buttons
+            // when it fits there, else on a line of its own under them, in full or in its short form.
+            var summary = Control<TextBlock>("ClaudeSummary"); var flag = Control<TextBlock>("ClaudeFlag");
+            var line = Control<DockPanel>("SummaryLine"); var header = Control<Grid>("Header");
+            double room = width - 6 - 24 - 20;
+            double used = Desired(Control<TextBlock>("AppName")) + Desired(Control<StackPanel>("HeaderActions"));
+            double flagWidth = flag.Text.Length == 0 ? 0 : Measure(flag, flag.Text) + 24;
+            double full = 16 + Measure(summary, fullSummary) + flagWidth;
+            bool oneLine = used + full <= room;
+            bool whole = oneLine || full <= room;
+            summary.Text = whole ? fullSummary : shortSummary;
+            flag.Margin = new Thickness(12, 0, oneLine ? 12 : 0, 0);
+            Grid.SetRow(line, oneLine ? 0 : 1); Grid.SetColumn(line, oneLine ? 1 : 0); Grid.SetColumnSpan(line, oneLine ? 1 : 3);
+            header.RowDefinitions[1].Height = new GridLength(oneLine ? 0 : 28);
+            Control<Grid>("DashboardContent").RowDefinitions[0].Height = new GridLength(oneLine ? 56 : 84);
+            HeaderTwoLines = !oneLine;
+        }
+        // Whether the summary is on its own line under the name and the buttons (for the checks).
+        public bool HeaderTwoLines { get; private set; }
+        private static double Desired(FrameworkElement element)
+        {
+            if (element.Visibility != Visibility.Visible) return 0;
+            element.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
+            return element.DesiredSize.Width;
+        }
+        // A text's width in a TextBlock's font, without changing it.
+        private static double Measure(TextBlock block, string text)
+        {
+            if (String.IsNullOrEmpty(text)) return 0;
+            var probe = new TextBlock { Text = text, FontFamily = block.FontFamily, FontSize = block.FontSize, FontWeight = block.FontWeight, FontStyle = block.FontStyle, FontStretch = block.FontStretch };
+            probe.Measure(new Size(Double.PositiveInfinity, Double.PositiveInfinity));
+            return Math.Ceiling(probe.DesiredSize.Width) + 1;
         }
 
         // The header follows every fill of the card: the live summary, its dot, the flag, the chosen period, and the
@@ -187,7 +222,8 @@ namespace WidgetScreen
             var view = claudeCard.View;
             var summary = Control<TextBlock>("ClaudeSummary"); var dot = Control<Ellipse>("ClaudeSummaryDot"); var flag = Control<TextBlock>("ClaudeFlag");
             bool needs = view != null && view.NeedsYou > 0;
-            summary.Text = view == null ? "Reading Claude Code…" : ClaudeText.Summary(view, claudeCard.Period, true);
+            fullSummary = view == null ? "Reading Claude Code…" : ClaudeText.Summary(view, claudeCard.Period, true);
+            shortSummary = view == null ? fullSummary : ClaudeText.ShortSummary(view, claudeCard.Period);
             summary.SetResourceReference(TextBlock.ForegroundProperty, needs ? "Warning" : "Text");
             dot.SetResourceReference(Shape.FillProperty, needs ? "Warning" : view != null && view.Working > 0 ? "Accent" : "Muted");
             flag.Text = view == null ? "" : ClaudeText.Flag(view, DateTime.UtcNow, settings.Use24HourClock, true);
@@ -202,6 +238,7 @@ namespace WidgetScreen
             }
             string title = needs ? (view.NeedsYou == 1 ? "Claude needs you" : view.NeedsYou + " sessions need you") + " · Claude Dashboard" : "Claude Dashboard";
             if (title != shownTitle) { shownTitle = title; window.Title = title; }
+            FitHeader(0);
         }
 
         private void ToggleQuiet()

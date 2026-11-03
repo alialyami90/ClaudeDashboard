@@ -13,8 +13,13 @@
     <Border x:Name="WindowEdge" BorderThickness="3" BorderBrush="Transparent" AutomationProperties.Name="Claude Dashboard">
       <Grid x:Name="DashboardContent">
         <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <DockPanel x:Name="Header" Margin="24,12,20,0" LastChildFill="True">
-          <StackPanel x:Name="HeaderActions" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+        <!-- One line when everything fits; otherwise the summary and the flag take a second line under the name and the
+             buttons (AppController.FitHeader), so the summary is never cut mid-word. -->
+        <Grid x:Name="Header" Margin="24,12,20,0">
+          <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="0"/></Grid.RowDefinitions>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <TextBlock x:Name="AppName" Text="Claude Dashboard" FontSize="{DynamicResource TitleSize}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,18,0" TextTrimming="None"/>
+          <StackPanel x:Name="HeaderActions" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
             <StackPanel x:Name="PeriodSwitch" Orientation="Horizontal" Margin="0,0,10,0" AutomationProperties.Name="Period">
               <Button x:Name="ShellPeriod0" Content="5 h" Style="{DynamicResource HeaderButton}" MinWidth="52" ToolTip="Threads and usage in the last 5 hours"/>
               <Button x:Name="ShellPeriod1" Content="Today" Style="{DynamicResource HeaderButton}" MinWidth="52" ToolTip="Threads and usage today"/>
@@ -27,13 +32,14 @@
               <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE713;" Style="{DynamicResource Glyph}"/><TextBlock x:Name="SettingsLabel" Text="Settings" Margin="8,0,0,0" FontSize="{DynamicResource SmallSize}" VerticalAlignment="Center"/></StackPanel>
             </Button>
           </StackPanel>
-          <TextBlock x:Name="AppName" Text="Claude Dashboard" DockPanel.Dock="Left" FontSize="{DynamicResource TitleSize}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,18,0" TextTrimming="None"/>
-          <TextBlock x:Name="ClaudeFlag" DockPanel.Dock="Right" Text="" Style="{DynamicResource Caption}" VerticalAlignment="Center" Margin="12,0,12,0"/>
-          <DockPanel x:Name="SummaryRow" VerticalAlignment="Center" LastChildFill="True">
-            <Ellipse x:Name="ClaudeSummaryDot" DockPanel.Dock="Left" Width="8" Height="8" Fill="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,1,8,0"/>
-            <TextBlock x:Name="ClaudeSummary" Text="" FontSize="{DynamicResource BodySize}" VerticalAlignment="Center"/>
+          <DockPanel x:Name="SummaryLine" Grid.Column="1" VerticalAlignment="Center" LastChildFill="True">
+            <TextBlock x:Name="ClaudeFlag" DockPanel.Dock="Right" Text="" Style="{DynamicResource Caption}" VerticalAlignment="Center" Margin="12,0,12,0"/>
+            <DockPanel x:Name="SummaryRow" VerticalAlignment="Center" LastChildFill="True">
+              <Ellipse x:Name="ClaudeSummaryDot" DockPanel.Dock="Left" Width="8" Height="8" Fill="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,1,8,0"/>
+              <TextBlock x:Name="ClaudeSummary" Text="" FontSize="{DynamicResource BodySize}" VerticalAlignment="Center" TextTrimming="WordEllipsis"/>
+            </DockPanel>
           </DockPanel>
-        </DockPanel>
+        </Grid>
         <!-- ClaudeCard builds the Small, Medium or Large design in ClaudeBody (docs/design/claude-watcher.md). -->
         <Border x:Name="ClaudeCard" Grid.Row="1" Padding="24" Background="Transparent" AutomationProperties.Name="Claude Code">
           <Grid x:Name="ClaudeBody"/>
