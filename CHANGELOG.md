@@ -8,9 +8,12 @@ Nothing yet.
 
 ## v0.56.1 (unreleased)
 
-Claude Dashboard: "Limit reached" from the engine.
+Claude Dashboard: lap chart follow-ups, and "Limit reached" from the engine.
 
 - **`ClaudeLimitProjection.Reached`**: when the newest plan reading of the 5-hour window is already at 100%, both projections say Reached. `LimitAt` is then null, so no view ever shows "≈ limit" at a time that has already passed. Live's 5-hour line and the curve's label say "Limit reached" in Amber, with no wall. Shell's header keys off the same flag.
+- **A frame clock for the views.** A view asks the window for frames while a car moves (`ClaudeViewContext.Frames`). The window's one timer for it runs only while that view is on screen, the window isn't minimised and Quiet mode isn't keeping the cars still, the same rule as Garage's cars. A view is told Quiet (`ClaudeViewContext.Quiet`).
+- **Each view tab has its name** for screen readers. Tab after Live's last lane landed on a tab with none.
+- **The header says "Limit reached"** in Amber, with no "≈ limit" time, while the 5-hour window is Reached.
 - **Checks:** a full window is Reached with no time, in the engine and on Live's line.
 
 ## v0.56.0 (unreleased)

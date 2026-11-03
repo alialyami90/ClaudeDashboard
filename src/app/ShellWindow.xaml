@@ -49,12 +49,12 @@
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <TabControl x:Name="ViewTabs" Style="{DynamicResource ViewTabs}" AutomationProperties.Name="Views" HorizontalAlignment="Left">
-            <TabItem x:Name="ViewTab0" Header="Live" Style="{DynamicResource ViewTab}" ToolTip="Live: every session on the lap chart (Ctrl+1)"/>
-            <TabItem x:Name="ViewTab1" Header="Garage" Style="{DynamicResource ViewTab}" ToolTip="Garage: the pit wall by project, for 5 h, today or the week (Ctrl+2)"/>
-            <TabItem x:Name="ViewTab2" Header="Limits" Style="{DynamicResource ViewTab}" ToolTip="Limits: the 5-hour window and the week (Ctrl+3)"/>
-            <TabItem x:Name="ViewTab3" Header="History" Style="{DynamicResource ViewTab}" ToolTip="History: the last eight weeks (Ctrl+4)"/>
-            <TabItem x:Name="ViewTab4" Header="Reliability" Style="{DynamicResource ViewTab}" ToolTip="Reliability: tool failures, API errors and stuck turns (Ctrl+5)"/>
-            <TabItem x:Name="ViewTab5" Header="Sources" Style="{DynamicResource ViewTab}" ToolTip="Sources: where every number comes from (Ctrl+6)"/>
+            <TabItem x:Name="ViewTab0" Header="Live" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Live" ToolTip="Live: every session on the lap chart (Ctrl+1)"/>
+            <TabItem x:Name="ViewTab1" Header="Garage" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Garage" ToolTip="Garage: the pit wall by project, for 5 h, today or the week (Ctrl+2)"/>
+            <TabItem x:Name="ViewTab2" Header="Limits" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Limits" ToolTip="Limits: the 5-hour window and the week (Ctrl+3)"/>
+            <TabItem x:Name="ViewTab3" Header="History" Style="{DynamicResource ViewTab}" AutomationProperties.Name="History" ToolTip="History: the last eight weeks (Ctrl+4)"/>
+            <TabItem x:Name="ViewTab4" Header="Reliability" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Reliability" ToolTip="Reliability: tool failures, API errors and stuck turns (Ctrl+5)"/>
+            <TabItem x:Name="ViewTab5" Header="Sources" Style="{DynamicResource ViewTab}" AutomationProperties.Name="Sources" ToolTip="Sources: where every number comes from (Ctrl+6)"/>
           </TabControl>
           <Border x:Name="TabSources" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="16,0,0,0"/>
         </Grid>
