@@ -6,6 +6,17 @@ Released versions of Claude Dashboard (formerly Widget Screen), newest first. Ea
 
 Nothing yet.
 
+## v0.50.0 (unreleased)
+
+Claude Dashboard: every number says where it came from (observability critique, issue 3).
+
+- **The source-health line.** Under the card, at every size: Hooks · Logs · Telemetry · Plan, each with a Segoe MDL2 glyph and words. A source is fine, still waiting ("Logs counting…", "Plan reading…"), old ("Plan 12 min old"), off with the reason ("Hooks off: not connected", "Telemetry off: not set up", "Plan off: not signed in") or failed ("Logs unreadable", "Telemetry off: port 43832 in use"). Old and failed are Amber; each level has its own glyph, so colour isn't the only sign. The tooltip and the screen-reader name give the full reason. On a narrow window the reasons shorten, then the fine sources keep only their glyph; the line never folds away and never cuts a word. The card's bottom padding is 8 units, so Small keeps its 5-hour meter at the smallest window.
+- **"Telemetry off: port 43832 in use"** moves from the side panel (only from 1000 units wide) to this line.
+- **Sample is pinned** at the start of the line at every size, Small included, instead of in the header flag that narrow windows dropped.
+- **Loading and unavailable look different.** While Claude Code's logs are still being read, token counts show "≈1.2M" and the side panel's period says COUNTING. When the logs can't be read, tokens show "—" with "Can't read Claude Code's logs." in the tip, and the side panel says LOGS UNREADABLE.
+- **"PLAN · 2:17 AM"** replaces "LIVE · AS OF 2:17 PM" in the header. Numbers up to 15 minutes old were called live; how old they are is now on the source-health line.
+- **One meaning for "running".** The header's summary says "2 working" for sessions that are working, as the chips do. "Running" stays for open sessions under a project's name.
+
 ## v0.47.3 (unreleased)
 
 Claude Dashboard: the code's namespace is renamed.
