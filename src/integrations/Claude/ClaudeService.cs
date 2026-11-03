@@ -228,6 +228,9 @@ namespace ClaudeDashboard
         public DateTime? OldestLog;
         public int? LogsKeptDays;
         public bool LogsKeptByUs;
+        // v0.60.0: the Insights ranges (7 days, 30 days, all kept), computed after each background scan; null until
+        // the first one (or with History off).
+        public ClaudeInsightsSet Insights;
         // "Telemetry off: port 43832 in use" when the receiver couldn't listen where settings.json sends it (decision 023).
         public string TelemetryWarning = "";
         // v0.59.0: the two parts of that line apart, so Sources and the health line put each on its own row: telemetry's
@@ -323,7 +326,7 @@ namespace ClaudeDashboard
         public const string SampleLongTool = "mcp__github__create_pull_request_review_comment_reply";
         public static ClaudeView Fixture(DateTime now, bool needsYou, bool crowded)
         {
-            var view = new ClaudeView { Connected = true, Sample = true, LogsRead = true, Plan = ClaudePlanState.Current };
+            var view = new ClaudeView { Connected = true, Sample = true, LogsRead = true, Plan = ClaudePlanState.Current, Insights = ClaudeInsightsSet.SampleSet(now) };
             foreach (ClaudePeriod period in Enum.GetValues(typeof(ClaudePeriod))) view.Starts[period] = ClaudeUsage.Start(period, null, now);
             // A running thread when state is given; an ended one (asleep) otherwise, last active minutes ago.
             Func<string, string, string, ClaudeState?, double, string, long, ClaudeSession> make = (id, project, title, state, minutes, model, tokens) => {
@@ -1055,6 +1058,8 @@ namespace ClaudeDashboard
                 view.BackfillOn = backfill.Enabled; view.BackfillDone = backfill.Done; view.BackfillRead = backfill.FilesRead; view.BackfillTotal = backfill.FilesTotal;
                 view.BackfillDays = backfill.DaysWritten; view.OldestLog = backfill.OldestLog; view.BackfillSkipped = backfill.FilesSkipped;
             }
+            // v0.60.0: the Insights ranges the last background scan worked out.
+            view.Insights = Insights;
             // settings.json's cleanupPeriodDays, read with the connection every 10 s (CheckConnected) and at once after
             // Keep logs a year or its Undo; no read of its own here.
             var kept = logsKept;
@@ -1064,6 +1069,8 @@ namespace ClaudeDashboard
         private void ReadLogsKept() { try { logsKept = Tuple.Create(Connector.CleanupDays(), Connector.LogsKeptByUs); } catch (Exception) { } }
         // After Sources' Keep logs a year or Undo: settings.json is read again now.
         public void LogsKeptChanged() { ReadLogsKept(); }
+        // v0.60.0: set after each background scan (AppController.ScanClaudeLogs), off the UI thread; null with History off.
+        public volatile ClaudeInsightsSet Insights;
 
         // Package 2, the cost's sources: Claude Code's own cost (telemetry) wins, then the price table; a session whose
         // replies came from a model the table doesn't know shares the rest of its status-line total between those
