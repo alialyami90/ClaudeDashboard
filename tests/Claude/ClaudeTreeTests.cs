@@ -263,7 +263,7 @@ internal static class ClaudeTreeTests
                             Assert(cardView.Garages()[index].Value.Count == 0, "The folded garage still shows cars at " + size + ".");
                             Assert(SettingsStore.Load(path, out warning).ClaudeCollapsed.Contains(project), "The fold wasn't kept in settings.xml.");
                             if (CardSizing.Claude(size.Width, size.Height) == CardSizing.Design.Large)
-                                Assert(Descendants(card).OfType<TextBlock>().Any(t => t.Inlines.OfType<Run>().Any(r => r.Text.Contains("in the garage · tap to roll them out"))), "A folded garage doesn't say its cars are inside.");
+                                Assert(Descendants(card).OfType<TextBlock>().Any(t => t.Inlines.OfType<Run>().Any(r => r.Text.Contains("in the garage · click to roll them out"))), "A folded garage doesn't say its cars are inside.");
                             Assert(!cardView.Toggle(project), "Rolling the cars out didn't happen.");
                             layout();
                             Assert(cardView.Garages()[index].Value.Count == before && !SettingsStore.Load(path, out warning).ClaudeCollapsed.Contains(project), "The cars didn't come back, or the fold stayed in settings.xml.");
