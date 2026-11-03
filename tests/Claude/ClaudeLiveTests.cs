@@ -96,9 +96,10 @@ internal static class ClaudeLiveTests
                                     liveSeen = true;
                                     var signs = Named(window, "ClaudeThreadSign").OfType<TextBlock>().Select(t => t.Text).ToList();
                                     Assert(signs.Any(t => t == "just now"), "No live row says just now at " + name + ": " + String.Join(",", signs));
-                                    var nows = Named(window, "ClaudeThreadNow").OfType<TextBlock>().Where(t => t.Parent != null && ((FrameworkElement)t.Parent).IsVisible).Select(t => t.Text).ToList();
+                                    // A window drawn off screen is never IsVisible; a part in the tree has a width once laid out.
+                                    var nows = Named(window, "ClaudeThreadNow").OfType<TextBlock>().Where(t => t.Parent != null && t.ActualWidth > 0).Select(t => t.Text).ToList();
                                     if (nows.Any(t => t.StartsWith("Bash"))) nowSeen = true;
-                                    foreach (var f in Named(window, "ClaudeThreadFor").OfType<TextBlock>()) if (f.IsVisible) Whole(f, "For");
+                                    foreach (var f in Named(window, "ClaudeThreadFor").OfType<TextBlock>()) if (f.Parent != null && f.ActualWidth > 0) Whole(f, "For at " + name);
                                 }
                                 // The plan row's time words fit (the Lead's 140% renders cut them at 1000 × 600).
                                 Whole(window.FindName("ClaudeFiveHourPace") as TextBlock, "The tank's pace at " + name);
