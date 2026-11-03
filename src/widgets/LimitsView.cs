@@ -90,7 +90,7 @@ namespace ClaudeDashboard
             var top = CardParts.Columns(CardParts.Auto, CardParts.Star); top.Margin = new Thickness(0, 10, 0, 10);
             var big = CardParts.Reading(Math.Round(m.Percent).ToString(CultureInfo.InvariantCulture) + "%", S(56)); big.SetResourceReference(TextBlock.ForegroundProperty, "Text");
             top.Children.Add(CardParts.At(big, 0, 0));
-            var projection = LapParts.Words(m.ProjectionLine(context.Use24Hour), S(15), m.PaceHits.HasValue ? "Warning" : "Text");
+            var projection = LapParts.Words(m.ProjectionLine(context.Use24Hour), S(15), m.PaceHits.HasValue || m.LimitReached ? "Warning" : "Text");
             projection.VerticalAlignment = VerticalAlignment.Center; projection.Margin = new Thickness(16, 0, 0, 0);
             top.Children.Add(CardParts.At(projection, 0, 1));
             stack.Children.Add(top);
@@ -295,6 +295,9 @@ namespace ClaudeDashboard
         public static readonly TimeSpan FiveHours = TimeSpan.FromHours(5), WeekSpan = TimeSpan.FromDays(7);
 
         public bool Sample, Known;
+        // The engine says the newest reading of this window is at 100% (LimitAtPace.Reached, v0.56.1).
+        public bool Reached;
+        public bool LimitReached { get { return Known && (Reached || Percent >= 100); } }
         public string Missing = "";
         public DateTime Now, Start, Reset, UpdatedAt;
         public double Percent;
@@ -356,6 +359,11 @@ namespace ClaudeDashboard
         private static void Project(LimitsModel m, ClaudeView view)
         {
             var pace = view.LimitAtPace; var average = view.LimitAtAverage;
+            m.Reached = pace != null && pace.Reached;
+            // The engine's newest reading can be newer than the limits the snapshot holds.
+            if (m.Reached && m.Percent < 100) m.Percent = 100;
+            // At the limit there's nothing left to project: no pace or average lines, only "Limit reached".
+            if (m.LimitReached) return;
             if (pace == null || !pace.Known)
             {
                 string why = pace == null || String.IsNullOrEmpty(pace.Why) ? "not enough plan readings yet: ≈ limit needs " + ReadingsNeeded : pace.Why;
@@ -481,7 +489,7 @@ namespace ClaudeDashboard
 
         public string ProjectionLine(bool use24)
         {
-            if (Percent >= 100) return "Limit reached. It resets " + ClaudeText.Clock(Reset, use24) + ".";
+            if (LimitReached) return "Limit reached. It resets " + ClaudeText.Clock(Reset, use24) + ".";
             if (NoProjection.Length > 0) return NoProjection;
             if (PaceHits.HasValue)
                 return "At the last 30 minutes' pace you hit the limit ≈ " + ClaudeText.Clock(PaceHits.Value, use24) + ", " + ClaudeText.Duration(Reset - PaceHits.Value) + " before it resets.";
@@ -492,7 +500,7 @@ namespace ClaudeDashboard
         public string LegendLine(bool use24)
         {
             if (!Known) return "";
-            if (NoProjection.Length > 0) return "Line: plan readings in this window.";
+            if (LimitReached || NoProjection.Length > 0) return "Line: plan readings in this window.";
             var parts = new List<string> { "line: plan readings" };
             if (!Double.IsNaN(PaceSlope)) parts.Add("dashed: last 30 minutes' pace");
             if (AverageHits.HasValue) parts.Add("dotted: ≈ limit at " + AverageName + ", from tokens, " + ClaudeText.Clock(AverageHits.Value, use24));

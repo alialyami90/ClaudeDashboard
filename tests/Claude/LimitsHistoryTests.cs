@@ -109,6 +109,28 @@ internal static class LimitsHistoryTests
             Assert(m.Readings.Count == 7, "readings in the window: " + m.Readings.Count);
         });
 
+        check("Lap chart: at the limit Limits says Limit reached in amber, with no projection or average", () => {
+            var view = ClaudeView.Fixture(Now, true);
+            view.Limits.FiveHour.Percent = 98; view.Limits.FiveHour.ResetsAt = Now.AddMinutes(40);
+            view.PlanReadings = Enumerable.Range(0, 5).Select(i => new ClaudePlanReading { At = Now.AddMinutes(-20 + i * 5), Percent = 90 + i * 2.5, ResetsAt = Now.AddMinutes(40) }).ToList();
+            view.LimitAtPace = new ClaudeLimitProjection { Known = true, Reached = true, Readings = 5, PerHour = 30, AtReset = 100, ResetsAt = Now.AddMinutes(40) };
+            view.LimitAtAverage = new ClaudeLimitProjection { Basis = ClaudeLimitProjection.Average, Known = true, Reached = true, Readings = 5, PerHour = 8, AtReset = 100, ResetsAt = Now.AddMinutes(40) };
+            var m = LimitsModel.From(view, Now, true);
+            Assert(m.Reached && m.LimitReached && m.Percent >= 100, "not reached");
+            Assert(m.ProjectionLine(false).StartsWith("Limit reached"), "headline: " + m.ProjectionLine(false));
+            Assert(!m.PaceHits.HasValue && Double.IsNaN(m.PaceSlope) && Double.IsNaN(m.AverageSlope) && Double.IsNaN(m.AverageAtReset), "a projection at the limit");
+            Assert(!m.LegendLine(false).Contains("by reset") && !m.LegendLine(false).Contains("dotted"), "legend: " + m.LegendLine(false));
+            LapChart.LastError = null;
+            var limits = new LimitsView();
+            var host = Show(limits, view, 1000, 600, 1, true);
+            Assert(LapChart.LastError == null, "chart failed: " + LapChart.LastError);
+            var line = Descendants(host).OfType<TextBlock>().FirstOrDefault(t => (t.Text ?? "").StartsWith("Limit reached"));
+            Assert(line != null, "Limit reached isn't on screen");
+            var amber = (SolidColorBrush)host.Resources["Warning"];
+            var brush = line.Foreground as SolidColorBrush;
+            Assert(brush != null && brush.Color == amber.Color, "Limit reached isn't amber");
+        });
+
         check("Lap chart: heavy use's onset is where the readings start climbing at twice the window's pace", () => {
             var slowThenFast = Readings(-120, 5, -100, 8, -80, 11, -60, 14, -40, 17, -30, 27, -20, 37, -10, 47, 0, 57);
             Assert(LimitsModel.OnsetOf(slowThenFast) == Now.AddMinutes(-40), "onset: " + LimitsModel.OnsetOf(slowThenFast));
