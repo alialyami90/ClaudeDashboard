@@ -83,7 +83,14 @@ internal static class InsightsViewTests
                 string model = week.Models[0].Name;
                 var filtered = week.ToolsFor(model);
                 Assert(filtered.All(t => t.Calls > 0) && filtered.Sum(t => t.Calls) <= tools.Sum(t => t.Calls), "the model filter adds calls");
-                Assert(filtered.All(t => t.Errors < 0 && t.AllModels), "the model filter shows estimated errors as counts");
+                var engine = set.Week.Tools;
+                foreach (var t in filtered)
+                {
+                    var r = engine.First(x => x.Name == t.Name);
+                    int e; r.ErrorSplit.TryGetValue(model, out e);
+                    long? ms; r.MedianByModel.TryGetValue(model, out ms);
+                    Assert(t.Errors == e && (ms.HasValue ? Math.Abs(t.MedianMs - ms.Value) < 1e-9 : Double.IsNaN(t.MedianMs)), t.Name + ": the model filter's errors or ≈ median aren't that model's");
+                }
             }
         });
 

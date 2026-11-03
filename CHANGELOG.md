@@ -13,7 +13,7 @@ The Insights tab (decision 031, part B): a detailed view of Claude Code's logs.
 - **A 7th tab, Insights (Ctrl+7).** It has a range row (7 days, 30 days or All), and each total says how it changed against the previous 7 or 30 days. Switching range is instant: the engine works out all three ranges after each scan, and the tab only picks one.
 - **Models:** a share bar by tokens; a table of replies, tokens, ≈ $, thinking tokens and share; and tokens per day stacked by model.
 - **Effort and thinking:** replies by effort level for each model, the share of replies with thinking, and the ≈ median and longest thinking time.
-- **Tools:** the 10 most used and the 5 least used, with calls, errors, error % and ≈ median time, and a filter by model. MCP servers, skills and plugins are listed underneath.
+- **Tools:** the 10 most used and the 5 least used, with calls, errors, error % and ≈ median time, and a filter by model that shows that model's own calls, errors and ≈ times. MCP servers, skills and plugins are listed underneath.
 - **Projects:** ranked by tokens, with replies, ≈ $, sessions and lines + and −, and the most and least active.
 - **When:** an hour × weekday heat grid of tokens, and sessions per day.
 - **Health:** API errors, retries and compactions against the period before, how permissions were decided, and how replies ended.
